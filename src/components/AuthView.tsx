@@ -110,7 +110,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
     }
 
     if (regRole !== 'teacher' && academicPasscode.trim() !== 'admin 2516') {
-      setErrorMsg('รหัสตรวจรับสิทธิ์ควบคุมดูแลผู้บริหารระบบไม่ถูกต้อง (โปรดใช้ "admin 2516" หรือติดต่อแอดมินโรงเรียน)');
+      setErrorMsg('รหัสตรวจรับสิทธิ์ควบคุมดูแลผู้บริหารระบบไม่ถูกต้อง (กรุณาติดต่อผู้ดูแลระบบเพื่อขอรับรหัสผ่านที่ถูกต้อง)');
       setIsLoading(false);
       return;
     }
@@ -329,7 +329,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                     <li>เลือกตัวเลือก <strong className="text-blue-700 font-bold">Email/Password</strong></li>
                     <li>สวิตช์ปุ่มตัวแรกให้เป็น <strong className="text-emerald-700 font-bold">Enable (เปิดใช้งาน)</strong> แล้วกด <strong className="text-slate-950 font-black">Save (บันทึก)</strong></li>
                   </ol>
-                  <p className="text-[10px] text-slate-500 italic mt-2">เมื่อเสร็จสิ้นเรียบร้อย กลับมารีเฟรชหน้านี้เพื่อเข้าใช้งานระบบและบัญชีสาธิต (Demo Account) ได้ทันที!</p>
+                  <p className="text-[10px] text-slate-500 italic mt-2">เมื่อเสร็จสิ้นเรียบร้อย กลับมารีเฟรชหน้านี้เพื่อเข้าใช้งานระบบได้ทันที!</p>
                 </div>
               )}
             </div>
@@ -394,35 +394,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 </button>
               </div>
 
-              <div className="relative my-6 animate-fade-in">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-white text-slate-400 font-medium whitespace-nowrap">ตรวจสอบสิทธิ์ด้วยบัญชีสาธิต</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleUseDemoAccount('teacher')}
-                  className="bg-slate-50 hover:bg-slate-100 text-blue-600 font-bold py-2 px-3 rounded-xl border border-dashed border-blue-200 transition duration-200 text-[11px] flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
-                  <span>ทดสอบ: คุณครู</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleUseDemoAccount('academic')}
-                  className="bg-slate-50 hover:bg-slate-100 text-indigo-600 font-bold py-2 px-3 rounded-xl border border-dashed border-indigo-200 transition duration-200 text-[11px] flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <Shield className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>ทดสอบ: ฝ่ายวิชาการ</span>
-                </button>
-              </div>
             </form>
           ) : (
             /* Register Form */

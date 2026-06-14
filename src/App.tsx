@@ -1147,7 +1147,7 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1.5 flex-1 w-full text-left">
-                    {currentTeacher?.role === 'academic' ? (
+                    {currentTeacher?.role === 'admin' ? (
                       <>
                         <span className="text-[10px] font-bold text-slate-500 block">ตัวเลือกปรับเปลี่ยนตราสัญลักษณ์:</span>
                         <div className="flex flex-wrap gap-2">
@@ -1185,7 +1185,7 @@ export default function App() {
                       </>
                     ) : (
                       <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
-                        ⚠️ <strong>เฉพาะเจ้าหน้าที่ฝ่ายวิชาการเท่านั้น</strong> ที่มีสิทธิ์แก้ไขสัญลักษณ์/ตราสัญลักษณ์โรงเรียนได้ (ของบัญชีคุณครูผู้สอนจะเป็นสถานะอ่านอย่างเดียว)
+                        ⚠️ <strong>เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น</strong> ที่มีสิทธิ์แก้ไขสัญลักษณ์/ตราสัญลักษณ์โรงเรียนได้ (ของบัญชีคุณครูและฝ่ายวิชาการจะเป็นสถานะอ่านอย่างเดียว)
                       </div>
                     )}
                   </div>
