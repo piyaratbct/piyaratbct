@@ -401,10 +401,22 @@ export default function App() {
 
   // Delete Record
   const handleDeleteRecord = async (id: string) => {
+    if (!currentTeacher) return;
+
     try {
       const existing = records.find(r => r.id === id);
-      if (existing && existing.deptHeadApproved) {
-        alert('🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถลบได้');
+      if (!existing) return;
+
+      const isOwner = existing.teacherId === currentTeacher.id;
+      const isAdmin = currentTeacher.role === 'admin';
+
+      if (!isAdmin && !isOwner) {
+        alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์ลบประวัตินี้ได้');
+        return;
+      }
+
+      if (existing.deptHeadApproved) {
+        alert('🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขหรือลบได้');
         return;
       }
 
@@ -700,6 +712,8 @@ export default function App() {
                   records={records.filter(r => r.teacherId === currentTeacher.id)}
                   teachers={teachers}
                   showTeacherFilter={false}
+                  currentUserRole={currentTeacher.role}
+                  currentTeacherId={currentTeacher.id}
                   onEdit={(r) => {
                     if (r.deptHeadApproved) {
                       alert('🔒 เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');
@@ -914,6 +928,8 @@ export default function App() {
                 }
                 teachers={teachers}
                 showTeacherFilter={true}
+                currentUserRole={currentTeacher.role}
+                currentTeacherId={currentTeacher.id}
                 onEdit={(r) => {
                   if (r.deptHeadApproved) {
                     alert('🔒 เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');

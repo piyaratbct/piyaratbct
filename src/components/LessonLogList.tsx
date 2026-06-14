@@ -6,6 +6,8 @@ interface LessonLogListProps {
   records: LessonRecord[];
   teachers?: Teacher[];
   showTeacherFilter?: boolean;
+  currentUserRole?: string;
+  currentTeacherId?: string;
   onEdit: (record: LessonRecord) => void;
   onDelete: (id: string) => void;
   onPrintPreview: (record: LessonRecord) => void;
@@ -15,6 +17,8 @@ export function LessonLogList({
   records, 
   teachers, 
   showTeacherFilter = false, 
+  currentUserRole,
+  currentTeacherId,
   onEdit, 
   onDelete, 
   onPrintPreview 
@@ -448,25 +452,28 @@ export function LessonLogList({
                     </button>
                   )}
 
-                  {record.deptHeadApproved ? (
-                    <button
-                      disabled
-                      className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-400 bg-slate-100/60 border border-slate-200 rounded-lg cursor-not-allowed select-none text-[11px] font-bold"
-                      title="เอกสารลงนามอนุมัติแล้ว ไม่สามารถลบได้"
-                    >
-                      <Lock className="h-3.5 w-3.5 text-slate-400" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (window.confirm('ยืนยันที่จะลบบันทึกการสอนนี้ใช่ไหม?')) {
-                          onDelete(record.id);
-                        }
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg hover:border-rose-200 transition"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                  {(currentUserRole === 'admin' || (currentTeacherId && record.teacherId === currentTeacherId)) && (
+                    record.deptHeadApproved ? (
+                      <button
+                        disabled
+                        className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-400 bg-slate-100/60 border border-slate-200 rounded-lg cursor-not-allowed select-none text-[11px] font-bold"
+                        title="เอกสารลงนามอนุมัติแล้ว ไม่สามารถลบได้"
+                      >
+                        <Lock className="h-3.5 w-3.5 text-slate-400" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('ยืนยันที่จะลบบันทึกการสอนนี้ใช่ไหม?')) {
+                            onDelete(record.id);
+                          }
+                        }}
+                        className="flex items-center space-x-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg hover:border-rose-200 transition"
+                        title={currentUserRole === 'admin' ? "ลบบันทึก (เฉพาะผู้ดูแลระบบ)" : "ลบบันทึกการสอนความถูกต้องคีย์"}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )
                   )}
                 </div>
               </div>
