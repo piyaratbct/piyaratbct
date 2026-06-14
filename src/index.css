@@ -15,13 +15,18 @@ body {
 /* Print CSS */
 @media print {
   /* Hide the rest of the app, including body backgrounds, fixed layouts, menus */
-  body {
+  body, html, #root {
     background-color: #fff !important;
     color: #000 !important;
     font-family: "Sarabun", sans-serif !important;
   }
+
+  #root > div {
+    display: block !important;
+    background: white !important;
+  }
   
-  #root > :not(.print-container) {
+  #root > div > :not(.print-root-wrap) {
     display: none !important;
   }
 
