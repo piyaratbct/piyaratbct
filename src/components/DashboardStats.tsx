@@ -1,11 +1,13 @@
-import { LessonRecord, SUBJECTS } from '../types';
-import { BookOpen, GraduationCap, Calendar, Clock, BarChart3, Presentation } from 'lucide-react';
+import { LessonRecord, SUBJECTS, Teacher } from '../types';
+import { BookOpen, GraduationCap, Calendar, Clock, BarChart3, Presentation, Bell } from 'lucide-react';
 
 interface DashboardStatsProps {
   records: LessonRecord[];
+  currentTeacher?: Teacher | null;
+  teachers?: Teacher[];
 }
 
-export function DashboardStats({ records }: DashboardStatsProps) {
+export function DashboardStats({ records, currentTeacher, teachers }: DashboardStatsProps) {
   const totalLogs = records.length;
 
   // Calculate unique grade levels
@@ -59,8 +61,49 @@ export function DashboardStats({ records }: DashboardStatsProps) {
     };
   }).filter(item => item.count > 0 || item.name === 'ภาษาไทย' || item.name === 'คณิตศาสตร์' || item.name === 'วิทยาศาสตร์และเทคโนโลยี');
 
+  // Calculate records waiting for academic approval
+  const pendingApprovals = records.filter(r => r.teacherSigned && !r.deptHeadApproved);
+  const pendingCount = pendingApprovals.length;
+  const isAcademic = currentTeacher?.role && currentTeacher.role !== 'teacher';
+
+  const pendingTeachers = Array.from(
+    new Set(
+      pendingApprovals
+        .map(r => teachers?.find(t => t.id === r.teacherId)?.displayName)
+        .filter((name): name is string => !!name)
+    )
+  );
+
   return (
     <div className="space-y-6">
+      {isAcademic && pendingCount > 0 && (
+        <div id="academic-pending-alert" className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-3xs animate-pulse-once">
+          <div className="flex items-start space-x-3.5">
+            <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl mt-0.5 sm:mt-0 flex-shrink-0">
+              <Bell className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-amber-950 flex items-center gap-1.5 font-sans leading-none sm:leading-normal">
+                แจ้งเตือนสำหรับฝ่ายวิชาการ
+              </h4>
+              <p className="text-xs text-amber-850 font-medium mt-1">
+                มีบันทึกหลังสอนสะสมจำนวน <span className="font-extrabold text-amber-900 text-sm underline decoration-amber-450 decoration-2">{pendingCount} ชิ้นงาน</span> ที่คุณครูส่งตรวจแล้ว และ<strong>รอการลงชื่ออนุมัติ / ตรวจรับรองผลการจัดการเรียนการสอน</strong>
+              </p>
+              {pendingTeachers.length > 0 && (
+                <p className="text-[10px] text-amber-700 font-semibold mt-1.5 flex items-center gap-1">
+                  <span className="bg-amber-200/60 px-1.5 py-0.5 rounded text-amber-800 text-[9px]">รายชื่อคุณครู:</span> {pendingTeachers.join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="w-full sm:w-auto flex-shrink-0">
+            <div className="text-[10px] font-bold text-amber-800 bg-white/80 border border-amber-200 px-3 py-1.5 rounded-xl block text-center sm:text-left shadow-2xs">
+              👈 เลื่อนลงไปดูประวัติเพื่อลงชื่ออนุมัติ
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric Card 1 */}

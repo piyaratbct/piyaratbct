@@ -379,11 +379,17 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
     <div className="print-root-wrap fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex justify-center py-6 px-4 cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
       <style>{`
         @media print {
-          body {
+          html, body, #root, #root > div {
+            background: white !important;
             background-color: white !important;
             color: black !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            position: relative !important;
+            display: block !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -396,14 +402,16 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             display: none !important;
           }
           .print-root-wrap {
-            position: absolute !important;
+            position: relative !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             display: block !important;
             background: white !important;
+            overflow: visible !important;
           }
           .print-container {
             width: 100% !important;
@@ -414,6 +422,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             margin: 0 !important;
             background: white !important;
             color: black !important;
+            overflow: visible !important;
           }
           .print-break-avoid {
             page-break-inside: avoid !important;
@@ -450,13 +459,14 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 <span>พิมพ์หรือเซฟเป็น PDF</span>
               </button>
             ) : (
-              <div 
-                className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-slate-700 text-slate-400 font-bold py-2 px-4 rounded-xl text-xs select-none"
-                title="จำเป็นต้องลงนามตรวจจากหัวหน้าฝ่ายวิชาการเพื่อปลดล็อก"
+              <button
+                onClick={handlePrint}
+                className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded-xl text-xs transition duration-200 shadow-sm cursor-pointer animate-ping-once"
+                title="คลิกเพื่อพิมพ์ข้อมูลแบบร่าง"
               >
-                <Lock className="h-3.5 w-3.5 text-amber-500" />
-                <span>ล็อก PDF (รออนุมัติฝ่ายวิชาการ)</span>
-              </div>
+                <Printer className="h-4 w-4 text-white" />
+                <span>พิมพ์เอกสาร (แบบร่าง)</span>
+              </button>
             )}
             <button
               onClick={onClose}
@@ -502,7 +512,9 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           
           {!isFullyApproved ? (
             <div className="text-[10px] bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-xl font-bold">
-              💡 เลื่อนดูด้านล่างและคลิกปุ่มแผ่นตราสีเพื่อจำลองลายมือชื่อได้ทันที
+              {currentUser?.role === 'teacher' 
+                ? "💡 ตรวจสอบเนื้อหาด้านล่างให้เรียบร้อย และรอหัวหน้าฝ่ายวิชาการตรวจสอบเพื่อลงชื่อตรวจรับรองหลักสูตร" 
+                : "💡 เลื่อนดูด้านล่างและคลิกปุ่มแผ่นตราสีเพื่อจำลองลายมือชื่อและลงชื่อตรวจรับรองหลังสอนได้ทันที"}
             </div>
           ) : (
             <div className="text-[10px] bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 flex items-center gap-1">
@@ -698,7 +710,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                   {isDeptHeadApproved && record.deptHeadSignature ? (
                     <div className="relative h-20 flex items-center justify-center">
                       <img src={record.deptHeadSignature} alt="Academic Supervisor Signature" className="max-h-18 object-contain" referrerPolicy="no-referrer" />
-                      {allowAcademicSignature && currentUser?.role !== 'teacher' && !record.deptHeadApproved && (
+                      {allowAcademicSignature && currentUser?.role !== 'teacher' && (
                         <button 
                           type="button" 
                           onClick={() => handleResetSignature('deptHead')}
@@ -713,9 +725,9 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                       <button 
                         type="button"
                         onClick={() => setSigningRole('deptHead')}
-                        className="px-3 py-1.5 bg-indigo-100 hover:bg-indigo-150 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 shadow-xs cursor-pointer print:hidden transition"
+                        className="px-3 py-1.5 bg-indigo-100 hover:bg-indigo-150 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 shadow-xs cursor-pointer print:hidden transition animate-pulse"
                       >
-                        ✍️ ลงชื่อ{currentUser.role === 'admin' ? 'ผู้ดูแลระบบ' : currentUser.role === 'deputy' ? 'รองผู้อำนวยการ' : 'หัวหน้าฝ่ายวิชาการ'}
+                        ✍️ ลงชื่อตรรวจรับรองฝ่ายวิชาการ
                       </button>
                     ) : (
                       <div className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-100 print:hidden select-none" title="ผู้มีสิทธิ์ตรวจรับรองสามารถตรวจสอบและอนุมัติรับรองได้ทันที">

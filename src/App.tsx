@@ -768,6 +768,8 @@ export default function App() {
                 records={selectedDashboardTeacherId === 'all' 
                   ? records 
                   : records.filter(r => r.teacherId === selectedDashboardTeacherId)} 
+                currentTeacher={currentTeacher}
+                teachers={teachers}
               />
             </div>
 
