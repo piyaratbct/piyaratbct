@@ -313,18 +313,19 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
   const isDeptHeadApproved = !!record.deptHeadApproved;
   const isFullyApproved = isDeptHeadApproved;
 
-  // Format Thai dates
+  // Format Thai dates to short abbreviated format e.g., "05 มิ.ย. 69"
   const formatThaiDateFull = (dateString: string) => {
-    const months = [
-      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    const shortMonths = [
+      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
     ];
     const parts = dateString.split('-');
     if (parts.length === 3) {
-      const year = parseInt(parts[0]) + 543;
-      const month = months[parseInt(parts[1]) - 1];
-      const day = parseInt(parts[2]);
-      return `วันที่ ${day} เดือน ${month} พ.ศ. ${year}`;
+      const yearFull = parseInt(parts[0]) + 543;
+      const yearTwoDigits = String(yearFull).slice(-2);
+      const monthShort = shortMonths[parseInt(parts[1]) - 1];
+      const day = String(parseInt(parts[2])).padStart(2, '0');
+      return `${day} ${monthShort} ${yearTwoDigits}`;
     }
     return dateString;
   };
@@ -649,7 +650,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           <div className="pt-20 pb-4 mt-8 break-inside-avoid space-y-10">
             <h3 className="text-sm font-extrabold text-violet-700 border-b-2 border-violet-100 pb-1.5 flex items-center gap-2 uppercase tracking-wider print:border-black">
               <span className="inline-block w-2.5 h-2.5 bg-violet-500 rounded-full print:border print:border-black"></span>
-              ส่วนที่ 3: การตรวจสอบและลงนามตรวจ
+              ส่วนที่ 3
             </h3>
             
             <div className="grid grid-cols-2 gap-8 text-center text-xs text-slate-800 pt-6">
