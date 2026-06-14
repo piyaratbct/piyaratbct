@@ -392,7 +392,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             margin: 1.5cm !important;
           }
           /* Hide surrounding layout elements completely for browser print */
-          body > :not(.print-root-wrap) {
+          #root > div > :not(.print-root-wrap) {
             display: none !important;
           }
           .print-root-wrap {
