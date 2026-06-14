@@ -548,56 +548,51 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               <span className="text-xs font-black text-[#e54a93] tracking-wide block uppercase">โรงเรียนศิริมงคลศึกษา บางบัวทอง</span>
               <span className="text-[10px] font-black text-slate-500 tracking-wider block uppercase font-mono">SIRIMONGKOLSUKSA BANGBUATHONG SCHOOL</span>
               <p className="text-[10px] font-bold text-blue-600 bg-blue-50/60 px-2.5 py-0.5 rounded-full inline-block border border-blue-105 print:border-none print:bg-none print:p-0 print:text-black mt-1">
-                ฝ่ายส่งเสริมคุณภาพการศึกษาและวิชาการ • (สังกัด: {teacher.affiliation})
+                ฝ่ายส่งเสริมคุณภาพการศึกษาและวิชาการ<span className="print:hidden"> • (สังกัด: {teacher.affiliation})</span>
               </p>
             </div>
           </div>
 
-          <hr className="border-t border-slate-300 my-6 print:border-black" />
+          <hr className="border-t border-slate-300 my-4 print:border-black" />
 
-          {/* Section 1: Teacher metadata - Removed Phone Number */}
-          <div className="space-y-4 mb-6">
-            <h3 className="text-sm font-extrabold text-pink-600 border-b-2 border-pink-100 pb-1.5 flex items-center gap-2 uppercase tracking-wider print:border-black">
-              <span className="inline-block w-2.5 h-2.5 bg-pink-500 rounded-full print:border print:border-black"></span>
+          {/* Section 1: Teacher metadata - Compact Single-Line Inline Grid */}
+          <div className="space-y-2 mb-4">
+            <h3 className="text-xs font-black text-pink-600 border-b border-pink-100 pb-1 flex items-center gap-1.5 uppercase tracking-wide print:border-black">
+              <span className="inline-block w-2 h-2 bg-pink-500 rounded-full print:border print:border-black"></span>
               ส่วนที่ 1: ข้อมูลทั่วไป
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-xs text-slate-800 bg-gradient-to-r from-pink-50/20 to-sky-50/20 p-4 rounded-xl border border-slate-100 print:bg-none print:border-none print:p-0">
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">ชื่อครูผู้สอน (ไทย):</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs">{teacher.thaiName}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 print:grid-cols-3 gap-x-5 gap-y-1.5 text-xs text-slate-800 bg-gradient-to-r from-pink-50/10 to-sky-50/10 p-3 rounded-xl border border-slate-100 print:bg-none print:border-none print:p-0">
+              <div className="sm:col-span-2 md:col-span-2 print:col-span-2 flex items-baseline gap-1.5">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ครูผู้สอน:</span>
+                <span className="font-bold text-slate-900 text-[11.5px]">{teacher.thaiName} ({teacher.englishName})</span>
               </div>
 
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">ชื่อครูผู้สอน (อังกฤษ):</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs">{teacher.englishName}</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">รหัสประจำตัว:</span>
+                <span className="font-bold text-slate-900 text-[11.5px]">{teacher.employeeId}</span>
               </div>
 
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">รหัสประจำตัวคุณครู:</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs">{teacher.employeeId}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">อีเมล:</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs">{teacher.email}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">ระดับชั้น:</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs">{record.gradeLevel}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">วิชาที่สอน:</p>
-                <p className="font-bold text-indigo-900 mt-0.5 text-xs font-sans">
+              <div className="flex items-baseline gap-1.5 font-sans">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วิชาที่สอน:</span>
+                <span className="font-bold text-indigo-950 text-[11.5px]">
                   {record.subject === 'อื่นๆ' && record.customSubject ? record.customSubject : record.subject}
-                </p>
+                </span>
               </div>
 
-              <div>
-                <p className="font-semibold text-slate-500 font-sans">วันที่ทำการสอน:</p>
-                <p className="font-bold text-slate-900 mt-0.5 text-xs font-sans">{formatThaiDateFull(record.date)}</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ระดับชั้น:</span>
+                <span className="font-bold text-slate-900 text-[11.5px]">{record.gradeLevel}</span>
+              </div>
+
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วันที่ทำการสอน:</span>
+                <span className="font-bold text-slate-900 text-[11.5px]">{formatThaiDateFull(record.date)}</span>
+              </div>
+
+              <div className="sm:col-span-2 md:col-span-3 print:col-span-3 flex items-baseline gap-1.5">
+                <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">อีเมล:</span>
+                <span className="font-bold text-slate-900 text-[11px]">{teacher.email}</span>
               </div>
             </div>
           </div>
