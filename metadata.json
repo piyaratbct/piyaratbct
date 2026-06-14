@@ -1,0 +1,6 @@
+{
+  "name": "LessonLog",
+  "description": "ระบบบันทึกผลการจัดการเรียนรู้และบันทึกหลังสอนรายคาบ สำหรับคุณครูโรงเรียนศิริมงคลศึกษา บางบัวทอง พร้อมออกรายงานเอกสาร PDF มาตรฐานอิเล็กทรอนิกส์",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

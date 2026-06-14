@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Sarabun", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom CSS Scrollbar and Animation styling */
+body {
+  font-family: "Space Grotesk", "Inter", "Sarabun", sans-serif;
+  background-color: #f8fafc;
+}
+
+/* Print CSS */
+@media print {
+  /* Hide the rest of the app, including body backgrounds, fixed layouts, menus */
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
+    font-family: "Sarabun", sans-serif !important;
+  }
+  
+  #root > :not(.print-container) {
+    display: none !important;
+  }
+
+  .print-container {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+
+  /* Force print background colors for Tailwind's gray-100 backgrounds in documents */
+  .print-bg-gray {
+    background-color: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .print-border-thin {
+    border: 1px solid #000 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+}
+
+@keyframes scan {
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
+}

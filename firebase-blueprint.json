@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Teacher": {
+      "title": "Teacher",
+      "description": "User profile of a teacher or academic supervisor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "thaiName": { "type": "string" },
+        "englishName": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "affiliation": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["teacher", "academic", "deputy", "admin"] }
+      },
+      "required": ["id", "email", "thaiName", "englishName", "employeeId", "phoneNumber", "affiliation", "displayName"]
+    },
+    "LessonRecord": {
+      "title": "LessonRecord",
+      "description": "Lesson plan and post-teaching record designed by a teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "subject": { "type": "string" },
+        "customSubject": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "date": { "type": "string" },
+        "content": { "type": "string" },
+        "activities": { "type": "string" },
+        "limitations": { "type": "string" },
+        "suggestions": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "teacherSigned": { "type": "boolean" },
+        "teacherSignature": { "type": "string" },
+        "deptHeadApproved": { "type": "boolean" },
+        "deptHeadName": { "type": "string" },
+        "deptHeadSignature": { "type": "string" },
+        "deptHeadDate": { "type": "string" }
+      },
+      "required": ["id", "teacherId", "subject", "gradeLevel", "date", "content", "activities", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "All registered teachers and academic supervisors profiles"
+    },
+    "/records/{recordId}": {
+      "schema": "LessonRecord",
+      "description": "Lesson and post-teaching logs written by teachers"
+    }
+  }
+}

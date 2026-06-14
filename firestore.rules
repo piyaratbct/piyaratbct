@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net (default-deny catch-all)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getTeacherProfile(uid) {
+      return get(/databases/$(database)/documents/teachers/$(uid)).data;
+    }
+
+    function isAcademic() {
+      return isSignedIn() 
+        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
+        && (getTeacherProfile(request.auth.uid).role == 'academic' 
+            || getTeacherProfile(request.auth.uid).role == 'deputy' 
+            || getTeacherProfile(request.auth.uid).role == 'admin');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /teachers/{teacherId} {
+      allow get: if isSignedIn() && (request.auth.uid == teacherId || isAcademic());
+      allow list: if isSignedIn();
+      
+      allow create: if isSignedIn() && request.auth.uid == teacherId 
+                    && request.resource.data.id == teacherId
+                    && request.resource.data.email is string
+                    && request.resource.data.thaiName is string
+                    && request.resource.data.thaiName.size() <= 200
+                    && (request.resource.data.role == 'teacher' 
+                        || request.resource.data.role == 'academic' 
+                        || request.resource.data.role == 'deputy' 
+                        || request.resource.data.role == 'admin');
+
+      allow update: if isSignedIn() && request.auth.uid == teacherId
+                    && request.resource.data.email == resource.data.email
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email']));
+      
+      allow delete: if false;
+    }
+
+    match /records/{recordId} {
+      allow get: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
+      allow list: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
+
+      allow create: if isSignedIn() 
+                    && request.resource.data.teacherId == request.auth.uid
+                    && request.resource.data.id == recordId
+                    && request.resource.data.subject is string
+                    && request.resource.data.gradeLevel is string
+                    && request.resource.data.content is string
+                    && request.resource.data.createdAt is string;
+
+      allow update: if isSignedIn() && (
+        // Action 1: Teacher edits or signs their own record
+        (resource.data.teacherId == request.auth.uid 
+         && request.resource.data.teacherId == request.auth.uid
+         && request.resource.data.createdAt == resource.data.createdAt
+         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'deptHeadApproved', 'deptHeadName', 'deptHeadSignature', 'deptHeadDate'
+            ]))
+        )
+        ||
+        // Action 2: Academic Supervisor reviews, signs or edits the supervisor fields
+        (isAcademic() 
+         && request.resource.data.teacherId == resource.data.teacherId
+         && request.resource.data.createdAt == resource.data.createdAt
+         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'deptHeadApproved', 'deptHeadName', 'deptHeadSignature', 'deptHeadDate',
+              'deputyDirectorApproved', 'deputyDirectorName', 'deputyDirectorSignature', 'deputyDirectorDate',
+              'teacherSigned', 'teacherSignature', 'customSubject', 'attachments',
+              'updatedAt', 'lastEditedBy', 'lastEditedAt', 'editHistory'
+            ])
+        )
+      );
+
+      allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+    }
+  }
+}
