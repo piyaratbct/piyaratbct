@@ -330,10 +330,6 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
   };
 
   const handlePrint = () => {
-    if (!isFullyApproved) {
-      alert('ไม่สามารถออกรายงานได้ชั่วคราว: เอกสารจำเป็นต้องผ่านการลงนามตรวจอนุมัติจาก หัวหน้าฝ่ายวิชาการก่อน');
-      return;
-    }
     window.print();
   };
 
@@ -397,8 +393,8 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             size: A4 portrait;
             margin: 1.5cm !important;
           }
-          /* Hide surrounding layout elements completely for browser print */
-          #root > div > :not(.print-root-wrap) {
+          /* Hide main app containers completely for browser print */
+          header, footer, main, .print-hidden {
             display: none !important;
           }
           .print-root-wrap {
@@ -438,7 +434,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
       <div className="flex flex-col max-w-4xl w-full">
         
         {/* Controls Overlay Bar - Hidden when printing */}
-        <div className="bg-slate-800 text-white px-5 py-4 rounded-t-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print:hidden shadow-lg border-b border-slate-700">
+        <div className="bg-slate-800 text-white px-5 py-4 rounded-t-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print:hidden print-hidden shadow-lg border-b border-slate-700">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl text-white">
               <Eye className="h-5 w-5" />
@@ -479,7 +475,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         </div>
 
         {/* Status Tracker Bar - Hidden when printing */}
-        <div className={`p-4 print:hidden border-x flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs ${
+        <div className={`p-4 print:hidden print-hidden border-x flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs ${
           isFullyApproved 
             ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
             : 'bg-indigo-50 border-indigo-150 text-indigo-950'
@@ -525,7 +521,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         </div>
 
         {/* Dynamic Tips Warn Frame */}
-        <div className="bg-amber-50 border-x border-amber-100 p-4 print:hidden flex items-start gap-2.5 text-xs text-amber-800">
+        <div className="bg-amber-50 border-x border-amber-100 p-4 print:hidden print-hidden flex items-start gap-2.5 text-xs text-amber-800">
           <HelpCircle className="h-4.5 w-4.5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-bold">เคล็ดลับพิมพ์บันทึกออก PDF:</p>
