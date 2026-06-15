@@ -648,10 +648,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
           {/* Section 3: Official Witness Signatures */}
           <div className="pt-20 pb-4 mt-8 break-inside-avoid space-y-10">
-            <h3 className="text-sm font-extrabold text-violet-700 border-b-2 border-violet-100 pb-1.5 flex items-center gap-2 uppercase tracking-wider print:border-black">
-              <span className="inline-block w-2.5 h-2.5 bg-violet-500 rounded-full print:border print:border-black"></span>
-              ส่วนที่ 3
-            </h3>
+            <div className="border-b-2 border-violet-100 pb-1.5 print:border-black"></div>
             
             <div className="grid grid-cols-2 gap-8 text-center text-xs text-slate-800 pt-6">
               {/* Left Side: Teacher Signed */}

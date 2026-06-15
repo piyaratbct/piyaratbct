@@ -17,16 +17,24 @@ service cloud.firestore {
 
     function isAcademic() {
       return isSignedIn() 
-        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
-        && (getTeacherProfile(request.auth.uid).role == 'academic' 
-            || getTeacherProfile(request.auth.uid).role == 'deputy' 
-            || getTeacherProfile(request.auth.uid).role == 'admin');
+        && (
+          request.auth.token.email == 'piyarat.bct@gmail.com'
+          ||
+          (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
+           && (getTeacherProfile(request.auth.uid).role == 'academic' 
+               || getTeacherProfile(request.auth.uid).role == 'deputy' 
+               || getTeacherProfile(request.auth.uid).role == 'admin'))
+        );
     }
 
     function isAdmin() {
       return isSignedIn() 
-        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
-        && getTeacherProfile(request.auth.uid).role == 'admin';
+        && (
+          request.auth.token.email == 'piyarat.bct@gmail.com'
+          ||
+          (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
+           && getTeacherProfile(request.auth.uid).role == 'admin')
+        );
     }
 
     function isValidId(id) {

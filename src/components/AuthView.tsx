@@ -72,7 +72,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           englishName: 'No Name Profile',
           employeeId: 'N/A',
           phoneNumber: 'N/A',
-          affiliation: 'โรงเรียนศิริมงคลศึกษา บางบัวทอง',
+          affiliation: 'กลุ่มสาระการเรียนรู้',
           displayName: email.trim().split('@')[0],
           role: 'teacher'
         };
@@ -225,7 +225,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             englishName: 'Academic Supervisor Vichadee',
             employeeId: 'AC-10022',
             phoneNumber: '02-123-4567',
-            affiliation: 'โรงเรียนศิริมงคลศึกษา บางบัวทอง (ฝ่ายวิชาการ)',
+            affiliation: 'ฝ่ายวิชาการ',
             displayName: 'ฝ่ายวิชาการ (Academic Supervisor)',
             role: 'academic'
           } : {
@@ -235,7 +235,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             englishName: 'Piyarat Thammakun',
             employeeId: 'ED-84521',
             phoneNumber: '089-765-4321',
-            affiliation: 'โรงเรียนศิริมงคลศึกษา บางบัวทอง (กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี)',
+            affiliation: 'กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี',
             displayName: 'ครูปิยรัตน์ (Teacher Piyarat)',
             role: 'teacher'
           };

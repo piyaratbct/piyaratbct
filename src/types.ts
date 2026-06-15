@@ -9,6 +9,7 @@ export interface Teacher {
   displayName: string;
   password?: string;
   role?: 'teacher' | 'academic' | 'deputy' | 'admin';
+  hasSeeded?: boolean;
 }
 
 export interface Attachment {

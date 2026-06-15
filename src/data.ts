@@ -7,7 +7,7 @@ export const DEFAULT_TEACHER: Teacher = {
   englishName: 'Piyarat Thammakun',
   employeeId: 'ED-84521',
   phoneNumber: '089-765-4321',
-  affiliation: 'โรงเรียนศิริมงคลศึกษา บางบัวทอง (กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี)',
+  affiliation: 'กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี',
   displayName: 'ครูปิยรัตน์ (Teacher Piyarat)',
   role: 'teacher'
 };
