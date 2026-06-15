@@ -308,6 +308,7 @@ function SignaturePadModal({ role, defaultName, onSave, onClose }: SignaturePadM
 
 export function PrintTemplate({ record, teacher, academicHead, currentUser, customLogo, allowAcademicSignature = true, onUpdateRecord, onClose }: PrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
+  const [isCompact, setIsCompact] = useState(false);
 
   // Status variables
   const isDeptHeadApproved = !!record.deptHeadApproved;
@@ -392,7 +393,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           }
           @page {
             size: A4 portrait;
-            margin: 1.5cm !important;
+            margin: ${isCompact ? '0.7cm' : '1.5cm'} !important;
           }
           /* Hide main app containers completely for browser print */
           header, footer, main, .print-hidden {
@@ -433,7 +434,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
       
       {/* Printable Sheet Wrapper */}
       <div className="flex flex-col max-w-4xl w-full">
-        
+         
         {/* Controls Overlay Bar - Hidden when printing */}
         <div className="bg-slate-800 text-white px-5 py-4 rounded-t-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print:hidden print-hidden shadow-lg border-b border-slate-700">
           <div className="flex items-center space-x-3">
@@ -447,6 +448,19 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           </div>
 
           <div className="flex items-center space-x-2 w-full sm:w-auto">
+            {/* Fit to A4 Single Page Toggle */}
+            <button
+              onClick={() => setIsCompact(!isCompact)}
+              className={`flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer ${
+                isCompact 
+                  ? 'bg-amber-600 text-white hover:bg-amber-500 shadow-sm border border-amber-550' 
+                  : 'bg-slate-700 text-slate-200 hover:bg-slate-600 hover:text-white border border-slate-600'
+              }`}
+              title="บีบอัดช่องว่างและขนาดตัวอักษรเพื่อจัดให้รายงานรูปเล่มยาวทั้งหมดจบสวยในกระดาษ A4 แผ่นเดียว"
+            >
+              <span>{isCompact ? '📋 ปรับพอดีหน้าเดียว: เปิดอยู่' : '📋 ปรับพอดีหน้าเดียว: ปิดอยู่'}</span>
+            </button>
+
             {isFullyApproved ? (
               <button
                 onClick={handlePrint}
@@ -514,7 +528,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 : "💡 เลื่อนดูด้านล่างและคลิกปุ่มแผ่นตราสีเพื่อจำลองลายมือชื่อและลงชื่อตรวจรับรองหลังสอนได้ทันที"}
             </div>
           ) : (
-            <div className="text-[10px] bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 flex items-center gap-1">
+            <div className="text-[10px] bg-emerald-100 text-emerald-950 px-3 py-1.5 rounded-xl font-bold border border-emerald-200 flex items-center gap-1">
               <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
               <span>เอกสารได้รับการอนุมัติอย่างเป็นทางการแล้ว พร้อมส่งพิมพ์ออก PDF</span>
             </div>
@@ -526,137 +540,171 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           <HelpCircle className="h-4.5 w-4.5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-bold">เคล็ดลับพิมพ์บันทึกออก PDF:</p>
-            <p className="mt-0.5">ในหน้าต่างพิมพ์โปรดติ๊ก <b>"เอาส่วนหัวและส่วนท้ายออก" (Remove headers and footers)</b> และเปิด <b>"พิมพ์กราฟิกพื้นหลัง" (Background graphics)</b> เพื่อดึงสีสันให้ครบสมบูรณ์</p>
+            <p className="mt-0.5">ในหน้าต่างพิมพ์โปรดติ๊ก <b>"เอาส่วนหัวและส่วนท้ายออก" (Remove headers and footers)</b> และเปิด <b>"พิมพ์กราฟิกพื้นหลัง" (Background graphics)</b> เพื่อดึงสีสันให้ครบสมบูรณ์ {isCompact && <span>และคุณได้เปิด <b>"โหมดปรับพอดีหน้าเดียว"</b> ระบบจะบีบสารบัญรวมทั้งใบรับรองทั้งหมดให้อยู่ในหน้า A4 แผ่นเดียวให้โดยอัตโนมัติ</span>}</p>
           </div>
         </div>
 
         {/* Formal A4 Blueprint Sheet */}
-        <div className="print-container bg-white p-12 sm:p-16 rounded-b-2xl shadow-xl flex-1 print:shadow-none print:rounded-none">
+        <div className={`print-container bg-white rounded-b-2xl shadow-xl flex-1 print:shadow-none print:rounded-none transition-all duration-150 ${
+          isCompact ? 'p-6 sm:p-8' : 'p-12 sm:p-16'
+        }`}>
           
           {/* Official Document Emblem & Header */}
-          <div className="flex flex-col items-center text-center space-y-3 mb-8">
-            <div className="mb-2 transition-transform duration-200 hover:scale-105 print:transform-none">
+          <div className={`flex flex-col items-center text-center transition-all duration-150 ${
+            isCompact ? 'space-y-1.5 mb-4' : 'space-y-3 mb-8'
+          }`}>
+            <div className="mb-1 transition-transform duration-200 hover:scale-105 print:transform-none">
               {customLogo ? (
-                <div className="relative h-28 w-28 rounded-full overflow-hidden border border-slate-300 shadow-xs flex items-center justify-center bg-white print:border-black">
+                <div className={`relative rounded-full overflow-hidden border border-slate-300 shadow-xs flex items-center justify-center bg-white print:border-black ${
+                  isCompact ? 'h-18 w-18' : 'h-28 w-28'
+                }`}>
                   <img src={customLogo} alt="School Logo" className="h-full w-full object-cover" />
                 </div>
               ) : (
-                <SchoolLogo className="h-28 w-28 drop-shadow-sm print:drop-shadow-none" />
+                <SchoolLogo className={`drop-shadow-sm print:drop-shadow-none ${
+                  isCompact ? 'h-18 w-18' : 'h-28 w-28'
+                }`} />
               )}
             </div>
-            <div className="space-y-1">
-              <h2 className="text-xl font-extrabold font-sans tracking-tight text-slate-950">บันทึกผลการจัดการเรียนรู้และผลหลังสอนรายวิชา</h2>
-              <span className="text-xs font-black text-[#e54a93] tracking-wide block uppercase">โรงเรียนศิริมงคลศึกษา บางบัวทอง</span>
-              <span className="text-[10px] font-black text-slate-500 tracking-wider block uppercase font-mono">SIRIMONGKOLSUKSA BANGBUATHONG SCHOOL</span>
-              <p className="text-[10px] font-bold text-blue-600 bg-blue-50/60 px-2.5 py-0.5 rounded-full inline-block border border-blue-105 print:border-none print:bg-none print:p-0 print:text-black mt-1">
+            <div className="space-y-0.5">
+              <h2 className={`font-extrabold font-sans tracking-tight text-slate-950 ${
+                isCompact ? 'text-sm' : 'text-xl'
+              }`}>บันทึกผลการจัดการเรียนรู้และผลหลังสอนรายวิชา</h2>
+              <span className={`font-black text-[#e54a93] tracking-wide block uppercase ${
+                isCompact ? 'text-[10px]' : 'text-xs'
+              }`}>โรงเรียนศิริมงคลศึกษา บางบัวทอง</span>
+              <span className={`font-black text-slate-500 tracking-wider block uppercase font-mono ${
+                isCompact ? 'text-[8px]' : 'text-[10px]'
+              }`}>SIRIMONGKOLSUKSA BANGBUATHONG SCHOOL</span>
+              <p className={`font-bold text-blue-600 bg-blue-50/60 rounded-full inline-block border border-blue-105 print:border-none print:bg-none print:p-0 print:text-black mt-0.5 ${
+                isCompact ? 'text-[9px] px-2 py-0' : 'text-[10px] px-2.5 py-0.5'
+              }`}>
                 ฝ่ายส่งเสริมคุณภาพการศึกษาและวิชาการ<span className="print:hidden"> • (สังกัด: {teacher.affiliation})</span>
               </p>
             </div>
           </div>
 
-          <hr className="border-t border-slate-300 my-4 print:border-black" />
+          <hr className={`border-t border-slate-300 print:border-black ${
+            isCompact ? 'my-2' : 'my-4'
+          }`} />
 
           {/* Section 1: Teacher metadata - Compact Single-Line Inline Grid */}
-          <div className="space-y-2 mb-4">
+          <div className={`transition-all duration-150 ${isCompact ? 'space-y-1 mb-2' : 'space-y-2 mb-4'}`}>
             <h3 className="text-xs font-black text-pink-600 border-b border-pink-100 pb-1 flex items-center gap-1.5 uppercase tracking-wide print:border-black">
               <span className="inline-block w-2 h-2 bg-pink-500 rounded-full print:border print:border-black"></span>
               ส่วนที่ 1: ข้อมูลทั่วไป
             </h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 print:grid-cols-3 gap-x-5 gap-y-1.5 text-xs text-slate-800 bg-gradient-to-r from-pink-50/10 to-sky-50/10 p-3 rounded-xl border border-slate-100 print:bg-none print:border-none print:p-0">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 print:grid-cols-3 text-slate-800 bg-gradient-to-r from-pink-50/10 to-sky-50/10 rounded-xl border border-slate-100 print:bg-none print:border-none print:p-0 ${
+              isCompact ? 'p-2.5 gap-x-3 gap-y-1 text-[11px]' : 'p-3 gap-x-5 gap-y-1.5 text-xs'
+            }`}>
               <div className="sm:col-span-2 md:col-span-2 print:col-span-2 flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ครูผู้สอน:</span>
-                <span className="font-bold text-slate-900 text-[11.5px]">{teacher.thaiName} ({teacher.englishName})</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{teacher.thaiName} ({teacher.englishName})</span>
               </div>
 
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">รหัสประจำตัว:</span>
-                <span className="font-bold text-slate-900 text-[11.5px]">{teacher.employeeId}</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{teacher.employeeId}</span>
               </div>
 
               <div className="flex items-baseline gap-1.5 font-sans">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วิชาที่สอน:</span>
-                <span className="font-bold text-indigo-950 text-[11.5px]">
+                <span className={`font-bold text-indigo-950 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>
                   {record.subject === 'อื่นๆ' && record.customSubject ? record.customSubject : record.subject}
                 </span>
               </div>
 
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ระดับชั้น:</span>
-                <span className="font-bold text-slate-900 text-[11.5px]">{record.gradeLevel}</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.gradeLevel}</span>
               </div>
 
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วันที่ทำการสอน:</span>
-                <span className="font-bold text-slate-900 text-[11.5px]">{formatThaiDateFull(record.date)}</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{formatThaiDateFull(record.date)}</span>
               </div>
 
               <div className="sm:col-span-2 md:col-span-3 print:col-span-3 flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">อีเมล:</span>
-                <span className="font-bold text-slate-900 text-[11px]">{teacher.email}</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}>{teacher.email}</span>
               </div>
             </div>
           </div>
 
           {/* Section 2: Four distinct form points required */}
-          <div className="space-y-6 mb-8 pt-2">
-            <h3 className="text-sm font-extrabold text-sky-700 border-b-2 border-sky-100 pb-1.5 flex items-center gap-2 uppercase tracking-wider print:border-black">
+          <div className={`transition-all duration-150 ${isCompact ? 'space-y-2 mb-4 pt-1' : 'space-y-6 mb-8 pt-2'}`}>
+            <h3 className={`font-extrabold text-sky-700 border-b-2 border-sky-100 pb-1.5 flex items-center gap-2 uppercase tracking-wider print:border-black ${
+              isCompact ? 'text-xs' : 'text-sm'
+            }`}>
               <span className="inline-block w-2.5 h-2.5 bg-sky-500 rounded-full print:border print:border-black"></span>
               ส่วนที่ 2: รายละเอียดบันทึกหลังสอน
             </h3>
 
             {/* Paragraph 1 */}
-            <div className="space-y-1.5 break-inside-avoid">
-              <h4 className="text-xs font-bold text-pink-700 flex items-center gap-1.5 font-sans">
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-pink-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 1. สาระการเรียนรู้และจุดประสงค์การสอน :
               </h4>
-              <div className="p-4 bg-pink-50/20 print-bg-gray rounded-r-xl rounded-l-md text-xs text-slate-800 leading-relaxed border-y border-r border-pink-100/80 border-l-4 border-l-pink-500 print:border print:bg-none whitespace-pre-line">
+              <div className={`bg-pink-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-pink-100/80 border-l-4 border-l-pink-500 print:border print:bg-none whitespace-pre-line ${
+                isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
+              }`}>
                 {record.content}
               </div>
             </div>
 
             {/* Paragraph 2 */}
-            <div className="space-y-1.5 break-inside-avoid">
-              <h4 className="text-xs font-bold text-sky-700 flex items-center gap-1.5 font-sans">
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-sky-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 2. กิจกรรมการเรียนการสอน :
               </h4>
-              <div className="p-4 bg-sky-50/20 print-bg-gray rounded-r-xl rounded-l-md text-xs text-slate-800 leading-relaxed border-y border-r border-sky-100/80 border-l-4 border-l-sky-500 print:border print:bg-none whitespace-pre-line">
+              <div className={`bg-sky-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-sky-100/80 border-l-4 border-l-sky-500 print:border print:bg-none whitespace-pre-line ${
+                isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
+              }`}>
                 {record.activities}
               </div>
             </div>
 
             {/* Paragraph 3 */}
-            <div className="space-y-1.5 break-inside-avoid">
-              <h4 className="text-xs font-bold text-amber-700 flex items-center gap-1.5 font-sans">
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-amber-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 3. ข้อจำกัดและปัญหาที่พบ :
               </h4>
-              <div className="p-4 bg-amber-50/20 print-bg-gray rounded-r-xl rounded-l-md text-xs text-slate-800 leading-relaxed border-y border-r border-amber-100/80 border-l-4 border-l-amber-500 print:border print:bg-none whitespace-pre-line">
+              <div className={`bg-amber-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-amber-100/80 border-l-4 border-l-amber-500 print:border print:bg-none whitespace-pre-line ${
+                isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
+              }`}>
                 {record.limitations}
               </div>
             </div>
 
             {/* Paragraph 4 */}
-            <div className="space-y-1.5 break-inside-avoid">
-              <h4 className="text-xs font-bold text-emerald-700 flex items-center gap-1.5 font-sans">
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-emerald-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 4. ข้อเสนอแนะและทางแก้ไข :
               </h4>
-              <div className="p-4 bg-emerald-50/20 print-bg-gray rounded-r-xl rounded-l-md text-xs text-slate-800 leading-relaxed border-y border-r border-emerald-100/80 border-l-4 border-l-emerald-500 print:border print:bg-none whitespace-pre-line">
+              <div className={`bg-emerald-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-emerald-100/80 border-l-4 border-l-emerald-500 print:border print:bg-none whitespace-pre-line ${
+                isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
+              }`}>
                 {record.suggestions}
               </div>
             </div>
           </div>
 
           {/* Section 3: Official Witness Signatures */}
-          <div className="pt-20 pb-4 mt-8 break-inside-avoid space-y-10">
+          <div className={`break-inside-avoid transition-all duration-150 ${
+            isCompact ? 'pt-6 pb-1 mt-4 space-y-4' : 'pt-20 pb-4 mt-8 break-inside-avoid space-y-10'
+          }`}>
             <div className="border-b-2 border-violet-100 pb-1.5 print:border-black"></div>
             
-            <div className="grid grid-cols-2 gap-8 text-center text-xs text-slate-800 pt-6">
+            <div className={`grid grid-cols-2 text-slate-800 ${
+              isCompact ? 'gap-4 text-center text-[11px] pt-2' : 'gap-8 text-center text-xs pt-6'
+            }`}>
               {/* Left Side: Teacher Signed */}
-              <div className="space-y-4 flex flex-col items-center justify-end">
-                <div className="h-20 flex items-center justify-center">
+              <div className={`flex flex-col items-center justify-end ${isCompact ? 'space-y-1.5' : 'space-y-4'}`}>
+                <div className={`${isCompact ? 'h-14' : 'h-20'} flex items-center justify-center`}>
                   {record.teacherSigned && (record as any).teacherSignature ? (
-                    <div className="relative h-20 flex items-center justify-center">
-                      <img src={(record as any).teacherSignature} alt="Teacher Electronic Signature" className="max-h-18 object-contain" referrerPolicy="no-referrer" />
+                    <div className={`relative flex items-center justify-center ${isCompact ? 'h-14' : 'h-20'}`}>
+                      <img src={(record as any).teacherSignature} alt="Teacher Electronic Signature" className={`${isCompact ? 'max-h-12' : 'max-h-18'} object-contain`} referrerPolicy="no-referrer" />
                       {currentUser?.id === record.teacherId && currentUser?.role === 'teacher' && !record.deptHeadApproved && (
                         <button 
                           type="button" 
@@ -689,16 +737,16 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 </p>
                 <div>
                   <p className="font-semibold">(&nbsp;&nbsp;{teacher.thaiName}&nbsp;&nbsp;)</p>
-                  <p className="text-[10px] text-slate-400 mt-1">วันที่รายงาน: {formatThaiDateFull(record.date)}</p>
+                  <p className={`text-slate-400 mt-1 ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>วันที่รายงาน: {formatThaiDateFull(record.date)}</p>
                 </div>
               </div>
 
               {/* Right Side: Academic Head */}
-              <div className="space-y-4 flex flex-col items-center justify-end">
-                <div className="h-20 flex items-center justify-center">
+              <div className={`flex flex-col items-center justify-end ${isCompact ? 'space-y-1.5' : 'space-y-4'}`}>
+                <div className={`${isCompact ? 'h-14' : 'h-20'} flex items-center justify-center`}>
                   {isDeptHeadApproved && record.deptHeadSignature ? (
-                    <div className="relative h-20 flex items-center justify-center">
-                      <img src={record.deptHeadSignature} alt="Academic Supervisor Signature" className="max-h-18 object-contain" referrerPolicy="no-referrer" />
+                    <div className={`relative flex items-center justify-center ${isCompact ? 'h-14' : 'h-20'}`}>
+                      <img src={record.deptHeadSignature} alt="Academic Supervisor Signature" className={`${isCompact ? 'max-h-12' : 'max-h-18'} object-contain`} referrerPolicy="no-referrer" />
                       {allowAcademicSignature && currentUser?.role !== 'teacher' && (
                         <button 
                           type="button" 
@@ -733,7 +781,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                   <p className="font-semibold">
                     (&nbsp;&nbsp;{record.deptHeadName || academicHead?.thaiName || '..........................................................'}&nbsp;&nbsp;)
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-1 font-sans">
+                  <p className={`text-slate-400 mt-1 font-sans ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>
                      {academicHead?.role === 'admin' ? 'ผู้ดูแลระบบ' : academicHead?.role === 'deputy' ? 'รองผู้อำนวยการ' : 'หัวหน้าฝ่ายวิชาการ'} {isDeptHeadApproved && record.deptHeadDate ? `(ลงนามตรวจเมื่อ: ${formatThaiDateFull(record.deptHeadDate)})` : ''}
                   </p>
                 </div>
@@ -742,7 +790,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           </div>
 
           {/* Footer Timestamp for document registry */}
-          <div className="text-center text-[10px] text-slate-400 mt-16 font-mono print:text-black">
+          <div className={`text-center text-slate-400 font-mono print:text-black ${isCompact ? 'mt-8 text-[9px]' : 'mt-16 text-[10px]'}`}>
             เอกสารบันทึกประเภทอิเล็กทรอนิกส์ออกตามระบบ LessonLog - เลขอ้างอิง: {record.id}
           </div>
 
