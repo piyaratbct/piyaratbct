@@ -429,11 +429,9 @@ export default function App() {
         return;
       }
 
-      if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบันทึกการสอนนี้อย่างถาวร?')) {
-        await deleteDoc(doc(db, 'records', id));
-        if (editingRecord?.id === id) {
-          setEditingRecord(null);
-        }
+      await deleteDoc(doc(db, 'records', id));
+      if (editingRecord?.id === id) {
+        setEditingRecord(null);
       }
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `records/${id}`);

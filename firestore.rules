@@ -23,6 +23,12 @@ service cloud.firestore {
             || getTeacherProfile(request.auth.uid).role == 'admin');
     }
 
+    function isAdmin() {
+      return isSignedIn() 
+        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
+        && getTeacherProfile(request.auth.uid).role == 'admin';
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -41,11 +47,11 @@ service cloud.firestore {
                         || request.resource.data.role == 'deputy' 
                         || request.resource.data.role == 'admin');
 
-      allow update: if isSignedIn() && request.auth.uid == teacherId
+      allow update: if isSignedIn() && (request.auth.uid == teacherId || isAdmin())
                     && request.resource.data.email == resource.data.email
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email']));
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email']) || isAdmin());
       
-      allow delete: if false;
+      allow delete: if isSignedIn() && (request.auth.uid == teacherId || isAdmin());
     }
 
     match /records/{recordId} {
@@ -81,9 +87,12 @@ service cloud.firestore {
               'updatedAt', 'lastEditedBy', 'lastEditedAt', 'editHistory'
             ])
         )
+        ||
+        // Action 3: Admin direct database overrides
+        isAdmin()
       );
 
-      allow delete: if isSignedIn() && resource.data.teacherId == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
     }
   }
 }

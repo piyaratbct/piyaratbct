@@ -29,6 +29,7 @@ export function LessonLogList({
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('ทั้งหมด');
   const [selectedApproval, setSelectedApproval] = useState<string>('ทั้งหมด');
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const toggleHistory = (recordId: string) => {
     setExpandedHistory(prev => ({
@@ -427,12 +428,13 @@ export function LessonLogList({
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => onPrintPreview(record)}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-semibold transition"
+                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-semibold transition cursor-pointer"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     <span>พิมพ์รายงาน / ส่งออก PDF</span>
                   </button>
 
+                  {/* Edit action */}
                   {(currentUserRole === 'admin' || (currentTeacherId && record.teacherId === currentTeacherId)) && (
                     record.deptHeadApproved ? (
                       <button
@@ -446,7 +448,7 @@ export function LessonLogList({
                     ) : (
                       <button
                         onClick={() => onEdit(record)}
-                        className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 border rounded-lg transition"
+                        className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-lg transition cursor-pointer"
                       >
                         <Edit className="h-3.5 w-3.5" />
                         <span>แก้ไข</span>
@@ -454,6 +456,7 @@ export function LessonLogList({
                     )
                   )}
 
+                  {/* Delete action with premium double confirmation */}
                   {(currentUserRole === 'admin' || (currentTeacherId && record.teacherId === currentTeacherId)) && (
                     record.deptHeadApproved ? (
                       <button
@@ -464,17 +467,35 @@ export function LessonLogList({
                         <Lock className="h-3.5 w-3.5 text-slate-400" />
                       </button>
                     ) : (
-                      <button
-                        onClick={() => {
-                          if (window.confirm('ยืนยันที่จะลบบันทึกการสอนนี้ใช่ไหม?')) {
-                            onDelete(record.id);
-                          }
-                        }}
-                        className="flex items-center space-x-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg hover:border-rose-200 transition"
-                        title={currentUserRole === 'admin' ? "ลบบันทึก (เฉพาะผู้ดูแลระบบ)" : "ลบบันทึกการสอนของตนเอง"}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      deletingId === record.id ? (
+                        <div className="flex items-center space-x-1.5 animate-in fade-in zoom-in duration-200">
+                          <button
+                            onClick={() => {
+                              onDelete(record.id);
+                              setDeletingId(null);
+                            }}
+                            className="flex items-center space-x-1 px-2.5 py-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition shadow-xs cursor-pointer"
+                            title="ยืนยันการลบแบบถาวร"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>ยืนยันลบ?</span>
+                          </button>
+                          <button
+                            onClick={() => setDeletingId(null)}
+                            className="px-2 py-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 rounded-lg transition cursor-pointer"
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeletingId(record.id)}
+                          className="flex items-center space-x-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg hover:border-rose-200 transition cursor-pointer"
+                          title={currentUserRole === 'admin' ? "ลบบันทึก (เฉพาะผู้ดูแลระบบ)" : "ลบบันทึกการสอนของตนเอง"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )
                     )
                   )}
                 </div>
