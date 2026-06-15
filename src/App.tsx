@@ -353,6 +353,15 @@ export default function App() {
       const isEdit = records.some(r => r.id === record.id);
       const existing = records.find(r => r.id === record.id);
       
+      if (isEdit && existing && currentTeacher) {
+        const isOwner = existing.teacherId === currentTeacher.id;
+        const isAdmin = currentTeacher.role === 'admin';
+        if (!isAdmin && !isOwner) {
+          alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์แก้ไขบันทึกนี้ได้');
+          return;
+        }
+      }
+
       if (existing && existing.deptHeadApproved) {
         alert('🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');
         return;
@@ -715,6 +724,12 @@ export default function App() {
                   currentUserRole={currentTeacher.role}
                   currentTeacherId={currentTeacher.id}
                   onEdit={(r) => {
+                    const isOwner = r.teacherId === currentTeacher.id;
+                    const isAdmin = currentTeacher.role === 'admin';
+                    if (!isAdmin && !isOwner) {
+                      alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์แก้ไขบันทึกนี้ได้');
+                      return;
+                    }
                     if (r.deptHeadApproved) {
                       alert('🔒 เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');
                       return;
@@ -931,6 +946,12 @@ export default function App() {
                 currentUserRole={currentTeacher.role}
                 currentTeacherId={currentTeacher.id}
                 onEdit={(r) => {
+                  const isOwner = r.teacherId === currentTeacher.id;
+                  const isAdmin = currentTeacher.role === 'admin';
+                  if (!isAdmin && !isOwner) {
+                    alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์แก้ไขบันทึกนี้ได้');
+                    return;
+                  }
                   if (r.deptHeadApproved) {
                     alert('🔒 เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');
                     return;

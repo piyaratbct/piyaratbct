@@ -433,23 +433,25 @@ export function LessonLogList({
                     <span>พิมพ์รายงาน / ส่งออก PDF</span>
                   </button>
 
-                  {record.deptHeadApproved ? (
-                    <button
-                      disabled
-                      className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-400 bg-slate-100/60 border border-slate-200 rounded-lg cursor-not-allowed select-none text-[11px] font-bold"
-                      title="เอกสารลงนามอนุมัติแล้ว ไม่สามารถแก้ไขได้"
-                    >
-                      <Lock className="h-3.5 w-3.5 text-slate-400" />
-                      <span>แก้ไข (ล็อก)</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onEdit(record)}
-                      className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 border rounded-lg transition"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      <span>แก้ไข</span>
-                    </button>
+                  {(currentUserRole === 'admin' || (currentTeacherId && record.teacherId === currentTeacherId)) && (
+                    record.deptHeadApproved ? (
+                      <button
+                        disabled
+                        className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-400 bg-slate-100/60 border border-slate-200 rounded-lg cursor-not-allowed select-none text-[11px] font-bold"
+                        title="เอกสารลงนามอนุมัติแล้ว ไม่สามารถแก้ไขได้"
+                      >
+                        <Lock className="h-3.5 w-3.5 text-slate-400" />
+                        <span>แก้ไข (ล็อก)</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onEdit(record)}
+                        className="flex items-center space-x-1 px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 border rounded-lg transition"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        <span>แก้ไข</span>
+                      </button>
+                    )
                   )}
 
                   {(currentUserRole === 'admin' || (currentTeacherId && record.teacherId === currentTeacherId)) && (
@@ -469,7 +471,7 @@ export function LessonLogList({
                           }
                         }}
                         className="flex items-center space-x-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg hover:border-rose-200 transition"
-                        title={currentUserRole === 'admin' ? "ลบบันทึก (เฉพาะผู้ดูแลระบบ)" : "ลบบันทึกการสอนความถูกต้องคีย์"}
+                        title={currentUserRole === 'admin' ? "ลบบันทึก (เฉพาะผู้ดูแลระบบ)" : "ลบบันทึกการสอนของตนเอง"}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
