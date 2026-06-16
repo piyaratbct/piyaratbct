@@ -11,13 +11,45 @@ import {
   Settings, HelpCircle, CheckCircle, ChevronDown, 
   CalendarDays, Download, FileJson, FileSpreadsheet, School, PlusCircle,
   Lock, Unlock, KeyRound, ShieldCheck, Eye, EyeOff, ShieldAlert,
-  Camera, Upload, RotateCcw, Loader2
+  Camera, Upload, RotateCcw, Loader2, Bell, X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 export default function App() {
+  // Toast notifications state
+  interface ToastItem {
+    id: string;
+    title: string;
+    message: string;
+    type: 'success' | 'info' | 'warning' | 'error';
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success', title?: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    const defaultTitles = {
+      success: '🎉 สำเร็จ',
+      info: 'ℹ️ แจ้งเตือน',
+      warning: '⚠️ ข้อควรระวัง',
+      error: '❌ เกิดข้อผิดพลาด'
+    };
+    const toastTitle = title || defaultTitles[type];
+    const newToast: ToastItem = { id, title: toastTitle, message, type };
+    setToasts((prev) => [...prev, newToast]);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [records, setRecords] = useState<LessonRecord[]>([]);
@@ -152,7 +184,47 @@ export default function App() {
           setDoc(doc(db, 'records', payload.id), payload).catch(console.error);
         }
       } else {
-        setRecords(fetchedRecords);
+        setRecords((prevRecords) => {
+          if (prevRecords && prevRecords.length > 0) {
+            fetchedRecords.forEach((newRec) => {
+              const oldRec = prevRecords.find((r) => r.id === newRec.id);
+              if (oldRec) {
+                const oldApproved = !!oldRec.deptHeadApproved;
+                const newApproved = !!newRec.deptHeadApproved;
+
+                if (!oldApproved && newApproved) {
+                  addToast(
+                    `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ได้รับการลงนามตรวจอนุมัติโดยหัวหน้าฝ่ายวิชาการเรียบร้อยแล้ว 🌸`,
+                    'success',
+                    '✍️ ตรวจอนุมัติเอกสารสำเร็จ'
+                  );
+                } else if (oldApproved && !newApproved) {
+                  addToast(
+                    `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ถูกยกเลิกขั้นตอนลงนามรับรองกรุณาตรวจสอบ ⚠️`,
+                    'warning',
+                    'ยกเลิกการตรวจรับรอง'
+                  );
+                } else if (!oldRec.teacherSigned && newRec.teacherSigned) {
+                  addToast(
+                    `คุณครูผู้บันทึกได้กดลงลายมือชื่อในเอกสาร "${newRec.subject}" เรียบร้อยแล้ว ✍️`,
+                    'info',
+                    'คุณครูลงนามส่งแผน'
+                  );
+                }
+              } else {
+                // New record added by someone else
+                if (newRec.teacherId !== currentTeacher.id) {
+                  addToast(
+                    `มีบันทึกหลังสอนใหม่เข้ามา: วิชา "${newRec.subject}" ชั้น ${newRec.gradeLevel} 📝`,
+                    'info',
+                    'พบบันทึกการสอนใหม่'
+                  );
+                }
+              }
+            });
+          }
+          return fetchedRecords;
+        });
         if (fetchedRecords.length > 0 && currentTeacher.role === 'teacher' && !currentTeacher.hasSeeded) {
           const updatedTeacher = { ...currentTeacher, hasSeeded: true };
           setCurrentTeacher(updatedTeacher);
@@ -346,6 +418,7 @@ export default function App() {
 
       await setDoc(doc(db, 'teachers', currentTeacher.id), updatedTeacher);
       setCurrentTeacher(updatedTeacher);
+      addToast('แก้ไขและอัปเดตข้อมูลโปรไฟล์ผู้ใช้งานสำเร็จแล้ว 💼', 'success', 'อัปเดตโปรไฟล์');
 
       setProfileSuccessMsg('อัปเดตข้อมูลคุณครูเรียบร้อยแล้ว ในระบบคลาวด์/Firestore!');
       setTimeout(() => {
@@ -413,6 +486,13 @@ export default function App() {
       await setDoc(doc(db, 'records', record.id), payload);
       setEditingRecord(null);
       setShowFormOnMobile(false);
+      addToast(
+        isEdit 
+          ? `แก้ไขและอัปเดตบันทึกผลหลังสอนรายวิชา "${record.subject}" เรียบร้อยแล้ว ✨` 
+          : `สร้างและส่งบันทึกผลหลังสอนรายวิชา "${record.subject}" สำเร็จ จัดเก็บเข้าคลาวด์แล้ว 🎉`,
+        'success',
+        isEdit ? 'อัปเดตข้อมูลสำเร็จ' : 'บันทึกการสอนสำเร็จ'
+      );
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `records/${record.id}`);
     }
@@ -443,6 +523,7 @@ export default function App() {
       if (editingRecord?.id === id) {
         setEditingRecord(null);
       }
+      addToast('ลบบันทึกหลังสอนรายวิชาออกจากระบบคลาวด์เสร็จสิ้น 🗑️', 'info', 'ลบเอกสารสำเร็จ');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `records/${id}`);
     }
@@ -1596,6 +1677,69 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Toast Notification Container */}
+      <div id="toast-container" className="fixed bottom-5 right-5 z-55 flex flex-col gap-3 pointer-events-none max-w-sm w-full font-sans print:hidden">
+        <AnimatePresence>
+          {toasts.map((toast) => {
+            const colors = {
+              success: {
+                bg: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                iconBg: 'bg-emerald-500 text-white',
+                progressBg: 'bg-emerald-500'
+              },
+              info: {
+                bg: 'bg-sky-50 border-sky-200 text-sky-800',
+                iconBg: 'bg-sky-500 text-white',
+                progressBg: 'bg-sky-500'
+              },
+              warning: {
+                bg: 'bg-amber-50 border-amber-200 text-amber-800',
+                iconBg: 'bg-amber-500 text-white',
+                progressBg: 'bg-amber-500'
+              },
+              error: {
+                bg: 'bg-rose-50 border-rose-200 text-rose-800',
+                iconBg: 'bg-rose-500 text-white',
+                progressBg: 'bg-rose-500'
+              }
+            }[toast.type];
+
+            return (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }}
+                layout
+                className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl border shadow-lg backdrop-blur-md ${colors.bg} relative overflow-hidden`}
+              >
+                <div className={`p-2 rounded-xl shrink-0 ${colors.iconBg} flex items-center justify-center`}>
+                  <Bell className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0 pr-4">
+                  <h4 className="text-xs font-black tracking-tight">{toast.title}</h4>
+                  <p className="text-[11px] font-semibold mt-0.5 leading-normal opacity-90">{toast.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeToast(toast.id)}
+                  className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 transition p-1 rounded-lg hover:bg-slate-200/10 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                {/* Auto expire progress bar anim */}
+                <motion.div
+                  initial={{ width: '100%' }}
+                  animate={{ width: 0 }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  className={`absolute bottom-0 left-0 h-1 ${colors.progressBg}`}
+                />
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
 
     </div>
   );

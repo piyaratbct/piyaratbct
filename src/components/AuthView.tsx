@@ -5,7 +5,8 @@ import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { 
   doc, 
@@ -91,6 +92,31 @@ export function AuthView({ onLogin }: AuthViewProps) {
       if (err.code === 'auth/operation-not-allowed') {
         thaiError = 'ยังไม่ได้เปิดใช้งานผู้ให้บริการล็อกอินด้วย Email/Password ใน Firebase Console ของฝั่งผู้เริ่มโครงการ';
       }
+      setErrorMsg(`${thaiError} (${err.message || err})`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    if (!email.trim()) {
+      setErrorMsg('💡 กรุณากรอกอีเมลในช่อง "อีเมลบัญชีผู้ใช้" ก่อน จากนั้นกดปุ่ม "ลืมรหัสผ่าน?" อีกครั้ง เพื่อรับลิงก์กู้คืนรหัสผ่านทางอีเมล');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await sendPasswordResetEmail(auth, email.trim());
+      setSuccessMsg(`📬 ส่งอีเมลรีเซ็ตรหัสผ่านไปยัง "${email.trim()}" เรียบร้อยแล้ว! กรุณาตรวจสอบกล่องจดหมายเข้า (และโฟลเดอร์จดหมายขยะ/Spam) ของคุณเพื่อกู้คืนรหัสผ่าน`);
+    } catch (err: any) {
+      console.error("Password reset error:", err);
+      let thaiError = 'ไม่สามารถส่งอีเมลรีเซ็ตรหัสผ่านได้';
+      if (err.code === 'auth/user-not-found') thaiError = 'ไม่พบผู้ใช้งานที่ใช้บัญชีอีเมลนี้ในระบบ';
+      if (err.code === 'auth/invalid-email') thaiError = 'รูปแบบอีเมลไม่เหมาะสม';
       setErrorMsg(`${thaiError} (${err.message || err})`);
     } finally {
       setIsLoading(false);
@@ -362,10 +388,20 @@ export function AuthView({ onLogin }: AuthViewProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                  <KeyRound className="h-4 w-4 text-slate-400" />
-                  รหัสผ่าน
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                    <KeyRound className="h-4 w-4 text-slate-400" />
+                    รหัสผ่าน
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={isLoading}
+                    className="text-[11px] font-extrabold text-sky-600 hover:text-sky-500 hover:underline outline-none cursor-pointer disabled:opacity-50"
+                  >
+                    ลืมรหัสผ่าน?
+                  </button>
+                </div>
                 <input
                   type="password"
                   required
