@@ -9,10 +9,22 @@ interface LessonLogFormProps {
   onCancel?: () => void;
 }
 
+const SEMESTERS = [
+  'ภาคเรียนที่ 1/2570',
+  'ภาคเรียนที่ 2/2570',
+  'ภาคเรียนที่ 1/2569',
+  'ภาคเรียนที่ 2/2569',
+  'ภาคเรียนที่ 1/2568',
+  'ภาคเรียนที่ 2/2568',
+  'ภาคเรียนที่ 1/2567',
+  'ภาคเรียนที่ 2/2567',
+];
+
 export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: LessonLogFormProps) {
   const [subject, setSubject] = useState<SubjectType>('ภาษาไทย');
   const [customSubject, setCustomSubject] = useState('');
-  const [gradeLevel, setGradeLevel] = useState(GRADE_LEVELS[0]);
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
+  const [semester, setSemester] = useState(SEMESTERS[0]);
   
   // Default date to today's local date (YYYY-MM-DD)
   const getTodayString = () => {
@@ -35,30 +47,6 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
   const [attachmentType, setAttachmentType] = useState<'image' | 'video' | 'pdf' | 'link'>('link');
 
   const [errorMsg, setErrorMsg] = useState('');
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'pdf') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2000000) {
-      alert('ขออภัย จำกัดขนาดไฟล์แนบไม่เกิน 2MB เพื่อหลีกเลี่ยงโควตาหน่วยความจำเบราว์เซอร์เต็ม กรุณาแปลงเป็น "ลิงก์เว็บไซต์/คลาวด์ภายนอก" หากไฟล์มีขนาดเกินนี้ครับ/ค่ะ');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const newAttachment: Attachment = {
-        id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        type,
-        name: file.name,
-        url: result
-      };
-      setAttachments(prev => [...prev, newAttachment]);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
 
   const handleAddLink = () => {
     if (!newLinkUrl.trim()) return;
@@ -86,7 +74,15 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
     if (initialRecord) {
       setSubject(initialRecord.subject as SubjectType);
       setCustomSubject(initialRecord.customSubject || '');
-      setGradeLevel(initialRecord.gradeLevel);
+      
+      if (initialRecord.gradeLevel) {
+        const levels = initialRecord.gradeLevel.split(',').map(s => s.trim()).filter(Boolean);
+        setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
+      } else {
+        setSelectedGrades([GRADE_LEVELS[0]]);
+      }
+      
+      setSemester(initialRecord.semester || SEMESTERS[0]);
       setDate(initialRecord.date);
       setContent(initialRecord.content);
       setActivities(initialRecord.activities);
@@ -101,7 +97,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
   const resetForm = () => {
     setSubject('ภาษาไทย');
     setCustomSubject('');
-    setGradeLevel(GRADE_LEVELS[0]);
+    setSelectedGrades([GRADE_LEVELS[0]]);
+    setSemester(SEMESTERS[0]);
     setDate(getTodayString());
     setContent('');
     setActivities('');
@@ -122,8 +119,13 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
       return;
     }
 
+    if (selectedGrades.length === 0) {
+      setErrorMsg('กรุณาเลือก ระดับชั้น อย่างน้อย 1 ระดับชั้น');
+      return;
+    }
+
     if (!content.trim() || !activities.trim() || !limitations.trim() || !suggestions.trim()) {
-      setErrorMsg('กรุณากรอกข้อมูลในหัวข้อ สาระการจัดการเรียนรู้, กิจกรรม, ข้อจำกัด และข้อเสนอแนะ ให้ครบถ้วนสมบูรณ์');
+      setErrorMsg('กรุณากรอกข้อมูลในหัวข้อ เนื้อหา/สาระ, กิจกรรม, ข้อจำกัด และความคิดเห็นของครูผู้สอน ให้ครบถ้วนสมบูรณ์');
       return;
     }
 
@@ -132,7 +134,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
       teacherId,
       subject,
       customSubject: subject === 'อื่นๆ' ? customSubject.trim() : undefined,
-      gradeLevel,
+      gradeLevel: selectedGrades.join(', '),
+      semester,
       date,
       content: content.trim(),
       activities: activities.trim(),
@@ -177,7 +180,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
           </div>
         )}
 
-        {/* 1. Basic Metadata Grid (subject, grade, date) */}
+        {/* 1. Basic Metadata Grid (subject, semester, date) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -196,15 +199,15 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              ระดับชั้น
+              ภาคเรียนพร้อมปีการศึกษา
             </label>
             <select
-              value={gradeLevel}
-              onChange={(e) => setGradeLevel(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              value={semester}
+              onChange={(e) => setSemester(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-sans"
             >
-              {GRADE_LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl}</option>
+              {SEMESTERS.map((sem) => (
+                <option key={sem} value={sem}>{sem}</option>
               ))}
             </select>
           </div>
@@ -220,6 +223,46 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
               onChange={(e) => setDate(e.target.value)}
               className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             />
+          </div>
+        </div>
+
+        {/* 1.5 Multi-grade level selection grid */}
+        <div className="bg-slate-50/40 p-4 rounded-xl border border-slate-100">
+          <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+            <span>ระดับชั้นที่เข้าสอน (เลือกได้มากกว่า 1 ระดับชั้น)</span>
+            <span className="text-[10.5px] text-blue-600 font-bold bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/50">
+              {selectedGrades.length === 0 ? 'ยังไม่ได้เลือก' : `เลือกแล้ว ${selectedGrades.length} ระดับชั้น`}
+            </span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {GRADE_LEVELS.map((lvl) => {
+              const isSelected = selectedGrades.includes(lvl);
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedGrades(prev => prev.filter(g => g !== lvl));
+                    } else {
+                      setSelectedGrades(prev => [...prev, lvl]);
+                    }
+                  }}
+                  className={`px-4 py-2.5 text-xs sm:text-[13px] font-bold rounded-xl border text-left transition duration-150 flex items-center justify-between gap-2.5 cursor-pointer select-none h-full shadow-2xs ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                      : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50/80'
+                  }`}
+                >
+                  <span className="whitespace-normal leading-tight flex-1">{lvl}</span>
+                  <span className={`w-4 h-4 rounded-md flex items-center justify-center border text-[10px] shrink-0 font-bold ${
+                    isSelected ? 'border-white bg-white text-blue-600' : 'border-slate-300'
+                  }`}>
+                    {isSelected ? '✓' : ''}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -248,7 +291,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
             <ClipboardList className="h-4 w-4 text-blue-500" />
-            1. สาระการเรียนรู้และจุดประสงค์
+            1. เนื้อหา/สาระ
           </label>
           <p className="text-[10px] text-slate-400 mb-1">ระบุเนื้อหาหลักหรือแนวการสอนในคาบนี้</p>
           <textarea
@@ -296,7 +339,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
             <MessageSquareCode className="h-4 w-4 text-emerald-500" />
-            4. ข้อเสนอแนะและทางแก้ไข
+            4. ความคิดเห็นของครูผู้สอน
           </label>
           <p className="text-[10px] text-slate-400 mb-1">ระบุแนวทางการพัฒนาหรือการปรับใช้เพื่อแก้ไขในคาบถัดไป</p>
           <textarea
@@ -313,65 +356,63 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
           <div>
             <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <Paperclip className="h-4 w-4 text-blue-600" />
-              5. แนบสื่อการสอน (รูป, วิดีโอ, PDF หรือลิงก์)
+              5. แนบสื่อการจัดการเรียนการสอน (ลิงก์เว็บ หรือคลาวด์ภายนอก)
             </label>
-            <p className="text-[10px] text-slate-400 mt-0.5">สามารถเก็บสื่อการสอน สไลด์ หรือลิงก์เสริมตรงนี้ได้เลย</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">แนบลิงก์แหล่งการเรียนรู้ แผนการสอนดิจิทัล หรือชิ้นงานของนักเรียนที่นี่</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* File Upload Section */}
-            <div className="bg-white p-3.5 rounded-xl border border-slate-150 space-y-2.5">
-              <span className="block text-[11px] font-bold text-slate-600">เลือกไฟล์จากเครื่อง</span>
-              <div className="grid grid-cols-3 gap-2">
-                <label className="flex flex-col items-center justify-center p-2.5 border border-dashed border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/20 hover:border-blue-300 transition group text-center">
-                  <FileImage className="h-5 w-5 text-slate-400 group-hover:text-blue-500 mb-1" />
-                  <span className="text-[9px] font-medium text-slate-500 font-sans">รูปภาพ</span>
-                  <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'image')} className="hidden" />
-                </label>
-
-                <label className="flex flex-col items-center justify-center p-2.5 border border-dashed border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/20 hover:border-blue-300 transition group text-center">
-                  <VideoIcon className="h-5 w-5 text-slate-400 group-hover:text-blue-500 mb-1" />
-                  <span className="text-[9px] font-medium text-slate-500 font-sans">วิดีโอ</span>
-                  <input type="file" accept="video/*" onChange={(e) => handleFileChange(e, 'video')} className="hidden" />
-                </label>
-
-                <label className="flex flex-col items-center justify-center p-2.5 border border-dashed border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50/20 hover:border-blue-300 transition group text-center">
-                  <FileText className="h-5 w-5 text-slate-400 group-hover:text-blue-500 mb-1" />
-                  <span className="text-[9px] font-medium text-slate-500 font-sans">ไฟล์ PDF</span>
-                  <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, 'pdf')} className="hidden" />
-                </label>
+            {/* Guide/Recommendation Card */}
+            <div className="bg-gradient-to-br from-indigo-50/40 to-sky-50/30 p-4 rounded-xl border border-sky-100/60 flex flex-col justify-between space-y-2">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-blue-900 bg-blue-100/70 px-2 py-0.5 rounded-md border border-blue-200">
+                  💡 คำแนะนำในการเก็บไฟล์รูปภาพ/วิดีโอ/PDF
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-600 font-medium">
+                  เนื่องจากระบบใช้พลังงานประมวลผลบนคลาวด์ร่วมกัน เพื่อประสิทธิภาพและความรวดเร็วในการจัดทำเอกสารหลังสอน 
+                  <span className="text-slate-800 font-bold"> แนะนำให้คุณครูบันทึกไฟล์รูปภาพกิจกรรม วิดีโอ หรือแผนการสอน PDF ไว้ทาง Google Drive ส่วนตัวหรือสถาบันของตนเอง</span> 
+                  แล้วคัดลอก "ลิงก์แชร์ที่ทุกคนมีสิทธิ์อ่าน" นำมาวางในช่องแชร์ลิงก์ทางด้านขวามือเพื่อความสะดวกรวดเร็วครับ/ค่ะ
+                </p>
               </div>
-              <p className="text-[9px] text-slate-400 italic">ขนาดรูปหรือไฟล์ ไม่เกิน 2MB เพื่อการบันทึกที่รวดเร็ว</p>
+              <div className="pt-2 border-t border-sky-100/80 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400">ตัวอย่าง: https://drive.google.com/drive/...</span>
+              </div>
             </div>
 
             {/* URL Link Section */}
-            <div className="bg-white p-3.5 rounded-xl border border-slate-150 space-y-2">
-              <span className="block text-[11px] font-bold text-slate-600">ใส่ลิงก์เว็บหรือคลาวด์</span>
-              <div className="space-y-1.5">
-                <input
-                  type="text"
-                  placeholder="ชื่อลิงก์ (เช่น สไลด์การสอน, ใบงาน)"
-                  value={newLinkName}
-                  onChange={(e) => setNewLinkName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                />
-                <div className="flex gap-1.5">
+            <div className="bg-white p-4 rounded-xl border border-slate-150 flex flex-col justify-center space-y-3">
+              <span className="block text-[11px] font-bold text-slate-700">ใส่ลิงก์แหล่งข้อมูลเสริม</span>
+              <div className="space-y-2.5">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500">1. ชื่อเรียกลิงก์ / คำอธิบายสื่อ</span>
                   <input
                     type="text"
-                    placeholder="ลิงก์เว็บไซต์ (https://...)"
-                    value={newLinkUrl}
-                    onChange={(e) => setNewLinkUrl(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    placeholder="เช่น สไลด์คาบเรียนที่ 1, แผนการสอนบน Google Drive, ใบงาน PDF"
+                    value={newLinkName}
+                    onChange={(e) => setNewLinkName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white placeholder:text-slate-400 text-slate-800"
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddLink}
-                    disabled={!newLinkUrl.trim()}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold rounded-lg transition text-[11px] flex items-center gap-1"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>เพิ่มลิงก์</span>
-                  </button>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500">2. ที่อยู่ลิงก์เว็บ (URL)</span>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="https://drive.google.com/... หรือแชร์ลิงก์อื่นๆ"
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      className="flex-1 px-2.5 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white placeholder:text-slate-400 text-slate-800 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddLink}
+                      disabled={!newLinkUrl.trim()}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white font-bold rounded-lg transition text-[11px] flex items-center gap-1 shrink-0 cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>เพิ่มลิงก์</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

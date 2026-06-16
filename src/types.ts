@@ -31,6 +31,7 @@ export interface LessonRecord {
   limitations: string;  // ข้อจำกัดในการจัดการเรียนการสอน
   suggestions: string;  // ข้อเสนอแนะ/ความคิดเห็นของผู้สอน
   attachments?: Attachment[];
+  semester?: string;
   createdAt: string;
   updatedAt: string;
   

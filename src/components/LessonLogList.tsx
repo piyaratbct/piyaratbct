@@ -52,7 +52,7 @@ export function LessonLogList({
     const subjMatch = selectedSubject === 'ทั้งหมด' || record.subject === selectedSubject;
 
     // 3. Grade filter
-    const gradeMatch = selectedGrade === 'ทั้งหมด' || record.gradeLevel === selectedGrade;
+    const gradeMatch = selectedGrade === 'ทั้งหมด' || record.gradeLevel.includes(selectedGrade);
 
     // 4. Teacher filter
     const teacherMatch = !showTeacherFilter || selectedTeacherId === 'ทั้งหมด' || record.teacherId === selectedTeacherId;
@@ -260,6 +260,12 @@ export function LessonLogList({
                   <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                     {record.gradeLevel}
                   </span>
+
+                  {record.semester && (
+                    <span className="text-[11px] font-bold text-pink-700 bg-pink-50 border border-pink-100/50 px-2 py-0.5 rounded font-sans">
+                      {record.semester}
+                    </span>
+                  )}
 
                   {teachers && (
                     (() => {

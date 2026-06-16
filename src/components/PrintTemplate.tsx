@@ -620,6 +620,13 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.gradeLevel}</span>
               </div>
 
+              {record.semester && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ภาคเรียน/ปีการศึกษา:</span>
+                  <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.semester}</span>
+                </div>
+              )}
+
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วันที่ทำการสอน:</span>
                 <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{formatThaiDateFull(record.date)}</span>
@@ -644,7 +651,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             {/* Paragraph 1 */}
             <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
               <h4 className={`font-bold text-pink-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                1. สาระการเรียนรู้และจุดประสงค์การสอน :
+                1. เนื้อหา/สาระ :
               </h4>
               <div className={`bg-pink-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-pink-100/80 border-l-4 border-l-pink-500 print:border print:bg-none whitespace-pre-line ${
                 isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
@@ -680,7 +687,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             {/* Paragraph 4 */}
             <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
               <h4 className={`font-bold text-emerald-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                4. ข้อเสนอแนะและทางแก้ไข :
+                4. ความคิดเห็นของครูผู้สอน :
               </h4>
               <div className={`bg-emerald-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-emerald-100/80 border-l-4 border-l-emerald-500 print:border print:bg-none whitespace-pre-line ${
                 isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'

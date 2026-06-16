@@ -741,11 +741,17 @@ export default function App() {
         
         {/* Welcome Card & Info */}
         <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
-          <div className="space-y-1">
-            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-              <span className="animate-wiggle">👋</span> สวัสดีครับ/ค่ะ, {currentTeacher.displayName}
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs">
+              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+              <span className="text-sm sm:text-base font-black tracking-wide text-indigo-950 font-sans">
+                LessonLog - ระบบบันทึกผลการจัดการเรียนรู้
+              </span>
+            </div>
+            <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
+              <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ, {currentTeacher.displayName}
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
+            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">
               ยินดีต้อนรับสู่ระบบบันทึกผลการสอน สังกัดของคุณครูคือ <b className="text-sky-700">{currentTeacher.affiliation}</b>
             </p>
           </div>
