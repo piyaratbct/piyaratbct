@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LessonRecord, Teacher } from '../types';
-import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle } from 'lucide-react';
+import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export function SchoolLogo({ className = "h-24 w-24" }: { className?: string }) {
   return (
@@ -309,6 +311,7 @@ function SignaturePadModal({ role, defaultName, onSave, onClose }: SignaturePadM
 export function PrintTemplate({ record, teacher, academicHead, currentUser, customLogo, allowAcademicSignature = true, onUpdateRecord, onClose }: PrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   const [isCompact, setIsCompact] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   // Status variables
   const isDeptHeadApproved = !!record.deptHeadApproved;
@@ -331,8 +334,142 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
     return dateString;
   };
 
+  const handleDownloadPDF = async () => {
+    if (isDownloadingPDF) return;
+    setIsDownloadingPDF(true);
+
+    // Helper to convert modern CSS oklch() colors to compatible hsl() format for html2canvas parser
+    const replaceOklch = (cssText: string): string => {
+      return cssText.replace(/oklch\(\s*([0-9.%]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.%]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
+        let l_val = parseFloat(p1);
+        if (p1.includes('%')) {
+          l_val = l_val / 100;
+        }
+        const c_val = parseFloat(p2);
+        const h_val = parseFloat(p3);
+        
+        // Approximate to standard HSL:
+        const hsl_h = isNaN(h_val) ? 0 : h_val;
+        // Chroma (0...0.4) maps roughly to Saturation (0...100%) by scaling up
+        const hsl_s = Math.min(100, Math.max(0, (isNaN(c_val) ? 0 : c_val) * 250));
+        // Lightness is directly proportional
+        const hsl_l = Math.max(0, Math.min(100, l_val * 100));
+        
+        if (p4 !== undefined) {
+          let a_val = parseFloat(p4);
+          if (p4.includes('%')) {
+            a_val = a_val / 100;
+          }
+          return `hsla(${hsl_h}, ${hsl_s.toFixed(1)}%, ${hsl_l.toFixed(1)}%, ${a_val})`;
+        } else {
+          return `hsl(${hsl_h}, ${hsl_s.toFixed(1)}%, ${hsl_l.toFixed(1)}%)`;
+        }
+      });
+    };
+
+    try {
+      const element = document.getElementById('printable-lesson-log');
+      if (!element) {
+        throw new Error('Element with id printable-lesson-log not found');
+      }
+
+      // Generate canvas representation
+      const canvas = await html2canvas(element, {
+        scale: 2, // High resolution for clear text/logos
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // 1. Convert OKLCH colors in style tags to standard HSL colors to prevent parsing crashes
+          clonedDoc.querySelectorAll('style').forEach(styleTag => {
+            if (styleTag.innerHTML && styleTag.innerHTML.includes('oklch')) {
+              styleTag.innerHTML = replaceOklch(styleTag.innerHTML);
+            }
+          });
+
+          // 2. Convert OKLCH colors in inline styles to standard HSL colors
+          clonedDoc.querySelectorAll('[style]').forEach(el => {
+            const styleAttr = el.getAttribute('style');
+            if (styleAttr && styleAttr.includes('oklch')) {
+              el.setAttribute('style', replaceOklch(styleAttr));
+            }
+          });
+
+          const clonedElement = clonedDoc.getElementById('printable-lesson-log');
+          if (clonedElement) {
+            clonedElement.style.boxShadow = 'none';
+            clonedElement.style.borderRadius = '0';
+          }
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Append image and split across PDF pages as required
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
+
+      // Dynamic name formatting
+      const rawSubject = record.subject === 'อื่นๆ' && record.customSubject 
+        ? record.customSubject 
+        : record.subject;
+      const subjectName = rawSubject.replace(/[\/\\:*?"<>|\s]/g, '_');
+      const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน')
+        .replace(/[\/\\:*?"<>|\s]/g, '_');
+      const recordDate = (record.date || '')
+        .replace(/[\/\\:*?"<>|\s]/g, '_');
+
+      const fileName = `บันทึกหลังสอน_${teacherIdentifier}_${subjectName}_${recordDate}.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('ไม่สามารถดาวน์โหลด PDF โดยตรงได้ในขณะนี้ กรุณาลองใช้ปุ่มพิมพ์รายงานหรือสอบถามผู้ดูแลระบบ');
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
   const handlePrint = () => {
+    const originalTitle = document.title;
+    
+    // Format subject name safely and sanitize forbidden characters in filenames
+    const rawSubject = record.subject === 'อื่นๆ' && record.customSubject 
+      ? record.customSubject 
+      : record.subject;
+    const subjectName = rawSubject.replace(/[\/\\:*?"<>|\s]/g, '_');
+      
+    // Format teacher ID safely (รหัสประจำตัวคุณครู)
+    const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน')
+      .replace(/[\/\\:*?"<>|\s]/g, '_');
+    
+    // Format teaching date
+    const recordDate = (record.date || '')
+      .replace(/[\/\\:*?"<>|\s]/g, '_');
+    
+    // Dynamic file name for printing or saving as PDF
+    document.title = `บันทึกหลังสอน_${teacherIdentifier}_${subjectName}_${recordDate}`;
+    
     window.print();
+    
+    // Restore original document title after a short delay
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   const handleSaveSignature = (name: string, signatureBase64: string) => {
@@ -479,6 +616,30 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 <span>พิมพ์เอกสาร (แบบร่าง)</span>
               </button>
             )}
+
+            {/* Direct One-Click PDF Download Button */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloadingPDF}
+              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 font-bold py-2 px-4 rounded-xl text-xs transition duration-200 shadow-sm cursor-pointer ${
+                isDownloadingPDF
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed border border-slate-600'
+                  : 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-550'
+              }`}
+              title="ดาวน์โหลดเป็นไฟล์ PDF แบบด่วนคลิกเดียวลงเครื่องโดยใช้ปลั๊กอิน"
+            >
+              {isDownloadingPDF ? (
+                <>
+                  <span className="animate-spin h-3 w-3 border-2 border-slate-400 border-t-white rounded-full inline-block"></span>
+                  <span>กำลังสร้าง PDF...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown className="h-4 w-4" />
+                  <span>โหลด PDF ทันที (One-Click)</span>
+                </>
+              )}
+            </button>
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-white bg-slate-700 rounded-xl hover:bg-slate-600 transition"
@@ -545,7 +706,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         </div>
 
         {/* Formal A4 Blueprint Sheet */}
-        <div className={`print-container bg-white rounded-b-2xl shadow-xl flex-1 print:shadow-none print:rounded-none transition-all duration-150 ${
+        <div id="printable-lesson-log" className={`print-container bg-white rounded-b-2xl shadow-xl flex-1 print:shadow-none print:rounded-none transition-all duration-150 ${
           isCompact ? 'p-6 sm:p-8' : 'p-12 sm:p-16'
         }`}>
           
