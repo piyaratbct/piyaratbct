@@ -746,29 +746,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               </button>
             )}
 
-            {/* Direct One-Click PDF Download Button */}
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloadingPDF}
-              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 font-bold py-2 px-4 rounded-xl text-xs transition duration-200 shadow-sm cursor-pointer ${
-                isDownloadingPDF
-                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed border border-slate-600'
-                  : 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-550'
-              }`}
-              title="ดาวน์โหลดเป็นไฟล์ PDF แบบด่วนคลิกเดียวลงเครื่องโดยใช้ปลั๊กอิน"
-            >
-              {isDownloadingPDF ? (
-                <>
-                  <span className="animate-spin h-3 w-3 border-2 border-slate-400 border-t-white rounded-full inline-block"></span>
-                  <span>กำลังสร้าง PDF...</span>
-                </>
-              ) : (
-                <>
-                  <FileDown className="h-4 w-4" />
-                  <span>โหลด PDF ทันที (One-Click)</span>
-                </>
-              )}
-            </button>
+
             <button
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-white bg-slate-700 rounded-xl hover:bg-slate-600 transition"
