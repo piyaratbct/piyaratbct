@@ -16,9 +16,10 @@ import {
 
 interface AuthViewProps {
   onLogin: (teacher: Teacher) => void;
+  customLogo?: string | null;
 }
 
-export function AuthView({ onLogin }: AuthViewProps) {
+export function AuthView({ onLogin, customLogo }: AuthViewProps) {
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -290,9 +291,15 @@ export function AuthView({ onLogin }: AuthViewProps) {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Brand Logo & Name */}
         <div className="flex flex-col items-center justify-center">
-          <div className="h-16 w-16 bg-gradient-to-tr from-sky-450 via-sky-500 to-pink-400 rounded-2xl flex items-center justify-center shadow-md transform hover:rotate-3 transition duration-300">
-            <BookOpen className="h-9 w-9 text-white animate-pulse" />
-          </div>
+          {customLogo ? (
+            <div className="h-20 w-20 bg-white rounded-2xl flex items-center justify-center border border-sky-100 shadow-md transform hover:rotate-3 transition duration-300 overflow-hidden p-1.5 shrink-0">
+              <img src={customLogo} alt="School Logo" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="h-16 w-16 bg-gradient-to-tr from-sky-450 via-sky-500 to-pink-400 rounded-2xl flex items-center justify-center shadow-md transform hover:rotate-3 transition duration-300">
+              <BookOpen className="h-9 w-9 text-white animate-pulse" />
+            </div>
+          )}
           <h1 className="mt-4 text-center text-3xl font-black text-slate-800 tracking-tight font-sans">
             LessonLog
           </h1>

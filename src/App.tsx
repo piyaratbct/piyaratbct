@@ -132,6 +132,18 @@ export default function App() {
       setCustomLogo(savedLogo);
     }
 
+    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
+    const unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data && data.customLogo !== undefined) {
+          setCustomLogo(data.customLogo);
+        }
+      }
+    }, (err) => {
+      console.error("Config fetch error:", err);
+    });
+
     // Load sys dashboard password
     const savedPassword = localStorage.getItem('lessonlog_sys_dashboard_password');
     if (savedPassword) {
@@ -140,6 +152,7 @@ export default function App() {
 
     return () => {
       unsubAuth();
+      unsubConfig();
     };
   }, []);
 
@@ -250,22 +263,9 @@ export default function App() {
       console.error("Teachers catalog lookup error:", err);
     });
 
-    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
-    const unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data && data.customLogo !== undefined) {
-          setCustomLogo(data.customLogo);
-        }
-      }
-    }, (err) => {
-      console.error("Config fetch error:", err);
-    });
-
     return () => {
       unsubRecords();
       unsubTeachers();
-      unsubConfig();
     };
   }, [currentTeacher]);
 
@@ -687,7 +687,7 @@ export default function App() {
   }
 
   if (!currentTeacher) {
-    return <AuthView onLogin={handleLogin} />;
+    return <AuthView onLogin={handleLogin} customLogo={customLogo} />;
   }
 
   return (

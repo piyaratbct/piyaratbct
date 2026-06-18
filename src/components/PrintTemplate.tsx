@@ -367,6 +367,62 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
       });
     };
 
+    // Helper to convert modern CSS oklab() colors to compatible rgb() format for html2canvas parser
+    const replaceOklab = (cssText: string): string => {
+      return cssText.replace(/oklab\(\s*([0-9.%\-+]+)\s+([0-9.%\-+]+)\s+([0-9.%\-+]+)(?:\s*\/\s*([0-9.%\-+]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
+        let l_val = parseFloat(p1);
+        if (p1.includes('%')) {
+          l_val = l_val / 100;
+        }
+        const a_val = parseFloat(p2);
+        const b_val = parseFloat(p3);
+
+        if (isNaN(l_val) || isNaN(a_val) || isNaN(b_val)) {
+          return 'rgb(128, 128, 128)';
+        }
+
+        // Convert Oklab to linear LMS coordinates
+        const l_ = l_val + 0.3963377774 * a_val + 0.2158037573 * b_val;
+        const m_ = l_val - 0.1055613458 * a_val - 0.0638541728 * b_val;
+        const s_ = l_val - 0.0894841775 * a_val - 1.2914855480 * b_val;
+
+        // LMS are cubed to get active LMS values
+        const l = l_ * l_ * l_;
+        const m = m_ * m_ * m_;
+        const s = s_ * s_ * s_;
+
+        // LMS to linear RGB
+        const r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+        const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+        const b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+        // Apply gamma correction (sRGB)
+        const f = (c: number) => {
+          if (isNaN(c)) return 0;
+          return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(0, c), 1 / 2.4) - 0.055;
+        };
+        
+        const R = Math.max(0, Math.min(255, Math.round(f(r) * 255)));
+        const G = Math.max(0, Math.min(255, Math.round(f(g) * 255)));
+        const B = Math.max(0, Math.min(255, Math.round(f(b) * 255)));
+
+        if (isNaN(R) || isNaN(G) || isNaN(B)) {
+          return 'rgb(128, 128, 128)';
+        }
+
+        if (p4 !== undefined) {
+          let alpha = parseFloat(p4);
+          if (p4.includes('%')) {
+            alpha = alpha / 100;
+          }
+          if (isNaN(alpha)) alpha = 1;
+          return `rgba(${R}, ${G}, ${B}, ${alpha})`;
+        } else {
+          return `rgb(${R}, ${G}, ${B})`;
+        }
+      });
+    };
+
     try {
       const element = document.getElementById('printable-lesson-log');
       if (!element) {
@@ -380,18 +436,36 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // 1. Convert OKLCH colors in style tags to standard HSL colors to prevent parsing crashes
+          // 1. Convert OKLCH/Oklab colors in style tags to standard HSL/RGB colors to prevent parsing crashes
           clonedDoc.querySelectorAll('style').forEach(styleTag => {
-            if (styleTag.innerHTML && styleTag.innerHTML.includes('oklch')) {
-              styleTag.innerHTML = replaceOklch(styleTag.innerHTML);
+            if (styleTag.innerHTML) {
+              let html = styleTag.innerHTML;
+              if (html.includes('oklch')) {
+                html = replaceOklch(html);
+                html = html.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
+              }
+              if (html.includes('oklab')) {
+                html = replaceOklab(html);
+                html = html.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
+              }
+              styleTag.innerHTML = html;
             }
           });
 
-          // 2. Convert OKLCH colors in inline styles to standard HSL colors
+          // 2. Convert OKLCH/Oklab colors in inline styles to standard HSL/RGB colors
           clonedDoc.querySelectorAll('[style]').forEach(el => {
             const styleAttr = el.getAttribute('style');
-            if (styleAttr && styleAttr.includes('oklch')) {
-              el.setAttribute('style', replaceOklch(styleAttr));
+            if (styleAttr) {
+              let styleStr = styleAttr;
+              if (styleStr.includes('oklch')) {
+                styleStr = replaceOklch(styleStr);
+                styleStr = styleStr.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
+              }
+              if (styleStr.includes('oklab')) {
+                styleStr = replaceOklab(styleStr);
+                styleStr = styleStr.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
+              }
+              el.setAttribute('style', styleStr);
             }
           });
 
