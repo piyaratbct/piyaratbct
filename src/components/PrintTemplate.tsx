@@ -340,7 +340,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
     // Helper to convert modern CSS oklch() colors to compatible hsl() format for html2canvas parser
     const replaceOklch = (cssText: string): string => {
-      return cssText.replace(/oklch\(\s*([0-9.%]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.%]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
+      return cssText.replace(/oklch\(\s*([0-9.%\-+]+)\s+([0-9.%\-+]+)\s+([0-9.%\-+]+)(?:\s*\/\s*([0-9.%\-+]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
         let l_val = parseFloat(p1);
         if (p1.includes('%')) {
           l_val = l_val / 100;
@@ -429,53 +429,108 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         throw new Error('Element with id printable-lesson-log not found');
       }
 
-      // Generate canvas representation
-      const canvas = await html2canvas(element, {
-        scale: 2, // High resolution for clear text/logos
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          // 1. Convert OKLCH/Oklab colors in style tags to standard HSL/RGB colors to prevent parsing crashes
-          clonedDoc.querySelectorAll('style').forEach(styleTag => {
-            if (styleTag.innerHTML) {
-              let html = styleTag.innerHTML;
-              if (html.includes('oklch')) {
-                html = replaceOklch(html);
-                html = html.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
-              }
-              if (html.includes('oklab')) {
-                html = replaceOklab(html);
-                html = html.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
-              }
-              styleTag.innerHTML = html;
+      // Temporarily monkeypatch window.getComputedStyle to translate oklch and oklab colors on the fly
+      // so html2canvas doesn't throw parser crashes during computed styles reading.
+      const originalGetComputedStyle = window.getComputedStyle;
+      window.getComputedStyle = function (el, pseudoElt) {
+        const style = originalGetComputedStyle(el, pseudoElt);
+        return new Proxy(style, {
+          get(target, prop, receiver) {
+            let val = Reflect.get(target, prop, receiver);
+            if (typeof val === 'function') {
+              return val.bind(target);
             }
-          });
-
-          // 2. Convert OKLCH/Oklab colors in inline styles to standard HSL/RGB colors
-          clonedDoc.querySelectorAll('[style]').forEach(el => {
-            const styleAttr = el.getAttribute('style');
-            if (styleAttr) {
-              let styleStr = styleAttr;
-              if (styleStr.includes('oklch')) {
-                styleStr = replaceOklch(styleStr);
-                styleStr = styleStr.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
-              }
-              if (styleStr.includes('oklab')) {
-                styleStr = replaceOklab(styleStr);
-                styleStr = styleStr.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
-              }
-              el.setAttribute('style', styleStr);
+            if (prop === 'getPropertyValue') {
+              return (propertyName: string) => {
+                let pVal = target.getPropertyValue(propertyName);
+                if (typeof pVal === 'string') {
+                  if (pVal.includes('oklch')) {
+                    pVal = replaceOklch(pVal);
+                    if (pVal.includes('oklch')) {
+                      pVal = 'rgb(128, 128, 128)';
+                    }
+                  }
+                  if (pVal.includes('oklab')) {
+                    pVal = replaceOklab(pVal);
+                    if (pVal.includes('oklab')) {
+                      pVal = 'rgb(128, 128, 128)';
+                    }
+                  }
+                }
+                return pVal;
+              };
             }
-          });
-
-          const clonedElement = clonedDoc.getElementById('printable-lesson-log');
-          if (clonedElement) {
-            clonedElement.style.boxShadow = 'none';
-            clonedElement.style.borderRadius = '0';
+            if (typeof val === 'string') {
+              if (val.includes('oklch')) {
+                val = replaceOklch(val);
+                if (val.includes('oklch')) {
+                  val = 'rgb(128, 128, 128)';
+                }
+              }
+              if (val.includes('oklab')) {
+                val = replaceOklab(val);
+                if (val.includes('oklab')) {
+                  val = 'rgb(128, 128, 128)';
+                }
+              }
+            }
+            return val;
           }
-        }
-      });
+        });
+      };
+
+      let canvas;
+      try {
+        // Generate canvas representation
+        canvas = await html2canvas(element, {
+          scale: 2, // High resolution for clear text/logos
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            // 1. Convert OKLCH/Oklab colors in style tags to standard HSL/RGB colors to prevent parsing crashes
+            clonedDoc.querySelectorAll('style').forEach(styleTag => {
+              if (styleTag.innerHTML) {
+                let html = styleTag.innerHTML;
+                if (html.includes('oklch')) {
+                  html = replaceOklch(html);
+                  html = html.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
+                }
+                if (html.includes('oklab')) {
+                  html = replaceOklab(html);
+                  html = html.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
+                }
+                styleTag.innerHTML = html;
+              }
+            });
+
+            // 2. Convert OKLCH/Oklab colors in inline styles to standard HSL/RGB colors
+            clonedDoc.querySelectorAll('[style]').forEach(el => {
+              const styleAttr = el.getAttribute('style');
+              if (styleAttr) {
+                let styleStr = styleAttr;
+                if (styleStr.includes('oklch')) {
+                  styleStr = replaceOklch(styleStr);
+                  styleStr = styleStr.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
+                }
+                if (styleStr.includes('oklab')) {
+                  styleStr = replaceOklab(styleStr);
+                  styleStr = styleStr.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
+                }
+                el.setAttribute('style', styleStr);
+              }
+            });
+
+            const clonedElement = clonedDoc.getElementById('printable-lesson-log');
+            if (clonedElement) {
+              clonedElement.style.boxShadow = 'none';
+              clonedElement.style.borderRadius = '0';
+            }
+          }
+        });
+      } finally {
+        window.getComputedStyle = originalGetComputedStyle;
+      }
 
       const imgData = canvas.toDataURL('image/png');
       
