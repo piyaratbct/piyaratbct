@@ -130,10 +130,11 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
     }
 
     const payload: LessonRecord = {
+      ...(initialRecord || {}),
       id: initialRecord?.id || `rec-${Date.now()}`,
       teacherId,
       subject,
-      customSubject: subject === 'อื่นๆ' ? customSubject.trim() : undefined,
+      customSubject: subject === 'อื่นๆ' ? customSubject.trim() : '',
       gradeLevel: selectedGrades.join(', '),
       semester,
       date,

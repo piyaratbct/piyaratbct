@@ -102,5 +102,10 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
     }
+
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
   }
 }

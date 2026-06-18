@@ -110,7 +110,8 @@ export default function App() {
               phoneNumber: 'N/A',
               affiliation: 'กลุ่มสาระการเรียนรู้',
               displayName: user.displayName || user.email?.split('@')[0] || 'Teacher',
-              role: 'teacher'
+              role: 'teacher',
+              hasSeeded: true
             };
             // Do not write to Firestore here to prevent race conditions during registration & demo account setup
             setCurrentTeacher(fallback);
@@ -249,9 +250,22 @@ export default function App() {
       console.error("Teachers catalog lookup error:", err);
     });
 
+    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
+    const unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data && data.customLogo !== undefined) {
+          setCustomLogo(data.customLogo);
+        }
+      }
+    }, (err) => {
+      console.error("Config fetch error:", err);
+    });
+
     return () => {
       unsubRecords();
       unsubTeachers();
+      unsubConfig();
     };
   }, [currentTeacher]);
 
@@ -317,6 +331,9 @@ export default function App() {
         const dataUrl = canvas.toDataURL('image/png');
         setCustomLogo(dataUrl);
         localStorage.setItem('lessonlog_custom_logo', dataUrl);
+        setDoc(doc(db, 'config', 'school'), { customLogo: dataUrl }, { merge: true }).catch(err => {
+          console.error("Failed to persist custom logo in Firestore:", err);
+        });
       }
       stopCamera();
     } catch (err) {
@@ -335,6 +352,9 @@ export default function App() {
         const base64String = event.target.result as string;
         setCustomLogo(base64String);
         localStorage.setItem('lessonlog_custom_logo', base64String);
+        setDoc(doc(db, 'config', 'school'), { customLogo: base64String }, { merge: true }).catch(err => {
+          console.error("Failed to persist uploaded logo in Firestore:", err);
+        });
       }
     };
     reader.readAsDataURL(file);
@@ -343,6 +363,9 @@ export default function App() {
   const handleClearCustomLogo = () => {
     setCustomLogo(null);
     localStorage.removeItem('lessonlog_custom_logo');
+    setDoc(doc(db, 'config', 'school'), { customLogo: null }, { merge: true }).catch(err => {
+      console.error("Failed to clear custom logo in Firestore:", err);
+    });
   };
 
   const handleLogin = (teacher: Teacher) => {
@@ -483,7 +506,13 @@ export default function App() {
         updatedAt: new Date().toISOString(),
         ...(isEdit ? { lastEditedBy, lastEditedAt, editHistory: updatedHistory } : {})
       };
-      await setDoc(doc(db, 'records', record.id), payload);
+      
+      // Filter out undefined property values to prevent Firestore serialization errors
+      const cleanPayload = Object.fromEntries(
+        Object.entries(payload).filter(([_, v]) => v !== undefined)
+      );
+      
+      await setDoc(doc(db, 'records', record.id), cleanPayload);
       setEditingRecord(null);
       setShowFormOnMobile(false);
       addToast(
@@ -676,7 +705,7 @@ export default function App() {
             <div className="flex items-center space-x-3">
               <div className="h-11 w-11 bg-white rounded-xl flex items-center justify-center border border-sky-200/80 overflow-hidden shadow-xs hover:scale-105 hover:border-pink-300 transition shrink-0">
                 {customLogo ? (
-                  <img src={customLogo} alt="School Custom Logo" className="h-full w-full object-cover" />
+                  <img src={customLogo} alt="School Custom Logo" className="h-full w-full object-contain p-1" />
                 ) : (
                   <SchoolLogo className="h-9 w-9 text-sky-500" />
                 )}
@@ -1394,8 +1423,12 @@ export default function App() {
                 updatedAt: new Date().toISOString()
               };
 
-              await setDoc(doc(db, 'records', updated.id), dbPayload);
-              setActivePrintPreview(dbPayload);
+              const cleanDbPayload = Object.fromEntries(
+                Object.entries(dbPayload).filter(([_, v]) => v !== undefined)
+              );
+
+              await setDoc(doc(db, 'records', updated.id), cleanDbPayload as any);
+              setActivePrintPreview(cleanDbPayload as any);
             } catch (err) {
               handleFirestoreError(err, OperationType.UPDATE, `records/${updated.id}`);
             }
@@ -1540,7 +1573,7 @@ export default function App() {
                   <div className="h-16 w-16 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-150 overflow-hidden relative group shrink-0 shadow-inner">
                     {customLogo ? (
                       <>
-                        <img src={customLogo} alt="Custom school logo" className="h-full w-full object-cover" />
+                        <img src={customLogo} alt="Custom school logo" className="h-full w-full object-contain p-1" />
                         <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">ตรากำหนดเอง</span>
                       </>
                     ) : (

@@ -75,7 +75,8 @@ export function AuthView({ onLogin }: AuthViewProps) {
           phoneNumber: 'N/A',
           affiliation: 'กลุ่มสาระการเรียนรู้',
           displayName: email.trim().split('@')[0],
-          role: 'teacher'
+          role: 'teacher',
+          hasSeeded: true
         };
         await setDoc(docRef, fallbackTeacher);
         setSuccessMsg('เข้าสู่ระบบสำเร็จ (สร้างข้อมูลตั้งต้นเพิ่มเติมเรียบร้อย)');
@@ -165,7 +166,8 @@ export function AuthView({ onLogin }: AuthViewProps) {
         phoneNumber: phoneNumber.trim(),
         affiliation: resolvedAffiliation,
         displayName: displayName.trim(),
-        role: regRole
+        role: regRole,
+        hasSeeded: true
       };
 
       await setDoc(doc(db, 'teachers', uid), newTeacher);
