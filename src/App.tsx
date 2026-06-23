@@ -18,6 +18,47 @@ import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
+// Safe localStorage helper to avoid SecurityError in restricted sandboxed iframes
+const safeLocalStorage = {
+  getItem(key: string): string | null {
+    try {
+      return typeof window !== 'undefined' && window.localStorage ? localStorage.getItem(key) : null;
+    } catch (e) {
+      console.warn(`[SafeStorage] Failed to read key "${key}":`, e);
+      return null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      console.warn(`[SafeStorage] Failed to write key "${key}":`, e);
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(key);
+      }
+    } catch (e) {
+      console.warn(`[SafeStorage] Failed to remove key "${key}":`, e);
+    }
+  }
+};
+
+// Safe scroll helper to prevent sandbox limitations from throwing errors
+const safeScrollTo = (options: ScrollToOptions) => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo(options);
+    }
+  } catch (e) {
+    console.warn("[SafeScroll] Failed to scroll:", e);
+  }
+};
+
 export default function App() {
   // Toast notifications state
   interface ToastItem {
@@ -91,16 +132,23 @@ export default function App() {
 
   // 1. Firebase Authentication state change listener
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const profileRef = doc(db, 'teachers', user.uid);
-          const profileSnap = await getDoc(profileRef);
-          if (profileSnap.exists()) {
-            const t = profileSnap.data() as Teacher;
-            setCurrentTeacher(t);
-            initProfileStates(t);
-          } else {
+    let unsubAuth = () => {};
+    if (auth && auth.onAuthStateChanged) {
+      unsubAuth = auth.onAuthStateChanged(async (user: any) => {
+        if (user) {
+          try {
+            if (db) {
+              const profileRef = doc(db, 'teachers', user.uid);
+              const profileSnap = await getDoc(profileRef);
+              if (profileSnap.exists()) {
+                const t = profileSnap.data() as Teacher;
+                setCurrentTeacher(t);
+                initProfileStates(t);
+                setAuthLoading(false);
+                return;
+              }
+            }
+            // Fallback if db is unavailable or profile missing
             const fallback: Teacher = {
               id: user.uid,
               email: user.email || '',
@@ -113,39 +161,70 @@ export default function App() {
               role: 'teacher',
               hasSeeded: true
             };
-            // Do not write to Firestore here to prevent race conditions during registration & demo account setup
+            setCurrentTeacher(fallback);
+            initProfileStates(fallback);
+          } catch (err) {
+            console.warn("Error setting up active teacher session, using fallback:", err);
+            const fallback: Teacher = {
+              id: user.uid,
+              email: user.email || '',
+              thaiName: 'คุณครูผู้เขียน',
+              englishName: 'Teacher Profile',
+              employeeId: 'ED-' + user.uid.substring(0, 5).toUpperCase(),
+              phoneNumber: 'N/A',
+              affiliation: 'กลุ่มสาระการเรียนรู้',
+              displayName: user.displayName || user.email?.split('@')[0] || 'Teacher',
+              role: 'teacher',
+              hasSeeded: true
+            };
             setCurrentTeacher(fallback);
             initProfileStates(fallback);
           }
-        } catch (err) {
-          console.error("Error setting up active teacher session:", err);
+        } else {
+          setCurrentTeacher(null);
         }
-      } else {
-        setCurrentTeacher(null);
-      }
+        setAuthLoading(false);
+      });
+    } else {
       setAuthLoading(false);
-    });
+    }
 
     // Load custom logo
-    const savedLogo = localStorage.getItem('lessonlog_custom_logo');
+    const savedLogo = safeLocalStorage.getItem('lessonlog_custom_logo');
     if (savedLogo) {
       setCustomLogo(savedLogo);
     }
 
-    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
-    const unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data && data.customLogo !== undefined) {
-          setCustomLogo(data.customLogo);
-        }
+    // Listen for safety-wrapper alerts to block SecurityError in sandboxed iframe environments
+    const handleSafeAlert = (event: Event) => {
+      const customEv = event as CustomEvent<{ message: string }>;
+      if (customEv.detail && customEv.detail.message) {
+        addToast(customEv.detail.message, 'info');
       }
-    }, (err) => {
-      console.error("Config fetch error:", err);
-    });
+    };
+    window.addEventListener('app-safe-alert', handleSafeAlert);
+
+    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
+    let unsubConfig = () => {};
+    if (db) {
+      try {
+        unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            if (data && data.customLogo !== undefined) {
+              setCustomLogo(data.customLogo);
+            }
+          }
+        }, (err) => {
+          console.warn("Config fetch error or offline model:", err);
+        });
+      } catch (e) {
+         console.warn("Could not connect to Firestore config doc", e);
+      }
+    }
 
     // Load sys dashboard password
-    const savedPassword = localStorage.getItem('lessonlog_sys_dashboard_password');
+    const savedPassword = safeLocalStorage.getItem('lessonlog_sys_dashboard_password');
     if (savedPassword) {
       setSysDashboardPassword(savedPassword);
     }
@@ -153,22 +232,28 @@ export default function App() {
     return () => {
       unsubAuth();
       unsubConfig();
+      window.removeEventListener('app-safe-alert', handleSafeAlert);
     };
   }, []);
 
   // 2. Real-time dynamic Firestore listeners for Records and Teacher catalogues
   useEffect(() => {
-    if (!currentTeacher) return;
+    if (!currentTeacher || !db) return;
 
     // Clean active states when profile switches
     setRecords([]);
 
     // Set records query based on Role-Based Access Control list constraints
     let recordsQuery;
-    if (currentTeacher.role !== 'teacher') {
-      recordsQuery = collection(db, 'records');
-    } else {
-      recordsQuery = query(collection(db, 'records'), where('teacherId', '==', currentTeacher.id));
+    try {
+      if (currentTeacher.role !== 'teacher') {
+        recordsQuery = collection(db, 'records');
+      } else {
+        recordsQuery = query(collection(db, 'records'), where('teacherId', '==', currentTeacher.id));
+      }
+    } catch (e) {
+      console.warn("Could not setup Firestore queries", e);
+      return;
     }
 
     const unsubRecords = onSnapshot(recordsQuery, async (snapshot) => {
@@ -283,6 +368,10 @@ export default function App() {
   useEffect(() => {
     if (isCameraActive) {
       let activeStream: MediaStream | null = null;
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError("เบราว์เซอร์หรือสภาพแวดล้อมระบบของคุณไม่สนับสนุนการใช้งานกล้องถ่ายรูป");
+        return;
+      }
       navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 480 }, height: { ideal: 480 } },
         audio: false
@@ -330,7 +419,7 @@ export default function App() {
         ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
         const dataUrl = canvas.toDataURL('image/png');
         setCustomLogo(dataUrl);
-        localStorage.setItem('lessonlog_custom_logo', dataUrl);
+        safeLocalStorage.setItem('lessonlog_custom_logo', dataUrl);
         setDoc(doc(db, 'config', 'school'), { customLogo: dataUrl }, { merge: true }).catch(err => {
           console.error("Failed to persist custom logo in Firestore:", err);
         });
@@ -351,7 +440,7 @@ export default function App() {
       if (event.target?.result) {
         const base64String = event.target.result as string;
         setCustomLogo(base64String);
-        localStorage.setItem('lessonlog_custom_logo', base64String);
+        safeLocalStorage.setItem('lessonlog_custom_logo', base64String);
         setDoc(doc(db, 'config', 'school'), { customLogo: base64String }, { merge: true }).catch(err => {
           console.error("Failed to persist uploaded logo in Firestore:", err);
         });
@@ -362,7 +451,7 @@ export default function App() {
 
   const handleClearCustomLogo = () => {
     setCustomLogo(null);
-    localStorage.removeItem('lessonlog_custom_logo');
+    safeLocalStorage.removeItem('lessonlog_custom_logo');
     setDoc(doc(db, 'config', 'school'), { customLogo: null }, { merge: true }).catch(err => {
       console.error("Failed to clear custom logo in Firestore:", err);
     });
@@ -412,7 +501,7 @@ export default function App() {
       return;
     }
     setSysDashboardPassword(newPasswordInput.trim());
-    localStorage.setItem('lessonlog_sys_dashboard_password', newPasswordInput.trim());
+    safeLocalStorage.setItem('lessonlog_sys_dashboard_password', newPasswordInput.trim());
     setNewPasswordInput('');
     setShowPasswordChangeField(false);
     alert('🔒 บันทึกรหัสผ่านควบคุมความปลอดภัยตัวใหม่สำหรับเข้าคลังเรียบร้อยแล้ว!');
@@ -923,7 +1012,7 @@ export default function App() {
                     }
                     setEditingRecord(r);
                     setShowFormOnMobile(true);
-                    window.scrollTo({ top: 120, behavior: 'smooth' });
+                    safeScrollTo({ top: 120, behavior: 'smooth' });
                   }}
                   onDelete={handleDeleteRecord}
                   onPrintPreview={(r) => setActivePrintPreview(r)}
@@ -1146,7 +1235,7 @@ export default function App() {
                   setEditingRecord(r);
                   setActiveTab('form');
                   setShowFormOnMobile(true);
-                  window.scrollTo({ top: 120, behavior: 'smooth' });
+                  safeScrollTo({ top: 120, behavior: 'smooth' });
                 }}
                 onDelete={handleDeleteRecord}
                 onPrintPreview={(r) => setActivePrintPreview(r)}

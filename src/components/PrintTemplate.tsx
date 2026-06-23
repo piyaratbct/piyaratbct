@@ -1,109 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LessonRecord, Teacher } from '../types';
-import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle, FileDown } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle } from 'lucide-react';
+
 
 export function SchoolLogo({ className = "h-24 w-24" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 120 120" className={className} xmlns="http://www.w3.org/2000/svg" id="school-emblem-svg">
-      <defs>
-        {/* Top Arc (Clockwise sweep from left to right) */}
-        <path id="topTextPath" d="M 16 60 A 44 44 0 0 1 104 60" fill="none" />
-        {/* Bottom Arc (Counter-Clockwise sweep from left to right) */}
-        <path id="bottomTextPath" d="M 16 60 A 44 44 0 0 0 104 60" fill="none" />
-      </defs>
-
-      {/* Outer base with smooth gray glow shadow-like border */}
-      <circle cx="60" cy="60" r="59" fill="white" stroke="#000000" strokeWidth="1.2" />
-      
-      {/* Sky Blue Outer Ring representing school colors */}
-      <circle cx="60" cy="60" r="55.5" fill="#1fc3f4" stroke="#000000" strokeWidth="1.2" />
-      
-      {/* Pink Inner Circle representing school colors */}
-      <circle cx="60" cy="60" r="41.5" fill="#e73a98" stroke="#000000" strokeWidth="1.2" />
-
-      {/* Top curved school name inside sky blue ring */}
-      <text fill="#000000" fontSize="5.5px" className="font-extrabold" fontFamily="sans-serif">
-        <textPath href="#topTextPath" startOffset="50%" textAnchor="middle">
-          โรงเรียนศิริมงคลศึกษา บางบัวทอง
-        </textPath>
-      </text>
-
-      {/* Bottom curved alignment inside sky blue ring */}
-      <text fill="#000000" fontSize="5.5px" className="font-extrabold" fontFamily="sans-serif">
-        <textPath href="#bottomTextPath" startOffset="50%" textAnchor="middle">
-          อำเภอบางบัวทอง จังหวัดนนทบุรี
-        </textPath>
-      </text>
-
-      {/* Core Traditional Thai Emblem Drawing (Perfectly traces the provided logo) */}
-      <g transform="translate(60, 60)" stroke="#000000" strokeWidth="0.6" strokeLinejoin="round" strokeLinecap="round">
-        {/* 1. Traditional Thai Naga (Serpents) flanking left and right (Supporting the sacred circle) */}
-        {/* Left Naga */}
-        <path d="M -13,10 C -22,10 -25,2 -21,-5 C -18,-11 -15,-15 -21,-19" fill="#ffffff" strokeWidth="0.7" />
-        <path d="M -17,2 C -23,0 -21,-6 -17,-8" fill="#e73a98" strokeWidth="0.5" />
-        <circle cx="-19" cy="-11" r="0.8" fill="#ff0000" stroke="none" />
-        
-        {/* Right Naga */}
-        <path d="M 13,10 C 22,10 25,2 21,-5 C 18,-11 15,-15 21,-19" fill="#ffffff" strokeWidth="0.7" />
-        <path d="M 17,2 C 23,0 21,-6 17,-8" fill="#e73a98" strokeWidth="0.5" />
-        <circle cx="19" cy="-11" r="0.8" fill="#ff0000" stroke="none" />
-
-        {/* 2. Background Golden Flame Aureole / Kanok Border */}
-        <path d="M -14,-6 C -24,-15 -10,-28 0,-28 C 10,-28 24,-15 14,-6 C 11,-2 12,6 12,10 L -12,10 C -12,6 -11,-2 -14,-6 Z" fill="#ffd166" strokeWidth="0.8" />
-        <path d="M -11,-6 C -18,-13 -7,-23 0,-23 C 7,-23 18,-13 11,-6 C 9,-2 10,6 10,8 L -10,8 C -10,6 -9,-2 -11,-6 Z" fill="#ffffff" strokeWidth="0.6" />
-
-        {/* 3. Sacred Central Wheel with Pali Text Loop (representing the Dhammachakka) */}
-        <circle cx="0" cy="-5" r="14.5" fill="#ffffff" strokeWidth="0.9" />
-        <circle cx="0" cy="-5" r="12.5" fill="none" stroke="#000000" strokeWidth="0.5" strokeDasharray="1.5,1" />
-        
-        {/* Pali scripts simulated curved texts in inner ring */}
-        <path id="paliPath" d="M -11,-5 A 11 11 0 0 1 11 -5" fill="none" />
-        <text fontSize="2px" fill="#000000" fontWeight="bold">
-          <textPath href="#paliPath" startOffset="50%" textAnchor="middle">
-            ธมฺโม หเว ရကฺတိ
-          </textPath>
-        </text>
-
-        {/* Inner small monogram circle */}
-        <circle cx="0" cy="-5" r="8.2" fill="#ffffff" strokeWidth="0.8" />
-        <circle cx="0" cy="-5" r="7.2" fill="none" stroke="#e73a98" strokeWidth="0.4" />
-
-        {/* Stylized calligraphic Monogram "ศ.ม.ศ" aligned with the shape */}
-        <path d="M -4.5,-5 C -4.5,-8 -2,-9 0,-9 C 2.5,-9 4,-7 4,-4.5 C 4,-2 1,-1.5 0,-1.5 C -1,-1.5 -3,-2 -3.5,-4" fill="none" stroke="#000000" strokeWidth="1" />
-        <path d="M -1.5,-4.5 C -1.5,-6.5 1,-7 1,-5 C 1,-3 -2,-3.5 -2,-5" fill="none" stroke="#000000" strokeWidth="0.8" />
-        <path d="M -3.5,-7.5 L -2,-6" stroke="#000000" strokeWidth="0.6" />
-        <path d="M 2.5,-3 C 3.5,-2.5 4,-1 4,0 C 4,1 2.5,1.5 1.5,1" fill="none" stroke="#000000" strokeWidth="0.8" />
-
-        {/* 4. Crown Pinnacle (Sacred Crown Peak on center top) */}
-        <path d="M -4.5,-26 C -4.5,-32 0,-34 0,-43 C 0,-34 4.5,-32 4.5,-26 Z" fill="#ffd166" strokeWidth="0.9" />
-        <path d="M -2.5,-28 C -2.5,-31 0,-33 0,-38 C 0,-33 2.5,-31 2.5,-28 Z" fill="#ffffff" stroke="none" strokeWidth="0.5" />
-        {/* Tiny red gem atop the crown */}
-        <circle cx="0" cy="-44.5" r="1.3" fill="#ff0000" stroke="#000000" strokeWidth="0.4" />
-
-        {/* 5. Lotus pedestal bases support */}
-        <path d="M -15,10 C -15,7 -10,5 -5,5 C -2.5,5 -1,6.5 0,6  C 1,6.5 2.5,5 5,5 C 10,5 15,7 15,10 Z" fill="#ffffff" strokeWidth="0.7" />
-        <path d="M -17,14 L 17,14 L 13.5,17.5 L -13.5,17.5 Z" fill="#ffd166" strokeWidth="0.8" />
-        <path d="M -13,10 L 13,10 L 17,14 L -17,14 Z" fill="#ffffff" strokeWidth="0.8" />
-
-        {/* 6. Sacred ribbon banner (CONTAINING SCHOOL NAME AND SUBTITLE TEXTS) */}
-        <path d="M -19,16 C -10,19 10,19 19,16 L 15.5,22 C 8,24.5 -8,24.5 -15.5,22 Z" fill="#ffffff" strokeWidth="0.8" />
-        <path d="M -15.5,21 C -8,23.2 8,23.2 15.5,21 L 13.2,25.2 C 6,27.2 -6,27.2 -13.2,25.2 Z" fill="#ffffff" strokeWidth="0.8" />
-        
-        {/* Ribbon golden ears left and right */}
-        <path d="M -19,16 L -21.5,19.5 L -17,21.5 Z" fill="#ffd166" strokeWidth="0.6" />
-        <path d="M 19,16 L 21.5,19.5 L 17,21.5 Z" fill="#ffd166" strokeWidth="0.6" />
-
-        {/* Texts written on the ribbon directly, perfectly legibly! */}
-        <text x="0" y="19" fill="#000000" fontSize="2.8px" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">ศิริมงคลศึกษา</text>
-        <text x="0" y="24.2" fill="#000000" fontSize="2.6px" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">บางบัวทอง</text>
-
-        {/* Lotus base petals decoration */}
-        <circle cx="-13" cy="11.5" r="0.8" fill="#ffd166" stroke="#000000" strokeWidth="0.4" />
-        <circle cx="13" cy="11.5" r="0.8" fill="#ffd166" stroke="#000000" strokeWidth="0.4" />
-      </g>
-    </svg>
+    <img 
+      src="https://lh3.googleusercontent.com/d/1D4vTEwUZf9twSndugG7kUIn30OBUR3jH" 
+      alt="School Logo" 
+      referrerPolicy="no-referrer"
+      className={`${className} object-contain`} 
+      id="school-emblem-svg"
+    />
   );
 }
 
@@ -311,7 +219,6 @@ function SignaturePadModal({ role, defaultName, onSave, onClose }: SignaturePadM
 export function PrintTemplate({ record, teacher, academicHead, currentUser, customLogo, allowAcademicSignature = true, onUpdateRecord, onClose }: PrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   const [isCompact, setIsCompact] = useState(false);
-  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
 
   // Status variables
   const isDeptHeadApproved = !!record.deptHeadApproved;
@@ -334,245 +241,6 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
     return dateString;
   };
 
-  const handleDownloadPDF = async () => {
-    if (isDownloadingPDF) return;
-    setIsDownloadingPDF(true);
-
-    // Helper to convert modern CSS oklch() colors to compatible hsl() format for html2canvas parser
-    const replaceOklch = (cssText: string): string => {
-      return cssText.replace(/oklch\(\s*([0-9.%\-+]+)\s+([0-9.%\-+]+)\s+([0-9.%\-+]+)(?:\s*\/\s*([0-9.%\-+]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
-        let l_val = parseFloat(p1);
-        if (p1.includes('%')) {
-          l_val = l_val / 100;
-        }
-        const c_val = parseFloat(p2);
-        const h_val = parseFloat(p3);
-        
-        // Approximate to standard HSL:
-        const hsl_h = isNaN(h_val) ? 0 : h_val;
-        // Chroma (0...0.4) maps roughly to Saturation (0...100%) by scaling up
-        const hsl_s = Math.min(100, Math.max(0, (isNaN(c_val) ? 0 : c_val) * 250));
-        // Lightness is directly proportional
-        const hsl_l = Math.max(0, Math.min(100, l_val * 100));
-        
-        if (p4 !== undefined) {
-          let a_val = parseFloat(p4);
-          if (p4.includes('%')) {
-            a_val = a_val / 100;
-          }
-          return `hsla(${hsl_h}, ${hsl_s.toFixed(1)}%, ${hsl_l.toFixed(1)}%, ${a_val})`;
-        } else {
-          return `hsl(${hsl_h}, ${hsl_s.toFixed(1)}%, ${hsl_l.toFixed(1)}%)`;
-        }
-      });
-    };
-
-    // Helper to convert modern CSS oklab() colors to compatible rgb() format for html2canvas parser
-    const replaceOklab = (cssText: string): string => {
-      return cssText.replace(/oklab\(\s*([0-9.%\-+]+)\s+([0-9.%\-+]+)\s+([0-9.%\-+]+)(?:\s*\/\s*([0-9.%\-+]+))?\s*\)/gi, (match, p1, p2, p3, p4) => {
-        let l_val = parseFloat(p1);
-        if (p1.includes('%')) {
-          l_val = l_val / 100;
-        }
-        const a_val = parseFloat(p2);
-        const b_val = parseFloat(p3);
-
-        if (isNaN(l_val) || isNaN(a_val) || isNaN(b_val)) {
-          return 'rgb(128, 128, 128)';
-        }
-
-        // Convert Oklab to linear LMS coordinates
-        const l_ = l_val + 0.3963377774 * a_val + 0.2158037573 * b_val;
-        const m_ = l_val - 0.1055613458 * a_val - 0.0638541728 * b_val;
-        const s_ = l_val - 0.0894841775 * a_val - 1.2914855480 * b_val;
-
-        // LMS are cubed to get active LMS values
-        const l = l_ * l_ * l_;
-        const m = m_ * m_ * m_;
-        const s = s_ * s_ * s_;
-
-        // LMS to linear RGB
-        const r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-        const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-        const b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
-
-        // Apply gamma correction (sRGB)
-        const f = (c: number) => {
-          if (isNaN(c)) return 0;
-          return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(0, c), 1 / 2.4) - 0.055;
-        };
-        
-        const R = Math.max(0, Math.min(255, Math.round(f(r) * 255)));
-        const G = Math.max(0, Math.min(255, Math.round(f(g) * 255)));
-        const B = Math.max(0, Math.min(255, Math.round(f(b) * 255)));
-
-        if (isNaN(R) || isNaN(G) || isNaN(B)) {
-          return 'rgb(128, 128, 128)';
-        }
-
-        if (p4 !== undefined) {
-          let alpha = parseFloat(p4);
-          if (p4.includes('%')) {
-            alpha = alpha / 100;
-          }
-          if (isNaN(alpha)) alpha = 1;
-          return `rgba(${R}, ${G}, ${B}, ${alpha})`;
-        } else {
-          return `rgb(${R}, ${G}, ${B})`;
-        }
-      });
-    };
-
-    try {
-      const element = document.getElementById('printable-lesson-log');
-      if (!element) {
-        throw new Error('Element with id printable-lesson-log not found');
-      }
-
-      // Temporarily monkeypatch window.getComputedStyle to translate oklch and oklab colors on the fly
-      // so html2canvas doesn't throw parser crashes during computed styles reading.
-      const originalGetComputedStyle = window.getComputedStyle;
-      window.getComputedStyle = function (el, pseudoElt) {
-        const style = originalGetComputedStyle(el, pseudoElt);
-        return new Proxy(style, {
-          get(target, prop, receiver) {
-            let val = Reflect.get(target, prop, receiver);
-            if (typeof val === 'function') {
-              return val.bind(target);
-            }
-            if (prop === 'getPropertyValue') {
-              return (propertyName: string) => {
-                let pVal = target.getPropertyValue(propertyName);
-                if (typeof pVal === 'string') {
-                  if (pVal.includes('oklch')) {
-                    pVal = replaceOklch(pVal);
-                    if (pVal.includes('oklch')) {
-                      pVal = 'rgb(128, 128, 128)';
-                    }
-                  }
-                  if (pVal.includes('oklab')) {
-                    pVal = replaceOklab(pVal);
-                    if (pVal.includes('oklab')) {
-                      pVal = 'rgb(128, 128, 128)';
-                    }
-                  }
-                }
-                return pVal;
-              };
-            }
-            if (typeof val === 'string') {
-              if (val.includes('oklch')) {
-                val = replaceOklch(val);
-                if (val.includes('oklch')) {
-                  val = 'rgb(128, 128, 128)';
-                }
-              }
-              if (val.includes('oklab')) {
-                val = replaceOklab(val);
-                if (val.includes('oklab')) {
-                  val = 'rgb(128, 128, 128)';
-                }
-              }
-            }
-            return val;
-          }
-        });
-      };
-
-      let canvas;
-      try {
-        // Generate canvas representation
-        canvas = await html2canvas(element, {
-          scale: 2, // High resolution for clear text/logos
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          onclone: (clonedDoc) => {
-            // 1. Convert OKLCH/Oklab colors in style tags to standard HSL/RGB colors to prevent parsing crashes
-            clonedDoc.querySelectorAll('style').forEach(styleTag => {
-              if (styleTag.innerHTML) {
-                let html = styleTag.innerHTML;
-                if (html.includes('oklch')) {
-                  html = replaceOklch(html);
-                  html = html.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
-                }
-                if (html.includes('oklab')) {
-                  html = replaceOklab(html);
-                  html = html.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
-                }
-                styleTag.innerHTML = html;
-              }
-            });
-
-            // 2. Convert OKLCH/Oklab colors in inline styles to standard HSL/RGB colors
-            clonedDoc.querySelectorAll('[style]').forEach(el => {
-              const styleAttr = el.getAttribute('style');
-              if (styleAttr) {
-                let styleStr = styleAttr;
-                if (styleStr.includes('oklch')) {
-                  styleStr = replaceOklch(styleStr);
-                  styleStr = styleStr.replace(/oklch\([^)]+\)/gi, 'rgb(128, 128, 128)');
-                }
-                if (styleStr.includes('oklab')) {
-                  styleStr = replaceOklab(styleStr);
-                  styleStr = styleStr.replace(/oklab\([^)]+\)/gi, 'rgb(128, 128, 128)');
-                }
-                el.setAttribute('style', styleStr);
-              }
-            });
-
-            const clonedElement = clonedDoc.getElementById('printable-lesson-log');
-            if (clonedElement) {
-              clonedElement.style.boxShadow = 'none';
-              clonedElement.style.borderRadius = '0';
-            }
-          }
-        });
-      } finally {
-        window.getComputedStyle = originalGetComputedStyle;
-      }
-
-      const imgData = canvas.toDataURL('image/png');
-      
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Append image and split across PDF pages as required
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-        heightLeft -= pageHeight;
-      }
-
-      // Dynamic name formatting
-      const rawSubject = record.subject === 'อื่นๆ' && record.customSubject 
-        ? record.customSubject 
-        : record.subject;
-      const subjectName = rawSubject.replace(/[\/\\:*?"<>|\s]/g, '_');
-      const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน')
-        .replace(/[\/\\:*?"<>|\s]/g, '_');
-      const recordDate = (record.date || '')
-        .replace(/[\/\\:*?"<>|\s]/g, '_');
-
-      const fileName = `บันทึกหลังสอน_${teacherIdentifier}_${subjectName}_${recordDate}.pdf`;
-      pdf.save(fileName);
-    } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      alert('ไม่สามารถดาวน์โหลด PDF โดยตรงได้ในขณะนี้ กรุณาลองใช้ปุ่มพิมพ์รายงานหรือสอบถามผู้ดูแลระบบ');
-    } finally {
-      setIsDownloadingPDF(false);
-    }
-  };
-
   const handlePrint = () => {
     const originalTitle = document.title;
     
@@ -593,7 +261,12 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
     // Dynamic file name for printing or saving as PDF
     document.title = `บันทึกหลังสอน_${teacherIdentifier}_${subjectName}_${recordDate}`;
     
-    window.print();
+    try {
+      window.print();
+    } catch (e) {
+      console.warn("window.print() is blocked or unsupported in this sandbox:", e);
+      alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) หรือส่งออกรายงานหลักเพื่อพิมพ์");
+    }
     
     // Restore original document title after a short delay
     setTimeout(() => {

@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LessonLog_SMB School</title>
+    <script>
+      window.addEventListener('error', function(e) {
+        if (e.message === 'Script error.' || e.error === 'Script error.') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      });
+      window.onerror = function(msg) {
+        if (msg === 'Script error.') return true;
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
