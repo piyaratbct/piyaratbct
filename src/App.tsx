@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Teacher, LessonRecord, SUBJECTS } from './types';
+import { Teacher, LessonRecord, LessonPlan, SUBJECTS } from './types';
 import { MOCK_RECORDS, DEFAULT_TEACHER } from './data';
 import { AuthView } from './components/AuthView';
 import { DashboardStats } from './components/DashboardStats';
 import { LessonLogForm } from './components/LessonLogForm';
 import { LessonLogList } from './components/LessonLogList';
+import { LessonPlanForm } from './components/LessonPlanForm';
+import { LessonPlanList } from './components/LessonPlanList';
+import { ClassroomModule } from './components/ClassroomModule';
+import { EvaluationModule } from './components/EvaluationModule';
 import { PrintTemplate, SchoolLogo } from './components/PrintTemplate';
+import { LessonPlanPrintTemplate } from './components/LessonPlanPrintTemplate';
 import { 
   BookOpen, LogOut, User, Award, Phone, Building, 
   Settings, HelpCircle, CheckCircle, ChevronDown, 
   CalendarDays, Download, FileJson, FileSpreadsheet, School, PlusCircle,
   Lock, Unlock, KeyRound, ShieldCheck, Eye, EyeOff, ShieldAlert,
-  Camera, Upload, RotateCcw, Loader2, Bell, X
+  Camera, Upload, RotateCcw, Loader2, Bell, X, FileText,
+  Users, BarChart3, LayoutDashboard, Presentation, Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
@@ -94,8 +100,10 @@ export default function App() {
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [records, setRecords] = useState<LessonRecord[]>([]);
+  const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [activeTab, setActiveTab] = useState<'form' | 'dashboard' | 'admin-users'>('form');
+  const [activeModule, setActiveModule] = useState<'home' | 'teaching' | 'classroom' | 'analytics'>('home');
+  const [activeTab, setActiveTab] = useState<'form' | 'dashboard' | 'plan-form' | 'plan-list' | 'admin-users'>('form');
   const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] = useState<string>('all');
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
 
@@ -117,7 +125,9 @@ export default function App() {
 
   // Editing and preview modals/states
   const [editingRecord, setEditingRecord] = useState<LessonRecord | null>(null);
+  const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
   const [activePrintPreview, setActivePrintPreview] = useState<LessonRecord | null>(null);
+  const [activePlanPrintPreview, setActivePlanPrintPreview] = useState<LessonPlan | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFormOnMobile, setShowFormOnMobile] = useState(false);
 
@@ -348,9 +358,29 @@ export default function App() {
       console.error("Teachers catalog lookup error:", err);
     });
 
+    let plansQuery: any = collection(db, 'lessonPlans');
+    try {
+      if (currentTeacher.role === 'teacher') {
+        plansQuery = query(collection(db, 'lessonPlans'), where('teacherId', '==', currentTeacher.id));
+      }
+    } catch (e) {
+      console.warn("Could not setup Firestore queries for plans", e);
+    }
+    const unsubPlans = onSnapshot(plansQuery, (snapshot) => {
+      const fetchedPlans: LessonPlan[] = [];
+      snapshot.forEach((doc) => {
+        fetchedPlans.push(doc.data() as LessonPlan);
+      });
+      fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      setPlans(fetchedPlans);
+    }, (err) => {
+      console.error("Plans lookup error:", err);
+    });
+
     return () => {
       unsubRecords();
       unsubTeachers();
+      unsubPlans();
     };
   }, [currentTeacher]);
 
@@ -647,6 +677,64 @@ export default function App() {
     }
   };
 
+  const handleSavePlan = async (plan: LessonPlan) => {
+    try {
+      const isEdit = plans.some(p => p.id === plan.id);
+      
+      const payload = {
+        ...plan,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      const cleanPayload = Object.fromEntries(
+        Object.entries(payload).filter(([_, v]) => v !== undefined)
+      );
+      
+      await setDoc(doc(db, 'lessonPlans', plan.id), cleanPayload);
+      setEditingPlan(null);
+      setShowFormOnMobile(false);
+      addToast(
+        isEdit 
+          ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" เรียบร้อยแล้ว ✨` 
+          : `สร้างแผนการสอน "${plan.title}" สำเร็จ จัดเก็บเข้าคลาวด์แล้ว 🎉`,
+        'success',
+        isEdit ? 'อัปเดตแผนการสอนสำเร็จ' : 'บันทึกแผนการสอนสำเร็จ'
+      );
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `lessonPlans/${plan.id}`);
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    if (!currentTeacher) return;
+
+    try {
+      const existing = plans.find(p => p.id === id);
+      if (!existing) return;
+
+      const isOwner = existing.teacherId === currentTeacher.id;
+      const isAdmin = currentTeacher.role === 'admin';
+
+      if (!isAdmin && !isOwner) {
+        alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ หรือคุณครูเจ้าของแผนการสอนเท่านั้นที่มีสิทธิ์ลบแผนการสอนนี้ได้');
+        return;
+      }
+
+      if (existing.status === 'approved') {
+        alert('🔒 ขออภัย! แผนการสอนนี้ได้รับการลงนามอนุมัติแล้ว ไม่สามารถลบได้');
+        return;
+      }
+
+      await deleteDoc(doc(db, 'lessonPlans', id));
+      if (editingPlan?.id === id) {
+        setEditingPlan(null);
+      }
+      addToast('ลบแผนการสอนออกจากระบบเสร็จสิ้น 🗑️', 'info', 'ลบข้อมูลสำเร็จ');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `lessonPlans/${id}`);
+    }
+  };
+
   // Delete Teacher (Admin Only)
   const handleDeleteTeacher = async (teacherId: string) => {
     if (!currentTeacher) return;
@@ -857,6 +945,57 @@ export default function App() {
       {/* 2. Main Page Layout Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-1 space-y-6 print:m-0 print:p-0">
         
+        {/* Module Selector */}
+        <div className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 overflow-x-auto print:hidden">
+          <button
+            onClick={() => setActiveModule('home')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              activeModule === 'home'
+                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            }`}
+          >
+            <LayoutDashboard className="h-4.5 w-4.5" />
+            <span>หน้าแรก (Overview)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveModule('teaching')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              activeModule === 'teaching'
+                ? 'bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-md'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            }`}
+          >
+            <Presentation className="h-4.5 w-4.5" />
+            <span>1. การจัดการผู้สอน (LessonTeach)</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveModule('classroom')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              activeModule === 'classroom'
+                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            }`}
+          >
+            <Users className="h-4.5 w-4.5" />
+            <span>2. การจัดการชั้นเรียน (LessonClass)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveModule('analytics')}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              activeModule === 'analytics'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            }`}
+          >
+            <BarChart3 className="h-4.5 w-4.5" />
+            <span>3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</span>
+          </button>
+        </div>
+
         {/* Welcome Card & Info */}
         <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
           <div className="space-y-3">
@@ -909,8 +1048,146 @@ export default function App() {
           </div>
         </div>
 
-        {/* Navigation Tabs (แยกหน้าต่างระหว่าง การเขียนบันทึก และ แดชบอร์ดภาพรวมสถิติครู) */}
-        <div className="flex border-b border-sky-100 print:hidden overflow-x-auto">
+        {activeModule === 'home' ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Hero Banner */}
+            <div className="bg-white rounded-2xl border border-violet-100 p-8 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400"></div>
+              <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
+                <LayoutDashboard className="h-8 w-8" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">ภาพรวมระบบ LessonLog</h2>
+              <p className="text-slate-500 text-sm max-w-lg mx-auto">ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน ข้อมูลสรุปสถิติภาพรวมทั้งหมด</p>
+            </div>
+            
+            {/* Quick Stats Cards (Mockup) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="h-12 w-12 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <Presentation className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-500">แผนการสอนทั้งหมด</div>
+                  <div className="text-2xl font-black text-slate-800">{plans.length || 0}</div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="h-12 w-12 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-500">นักเรียนทั้งหมด (จำลอง)</div>
+                  <div className="text-2xl font-black text-slate-800">1,250</div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-500">สถิติเข้าเรียนวันนี้</div>
+                  <div className="text-2xl font-black text-slate-800">95%</div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                  <School className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-500">ครูผู้สอน (ระบบ)</div>
+                  <div className="text-2xl font-black text-slate-800">{teachers.length || 0}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions / Modules Navigation */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <button 
+                onClick={() => setActiveModule('teaching')} 
+                className="bg-white p-8 rounded-2xl border border-sky-100 shadow-sm hover:shadow-md hover:border-sky-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group"
+              >
+                <div className="h-16 w-16 bg-sky-50 text-sky-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Presentation className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">1. การจัดการผู้สอน (LessonTeach)</h3>
+                <p className="text-sm text-slate-500">บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน</p>
+                <div className="mt-4 px-3 py-1 bg-sky-50 text-sky-600 text-xs font-bold rounded-full">เปิดใช้งาน</div>
+              </button>
+              
+              <button 
+                onClick={() => setActiveModule('classroom')} 
+                className="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm hover:shadow-md hover:border-pink-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group"
+              >
+                <div className="h-16 w-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">2. การจัดการชั้นเรียน (LessonClass)</h3>
+                <p className="text-sm text-slate-500">จัดการข้อมูลนักเรียน เช็คชื่อ และบันทึกพฤติกรรม</p>
+                <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">เปิดใช้งาน</div>
+              </button>
+
+              <button 
+                onClick={() => setActiveModule('analytics')} 
+                className="bg-white p-8 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md hover:border-emerald-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="h-16 w-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <BarChart3 className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</h3>
+                <p className="text-sm text-slate-500">รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน</p>
+                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1"><Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน</div>
+              </button>
+            </div>
+            
+            {/* Recent Activity Mockup */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <h3 className="text-base font-black text-slate-800 mb-6 flex items-center gap-2">
+                <Bell className="h-5 w-5 text-amber-500" />
+                ความเคลื่อนไหวล่าสุด (จำลอง)
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { name: "คุณครูสมหญิง ใจดี", action: "บันทึกหลังสอน", subject: "วิชาภาษาไทย ม.2", time: "10 นาทีที่แล้ว", color: "bg-pink-400" },
+                  { name: "คุณครูสมชาย รักเรียน", action: "เช็คชื่อเข้าเรียน", subject: "วิชาคณิตศาสตร์ ม.1", time: "35 นาทีที่แล้ว", color: "bg-sky-400" },
+                  { name: "คุณครูวิภาดา ตั้งใจ", action: "เพิ่มแผนการสอนใหม่", subject: "วิชาวิทยาศาสตร์ ม.3", time: "1 ชั่วโมงที่แล้ว", color: "bg-emerald-400" }
+                ].map((item, i) => (
+                  <div key={i} className="flex gap-4 items-start pb-4 border-b border-slate-50 last:border-0 last:pb-0">
+                    <div className={`h-2.5 w-2.5 rounded-full ${item.color} mt-1.5 shadow-sm`}></div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-700">
+                        {item.name} <span className="font-normal text-slate-500">ได้ทำการ</span> {item.action}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">{item.subject} • {item.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : activeModule === 'teaching' ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Module Header with attractive display */}
+            <div className="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white print:hidden relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
+              <div className="flex items-center gap-5 relative z-10">
+                <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner border border-white/30">
+                  <Presentation className="h-8 w-8" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">1. การจัดการผู้สอน (LessonTeach)</h2>
+                  <p className="text-sky-100 font-medium mt-1">ระบบบริหารจัดการแผนการสอนและบันทึกหลังสอนรายวัน</p>
+                </div>
+              </div>
+              <div className="relative z-10 bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2 rounded-xl">
+                <div className="text-xs text-sky-100 font-medium">ครูผู้สอน</div>
+                <div className="font-bold">{currentTeacher?.displayName}</div>
+              </div>
+            </div>
+
+            {/* Navigation Tabs (แยกหน้าต่างระหว่าง การเขียนบันทึก และ แดชบอร์ดภาพรวมสถิติครู) */}
+            <div className="flex border-b border-sky-100 print:hidden overflow-x-auto">
           <button
             onClick={() => {
               setActiveTab('form');
@@ -924,26 +1201,38 @@ export default function App() {
             }`}
           >
             <PlusCircle className="h-4 w-4 text-sky-500" />
-            1. ห้องบันทึกหลังสอนรายวัน (Lesson Log)
+            1. บันทึกหลังสอนรายวัน (Lessons Learned)
           </button>
-          
-          {currentTeacher.role !== 'teacher' && (
-            <button
-              onClick={() => {
-                setActiveTab('dashboard');
-                // Default to seeing current logged in teacher's stats or all
-                setSelectedDashboardTeacherId('all');
-              }}
-              className={`flex items-center gap-2 px-6 py-3 text-xs font-black transition-all border-b-2 cursor-pointer shrink-0 ${
-                activeTab === 'dashboard'
-                  ? 'border-pink-400 text-pink-600 bg-pink-50/40'
-                  : 'border-transparent text-slate-500 hover:text-pink-600 hover:bg-pink-50/10'
-              }`}
-            >
-              <School className="h-4 w-4 text-pink-405 text-pink-500" />
-              2. คลังสารบัญและแดชบอร์ดสรุป (Directory & Dashboard)
-            </button>
-          )}
+
+          <button
+            onClick={() => {
+              setActiveTab('plan-form');
+            }}
+            className={`flex items-center gap-2 px-6 py-3 text-xs font-black transition-all border-b-2 cursor-pointer shrink-0 ${
+              activeTab === 'plan-form'
+                ? 'border-sky-500 text-sky-600 bg-sky-50/40'
+                : 'border-transparent text-slate-500 hover:text-sky-600 hover:bg-sky-50/10'
+            }`}
+          >
+            <FileText className="h-4 w-4 text-sky-500" />
+            2. เขียนแผนการสอน (Lesson Plan)
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('dashboard');
+              // Default to seeing current logged in teacher's stats or all
+              setSelectedDashboardTeacherId('all');
+            }}
+            className={`flex items-center gap-2 px-6 py-3 text-xs font-black transition-all border-b-2 cursor-pointer shrink-0 ${
+              activeTab === 'dashboard'
+                ? 'border-pink-400 text-pink-600 bg-pink-50/40'
+                : 'border-transparent text-slate-500 hover:text-pink-600 hover:bg-pink-50/10'
+            }`}
+          >
+            <School className="h-4 w-4 text-pink-500" />
+            3. คลังสารบัญและแดชบอร์ดสรุป (Directory & Dashboard)
+          </button>
 
           {currentTeacher.role === 'admin' && (
             <button
@@ -957,12 +1246,12 @@ export default function App() {
               }`}
             >
               <ShieldAlert className="h-4 w-4 text-violet-500" />
-              3. จัดการระบบบัญชีผู้ใช้และครู (User Directory & Controls)
+              4. จัดการระบบบัญชีผู้ใช้ (users)
             </button>
           )}
         </div>
 
-        {activeTab === 'form' || currentTeacher.role === 'teacher' ? (
+        {activeTab === 'form' ? (
           /* WINDOW 1: WRITING ROOM */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
@@ -1020,6 +1309,51 @@ export default function App() {
               </div>
             </div>
 
+          </div>
+        ) : activeTab === 'plan-form' ? (
+          /* WINDOW: PLAN FORM */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className={`lg:col-span-5 print:hidden ${showFormOnMobile ? 'block' : 'hidden lg:block'}`}>
+              <LessonPlanForm 
+                initialPlan={editingPlan}
+                teacherId={currentTeacher.id}
+                onSave={handleSavePlan}
+                onCancel={() => setEditingPlan(null)}
+                currentUserRole={currentTeacher.role}
+              />
+            </div>
+            
+            {/* List all plans by teacher */}
+            <div className="lg:col-span-7 print:w-full print:border-none">
+              <div className="bg-white p-5 rounded-2xl border border-indigo-100/50 shadow-sm space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-wide">
+                      แผนการสอนของฉัน ({plans.filter(p => p.teacherId === currentTeacher.id).length} แผน)
+                    </h3>
+                  </div>
+                </div>
+                <LessonPlanList 
+                  plans={plans.filter(p => p.teacherId === currentTeacher.id)}
+                  teachers={teachers}
+                  showTeacherFilter={false}
+                  currentUserRole={currentTeacher.role}
+                  currentTeacherId={currentTeacher.id}
+                  onEdit={(p) => {
+                    const isOwner = p.teacherId === currentTeacher.id;
+                    const isAdmin = currentTeacher.role === 'admin';
+                    if (!isAdmin && !isOwner && currentTeacher.role !== 'academic' && currentTeacher.role !== 'deputy') {
+                      alert('🔒 อนุญาตเฉพาะผู้แต่งและแอดมิน');
+                      return;
+                    }
+                    setEditingPlan(p);
+                    setShowFormOnMobile(true);
+                  }}
+                  onDelete={handleDeletePlan}
+                  onPrintPreview={(p) => setActivePlanPrintPreview(p)}
+                />
+              </div>
+            </div>
           </div>
         ) : activeTab === 'dashboard' ? (
           /* WINDOW 2: GLOBAL ANALYTICS DASHBOARD & COLLABORATIVE DIRECTORIES */
@@ -1192,16 +1526,57 @@ export default function App() {
               </div>
             </div>
 
-            {/* List and directories under active analytics filter */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm print:w-full print:border-none">
-              <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-150">
+            {/* 2. ระบบตรวจและอนุมัติ แผนการสอน (Lesson Plan Directory) */}
+            <div className="bg-emerald-50/10 p-6 rounded-2xl border-[3px] border-emerald-50/80 shadow-sm print:hidden relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-300 to-emerald-400"></div>
+              <div className="flex justify-between items-center mb-4 pb-2 border-b border-emerald-100/50">
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
-                    <BookOpen className="h-4.5 w-4.5 text-blue-500" />
-                    2. คลังสารบัญและประวัติหลังสอน
+                  <h3 className="font-extrabold text-sm text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <FileText className="h-4.5 w-4.5 text-emerald-500 inline-block mr-1" />
+                    2. การตรวจสอบและอนุมัติแผนการสอน
                   </h3>
-                  <p className="text-[11px] text-slate-600 font-bold mt-0.5">
-                    กำลังแสดงผลของ: {selectedDashboardTeacherId === 'all' ? 'คุณครูทุกคน' : teachers.find(t => t.id === selectedDashboardTeacherId)?.displayName || 'ไม่ระบุ'}, ทั้งหมด {
+                  <p className="text-[11px] text-slate-600 font-bold mt-1">
+                    กำลังแสดงผลของ: <span className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">{selectedDashboardTeacherId === 'all' ? 'คุณครูทุกคน' : teachers.find(t => t.id === selectedDashboardTeacherId)?.displayName || 'ไม่ระบุ'}</span>, ทั้งหมด {
+                      (selectedDashboardTeacherId === 'all' 
+                        ? plans 
+                        : plans.filter(p => p.teacherId === selectedDashboardTeacherId)
+                      ).length
+                    } รายการ
+                  </p>
+                </div>
+              </div>
+              <LessonPlanList 
+                plans={
+                  selectedDashboardTeacherId === 'all' 
+                    ? plans 
+                    : plans.filter(p => p.teacherId === selectedDashboardTeacherId)
+                }
+                teachers={teachers}
+                showTeacherFilter={true}
+                currentUserRole={currentTeacher.role}
+                currentTeacherId={currentTeacher.id}
+                onEdit={(p) => {
+                  setEditingPlan(p);
+                  setActiveTab('plan-form');
+                  setShowFormOnMobile(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onDelete={handleDeletePlan}
+                onPrintPreview={(p) => setActivePlanPrintPreview(p)}
+              />
+            </div>
+
+            {/* List and directories under active analytics filter */}
+            <div className="bg-blue-50/10 p-6 rounded-2xl border-[3px] border-blue-50/80 shadow-sm print:w-full print:border-none relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-300 to-blue-400 print:hidden"></div>
+              <div className="flex justify-between items-center mb-4 pb-2 border-b border-blue-100/50">
+                <div>
+                  <h3 className="font-extrabold text-sm text-blue-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <BookOpen className="h-4.5 w-4.5 text-blue-500 inline-block mr-1" />
+                    3. คลังสารบัญและประวัติหลังสอน
+                  </h3>
+                  <p className="text-[11px] text-slate-600 font-bold mt-1">
+                    กำลังแสดงผลของ: <span className="text-blue-700 bg-blue-50 px-1 py-0.5 rounded">{selectedDashboardTeacherId === 'all' ? 'คุณครูทุกคน' : teachers.find(t => t.id === selectedDashboardTeacherId)?.displayName || 'ไม่ระบุ'}</span>, ทั้งหมด {
                       (selectedDashboardTeacherId === 'all' 
                         ? records 
                         : records.filter(r => r.teacherId === selectedDashboardTeacherId)
@@ -1454,6 +1829,12 @@ export default function App() {
             </div>
           </div>
         )}
+          </div>
+        ) : activeModule === 'classroom' ? (
+          <ClassroomModule currentTeacher={currentTeacher} />
+        ) : (
+          <EvaluationModule />
+        )}
 
       </main>
 
@@ -1523,6 +1904,21 @@ export default function App() {
             }
           }}
           onClose={() => setActivePrintPreview(null)}
+        />
+      )}
+
+      {/* 4.1.2 Plan Print/PDF Template Viewer Overlay Modal */}
+      {activePlanPrintPreview && (
+        <LessonPlanPrintTemplate
+          plan={activePlanPrintPreview}
+          teacher={teachers.find(t => t.id === activePlanPrintPreview.teacherId) || (currentTeacher?.role === 'teacher' ? currentTeacher : DEFAULT_TEACHER)}
+          academicHead={teachers.find(t => t.role !== 'teacher') || (currentTeacher?.role !== 'teacher' ? currentTeacher : null)}
+          currentUser={currentTeacher}
+          onUpdatePlan={(updated: any) => {
+            handleSavePlan(updated);
+            setActivePlanPrintPreview(updated);
+          }}
+          onClose={() => setActivePlanPrintPreview(null)}
         />
       )}
 

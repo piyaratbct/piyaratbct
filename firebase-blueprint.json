@@ -42,6 +42,48 @@
         "deptHeadDate": { "type": "string" }
       },
       "required": ["id", "teacherId", "subject", "gradeLevel", "date", "content", "activities", "createdAt", "updatedAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student details for classroom management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "nickname": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "number": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "studentId", "firstName", "lastName", "gradeLevel", "gender", "number", "status"]
+    },
+    "StudentAssessment": {
+      "title": "StudentAssessment",
+      "description": "Developmental assessment of a student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "term": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "characterTraits": { "type": "object" },
+        "competencies": { "type": "object" },
+        "readingWriting": { "type": "number" },
+        "comments": { "type": "string" },
+        "subject": { "type": "string" },
+        "date": { "type": "string" },
+        "content": { "type": "string" },
+        "activities": { "type": "string" },
+        "limitations": { "type": "string" },
+        "suggestions": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "teacherId", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -52,6 +94,14 @@
     "/records/{recordId}": {
       "schema": "LessonRecord",
       "description": "Lesson and post-teaching logs written by teachers"
+    },
+    "/students/{studentDocId}": {
+      "schema": "Student",
+      "description": "Students belonging to classrooms"
+    },
+    "/assessments/{assessmentId}": {
+      "schema": "StudentAssessment",
+      "description": "Student developmental assessments"
     }
   }
 }

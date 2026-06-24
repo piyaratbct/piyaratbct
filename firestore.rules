@@ -103,9 +103,33 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
     }
 
+    match /lessonPlans/{planId} {
+      allow get: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
+      allow list: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (request.resource.data.teacherId == resource.data.teacherId
+         && request.resource.data.teacherId == request.auth.uid
+         && request.resource.data.createdAt == resource.data.createdAt)
+        || isAcademic()
+        || isAdmin()
+      );
+      allow delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
+    }
+
     match /config/{configId} {
       allow read: if true;
       allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /assessments/{assessmentId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
   }
 }

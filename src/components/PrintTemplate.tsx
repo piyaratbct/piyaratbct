@@ -26,14 +26,14 @@ interface PrintTemplateProps {
   onClose: () => void;
 }
 
-interface SignaturePadModalProps {
+export interface SignaturePadModalProps {
   role: 'teacher' | 'deptHead' | 'deputyDirector';
   defaultName: string;
   onSave: (name: string, signatureBase64: string) => void;
   onClose: () => void;
 }
 
-function SignaturePadModal({ role, defaultName, onSave, onClose }: SignaturePadModalProps) {
+export function SignaturePadModal({ role, defaultName, onSave, onClose }: SignaturePadModalProps) {
   const [name, setName] = useState(defaultName);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
