@@ -95,7 +95,38 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 flex flex-col items-center overflow-y-auto print:bg-white print:block">
+    <div className="print-root-wrap fixed inset-0 z-50 bg-slate-900/50 flex flex-col items-center overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
+      <style>{`
+        @media print {
+          html, body, #root, #root > div {
+            background: white !important;
+            background-color: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-root-wrap {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          .print-break-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
       
       {/* Controls Header (Hidden while printing) */}
       <div className="sticky top-0 w-full bg-white border-b border-slate-200 p-4 flex flex-wrap gap-4 justify-between items-center shadow-sm print:hidden z-10 max-w-4xl mx-auto rounded-b-xl">

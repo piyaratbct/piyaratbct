@@ -44,7 +44,38 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-900 overflow-y-auto print:static print:bg-white print:overflow-visible">
+    <div className="print-root-wrap fixed inset-0 z-[100] bg-slate-900 overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
+      <style>{`
+        @media print {
+          html, body, #root, #root > div {
+            background: white !important;
+            background-color: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-root-wrap {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          .print-break-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Control Bar (Hidden when printing) */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center print:hidden shadow-sm">
         <div className="flex flex-col">
