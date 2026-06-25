@@ -24,12 +24,23 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
   }, []);
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    
+    const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน').replace(/[\/\\:*?"<>|\s]/g, '_');
+    const gradeLevel = students[0]?.gradeLevel.replace(/[\/\\:*?"<>|\s]/g, '_') || 'ไม่ระบุชั้น';
+    
+    document.title = `ประเมินพัฒนาการ_${gradeLevel}_${teacherIdentifier}_${academicYear}_${semester}`;
+    
     try {
       window.print();
     } catch (e) {
       console.warn("window.print() is blocked or unsupported in this sandbox:", e);
       window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
     }
+
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   return (

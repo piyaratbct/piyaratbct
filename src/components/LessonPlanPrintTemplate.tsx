@@ -16,12 +16,24 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   
   const handlePrint = () => {
+    const originalTitle = document.title;
+    
+    const subjectName = plan.subject.replace(/[\/\\:*?"<>|\s]/g, '_');
+    const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน').replace(/[\/\\:*?"<>|\s]/g, '_');
+    const planDate = (plan.date || '').replace(/[\/\\:*?"<>|\s]/g, '_');
+    
+    document.title = `แผนการสอน_${teacherIdentifier}_${subjectName}_${planDate}`;
+    
     try {
       window.print();
     } catch (e) {
       console.warn("window.print() is blocked or unsupported in this sandbox:", e);
       window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
     }
+
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   const handleSaveSignature = (name: string, signatureBase64: string) => {
@@ -156,7 +168,7 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
             onClick={handlePrint}
             className="px-5 py-2 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-lg transition-colors shadow-sm flex items-center gap-2"
           >
-            <Printer className="h-4 w-4" /> สั่งพิมพ์
+            <Printer className="h-4 w-4" /> พิมพ์ / บันทึก PDF
           </button>
         </div>
       </div>
