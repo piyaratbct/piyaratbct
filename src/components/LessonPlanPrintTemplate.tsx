@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { LessonPlan, Teacher } from '../types';
 import { Printer, X, Edit3, Save, XCircle } from 'lucide-react';
 import { SchoolLogo, SignaturePadModal } from './PrintTemplate';
@@ -15,6 +16,11 @@ interface LessonPlanPrintTemplateProps {
 export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUser, onUpdatePlan, onClose }: LessonPlanPrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   
+  useEffect(() => {
+    document.body.classList.add('print-mode-active');
+    return () => document.body.classList.remove('print-mode-active');
+  }, []);
+
   const handlePrint = () => {
     const originalTitle = document.title;
     
@@ -94,7 +100,7 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
     return dateString;
   };
 
-  return (
+  const content = (
     <div className="print-root-wrap fixed inset-0 z-50 bg-slate-900/50 flex flex-col items-center overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
       <style>{`
         @media print {
@@ -348,4 +354,6 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Student, StudentAssessment, Teacher } from '../types';
 import { SchoolLogo } from './PrintTemplate';
 
@@ -43,7 +44,7 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
     }, 500);
   };
 
-  return (
+  const content = (
     <div className="print-root-wrap fixed inset-0 z-[100] bg-slate-900 overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
       <style>{`
         @media print {
@@ -201,4 +202,6 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };

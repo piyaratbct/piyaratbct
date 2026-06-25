@@ -20,6 +20,10 @@ body {
     color: #000 !important;
     font-family: "Sarabun", sans-serif !important;
   }
+  
+  body.print-mode-active #root {
+    display: none !important;
+  }
 
   #root > div {
     display: block !important;

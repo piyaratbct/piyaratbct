@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { LessonRecord, Teacher } from '../types';
 import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle } from 'lucide-react';
 
@@ -220,6 +221,11 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   const [isCompact, setIsCompact] = useState(false);
 
+  useEffect(() => {
+    document.body.classList.add('print-mode-active');
+    return () => document.body.classList.remove('print-mode-active');
+  }, []);
+
   // Status variables
   const isDeptHeadApproved = !!record.deptHeadApproved;
   const isFullyApproved = isDeptHeadApproved;
@@ -312,7 +318,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
     onUpdateRecord(updatedRecord);
   };
 
-  return (
+  const content = (
     <div className="print-root-wrap fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex justify-center py-6 px-4 cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
       <style>{`
         @media print {
@@ -761,4 +767,6 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
