@@ -18,7 +18,7 @@ import {
   CalendarDays, Download, FileJson, FileSpreadsheet, School, PlusCircle,
   Lock, Unlock, KeyRound, ShieldCheck, Eye, EyeOff, ShieldAlert,
   Camera, Upload, RotateCcw, Loader2, Bell, X, FileText,
-  Users, BarChart3, LayoutDashboard, Presentation, Wrench
+  Users, BarChart3, LayoutDashboard, Presentation, Wrench, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';

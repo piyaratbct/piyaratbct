@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
 import { LessonPlan, Teacher } from '../types';
 import { Printer, X, Edit3, Save, XCircle } from 'lucide-react';
-import { SchoolLogo, SignaturePadModal } from './PrintTemplate';
+import { SignaturePadModal } from './PrintTemplate';
+import { PDFPrintHelper, PrintPageContainer, PrintHeader, PrintSignatureBox } from './PDFPrintHelper';
 
 interface LessonPlanPrintTemplateProps {
   plan: LessonPlan;
@@ -15,32 +15,11 @@ interface LessonPlanPrintTemplateProps {
 
 export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUser, onUpdatePlan, onClose }: LessonPlanPrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
-  
-  useEffect(() => {
-    document.body.classList.add('print-mode-active');
-    return () => document.body.classList.remove('print-mode-active');
-  }, []);
 
-  const handlePrint = () => {
-    const originalTitle = document.title;
-    
-    const subjectName = plan.subject.replace(/[\/\\:*?"<>|\s]/g, '_');
-    const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน').replace(/[\/\\:*?"<>|\s]/g, '_');
-    const planDate = (plan.date || '').replace(/[\/\\:*?"<>|\s]/g, '_');
-    
-    document.title = `แผนการสอน_${teacherIdentifier}_${subjectName}_${planDate}`;
-    
-    try {
-      window.print();
-    } catch (e) {
-      console.warn("window.print() is blocked or unsupported in this sandbox:", e);
-      window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
-    }
-
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 500);
-  };
+  const subjectName = plan.subject.replace(/[\/\\:*?"<>|\s]/g, '_');
+  const teacherIdentifier = (teacher.employeeId || teacher.thaiName || 'ครูผู้สอน').replace(/[\/\\:*?"<>|\s]/g, '_');
+  const planDate = (plan.date || '').replace(/[\/\\:*?"<>|\s]/g, '_');
+  const documentTitle = `แผนการสอน_${teacherIdentifier}_${subjectName}_${planDate}`;
 
   const handleSaveSignature = (name: string, signatureBase64: string) => {
     if (!onUpdatePlan) return;
@@ -53,8 +32,6 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
       updatedPlan.approverName = name;
       updatedPlan.approverSignature = signatureBase64;
       updatedPlan.approverDate = todayStr;
-      
-      // Also save to standard fields from types.ts
     } else if (signingRole === 'teacher') {
       updatedPlan.teacherSignedOn = todayStr;
       updatedPlan.teacherSignature = signatureBase64;
@@ -100,42 +77,10 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
     return dateString;
   };
 
-  const content = (
-    <div className="print-root-wrap fixed inset-0 z-50 bg-slate-900/50 flex flex-col items-center overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none">
-      <style>{`
-        @media print {
-          html, body, #root, #root > div {
-            background: white !important;
-            background-color: white !important;
-            color: black !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            min-height: 0 !important;
-            overflow: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .print-root-wrap {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            background: white !important;
-            overflow: visible !important;
-          }
-          .print-break-avoid {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          .print-hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
-      
-      {/* Controls Header (Hidden while printing) */}
-      <div className="sticky top-0 w-full bg-white border-b border-slate-200 p-4 flex flex-wrap gap-4 justify-between items-center shadow-sm print:hidden z-10 max-w-4xl mx-auto rounded-b-xl">
+  return (
+    <PDFPrintHelper onClose={onClose} documentTitle={documentTitle} hideControls>
+      {/* Custom Controls Header for Lesson Plan */}
+      <div className="sticky top-0 w-full bg-white border-b border-slate-200 p-4 flex flex-wrap gap-4 justify-between items-center shadow-sm print:hidden z-10 max-w-[210mm] mx-auto rounded-b-xl mb-4">
         <div className="flex flex-col">
           <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <Printer className="h-5 w-5 text-indigo-600" />
@@ -202,7 +147,7 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
             <X className="h-4 w-4" /> ปิดหน้าต่าง
           </button>
           <button 
-            onClick={handlePrint}
+            onClick={() => window.print()}
             className="px-5 py-2 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-lg transition-colors shadow-sm flex items-center gap-2"
           >
             <Printer className="h-4 w-4" /> พิมพ์ / บันทึก PDF
@@ -210,23 +155,14 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
         </div>
       </div>
 
-      {/* A4 Paper Container */}
-      <div className="w-full max-w-[800px] bg-white my-8 p-12 shadow-xl print:m-0 print:p-0 print:shadow-none mx-auto border border-slate-200" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+      <PrintPageContainer>
+        <PrintHeader 
+          title="แผนการจัดการเรียนรู้" 
+          subtitle={<p className="text-base text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, '')}</p>}
+        />
         
-        {/* Document Header */}
-        <div className="text-center mb-8 pb-6 border-b-2 border-[#e54a93] relative">
-          <div className="absolute top-0 left-0">
-            <SchoolLogo className="h-20 w-20 text-[#e54a93] drop-shadow-sm" />
-          </div>
-          <h1 className="text-2xl font-bold font-serif mb-1 text-slate-900">แผนการจัดการเรียนรู้</h1>
-          <h2 className="text-lg font-black text-slate-900 mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
-          <p className="text-[9px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded border border-pink-100 mb-3 uppercase tracking-wider inline-block">
-            Sirimongkolsuksa Bangbuathong School
-          </p>
-          <div className="w-full mt-1">
-            <p className="text-base text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, '')}</p>
-          </div>
-          <p className="text-sm text-slate-600 mt-2">
+        <div className="text-center mb-6">
+          <p className="text-sm text-slate-600">
             {(() => {
               const s = plan.semester || '';
               const parts = s.replace('ภาคเรียนที่ ', '').split('/');
@@ -298,51 +234,31 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
 
         {/* Signatures Section */}
         <div className="mt-16 pt-8 border-t border-slate-200 grid grid-cols-2 gap-12 font-serif">
-          
-          {/* Teacher Signature */}
-          <div className="text-center pt-8">
-            <div className="h-8 border-b border-slate-400 border-dotted mb-2 mx-8 relative flex items-end justify-center">
-              {plan.teacherSignature ? (
-                <img src={plan.teacherSignature} alt="Teacher Signature" className="h-[200%] absolute bottom-0 object-contain mx-auto" />
-              ) : (
-                plan.teacherSignedOn && (
-                   <span className="font-satisfy text-xl text-slate-800 absolute bottom-1 h-12 flex items-center justify-center -rotate-2">
-                     {teacher.thaiName || teacher.displayName}
-                   </span>
-                )
-              )}
-            </div>
-            <p className="text-sm">( {teacher.thaiName || teacher.displayName} )</p>
-            <p className="text-xs text-slate-600 mt-1">ผู้สอน (Teacher)</p>
-          </div>
+          <PrintSignatureBox 
+            role="ผู้สอน (Teacher)"
+            name={teacher.thaiName || teacher.displayName}
+            date={plan.teacherSignedOn ? thaiFormatDate(plan.teacherSignedOn) : undefined}
+            signature={plan.teacherSignature}
+            label="ลงชื่อ"
+          />
 
-          {/* Academic Head / Approval Signature */}
-          <div className="text-center pt-8">
-            <div className="h-8 border-b border-slate-400 border-dotted mb-2 mx-8 relative flex items-end justify-center">
-              {plan.status === 'approved' && plan.approverSignature ? (
-                <img src={plan.approverSignature} alt="Academic Head Signature" className="h-[200%] absolute bottom-0 object-contain mx-auto" />
-              ) : plan.status === 'approved' && plan.approverName ? (
-                 <span className="font-satisfy text-xl text-blue-800 absolute bottom-1 h-12 flex items-center justify-center -rotate-2">
-                   {plan.approverName}
-                 </span>
-              ) : plan.status === 'approved' && academicHead && (
-                 <span className="font-satisfy text-xl text-blue-800 absolute bottom-1 h-12 flex items-center justify-center -rotate-2">
-                   {academicHead.thaiName || academicHead.displayName}
-                 </span>
+          <div className="flex flex-col items-center justify-end h-full">
+            <p className="text-sm text-slate-600 mb-2">ลงชื่อ</p>
+            <div className="w-40 border-b border-slate-400 mb-2 flex items-center justify-center min-h-[40px] relative">
+              {plan.status === 'approved' && plan.approverSignature && (
+                <img src={plan.approverSignature} alt={`ลายเซ็น${plan.approverName || ''}`} className="h-10 object-contain absolute bottom-0" crossOrigin="anonymous" />
               )}
             </div>
-            <p className="text-sm">( {plan.approverName || (academicHead ? (academicHead.thaiName || academicHead.displayName) : '...................................................')} )</p>
-            <p className="text-xs text-slate-600 mt-1">หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ</p>
-            <div className="mt-3 inline-flex">
-              <span className={`text-xs px-2 py-1 border rounded ${plan.status === 'approved' ? 'border-emerald-600 text-emerald-700 font-bold' : 'border-slate-300 text-slate-400 text-opacity-0 bg-slate-50'}`}>
+            <p className="text-sm font-medium text-slate-900">{plan.approverName ? `(${plan.approverName})` : '(............................................)'}</p>
+            <p className="text-xs text-slate-500 mt-1">หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ</p>
+            <div className="mt-2 inline-flex">
+              <span className={`text-[10px] px-2 py-0.5 border rounded ${plan.status === 'approved' ? 'border-emerald-600 text-emerald-700 font-bold' : 'border-slate-300 text-slate-400 text-opacity-0 bg-slate-50'}`}>
                 {plan.status === 'approved' ? '✔ อนุมัติแผนการจัดการเรียนรู้' : 'อนุมัติแผนการจัดการเรียนรู้'}
               </span>
             </div>
           </div>
-          
         </div>
-
-      </div>
+      </PrintPageContainer>
 
       {signingRole && onUpdatePlan && (
         <SignaturePadModal
@@ -352,8 +268,6 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
           onClose={() => setSigningRole(null)}
         />
       )}
-    </div>
+    </PDFPrintHelper>
   );
-
-  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
