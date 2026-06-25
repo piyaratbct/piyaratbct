@@ -1,31 +1,35 @@
-import React, { useEffect, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
-import { SchoolLogo } from './PrintTemplate';
+import React, { useEffect, ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Printer, X } from "lucide-react";
+import { SchoolLogo } from "./PrintTemplate";
 
 interface PDFPrintHelperProps {
   children: ReactNode;
   onClose: () => void;
   documentTitle?: string;
   hideControls?: boolean;
+  isCompact?: boolean;
+  onToggleCompact?: () => void;
 }
 
-export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({ 
-  children, 
-  onClose, 
-  documentTitle = 'พิมพ์เอกสาร',
-  hideControls = false
+export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
+  children,
+  onClose,
+  documentTitle = "พิมพ์เอกสาร",
+  hideControls = false,
+  isCompact = false,
+  onToggleCompact,
 }) => {
   useEffect(() => {
-    document.body.classList.add('print-mode-active');
-    
+    document.body.classList.add("print-mode-active");
+
     const originalTitle = document.title;
     if (documentTitle) {
       document.title = documentTitle;
     }
-    
+
     return () => {
-      document.body.classList.remove('print-mode-active');
+      document.body.classList.remove("print-mode-active");
       document.title = originalTitle;
     };
   }, [documentTitle]);
@@ -34,8 +38,13 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
     try {
       window.print();
     } catch (e) {
-      console.warn("window.print() is blocked or unsupported in this sandbox:", e);
-      window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
+      console.warn(
+        "window.print() is blocked or unsupported in this sandbox:",
+        e,
+      );
+      window.alert(
+        "ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์",
+      );
     }
   };
 
@@ -106,11 +115,40 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
               ตัวอย่างก่อนพิมพ์: {documentTitle}
             </h2>
             <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
               หากปุ่มพิมพ์ไม่ทำงาน กรุณาเปิดแอปในแท็บใหม่ (Open in new tab)
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {onToggleCompact && (
+              <button
+                onClick={onToggleCompact}
+                className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all duration-200 cursor-pointer ${
+                  isCompact
+                    ? "bg-amber-600 text-white hover:bg-amber-500 shadow-sm border border-amber-550"
+                    : "bg-slate-700 text-slate-200 hover:bg-slate-600 hover:text-white border border-slate-600"
+                }`}
+                title="บีบอัดช่องว่างและขนาดตัวอักษรเพื่อจัดให้รายงานรูปเล่มยาวทั้งหมดจบสวยในกระดาษ A4 แผ่นเดียว"
+              >
+                <span>
+                  {isCompact
+                    ? "📋 พอดีหน้าเดียว: เปิด"
+                    : "📋 พอดีหน้าเดียว: ปิด"}
+                </span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"
@@ -128,7 +166,7 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Content Body */}
       <div className="py-8 px-4 print:p-0 flex flex-col items-center pb-24 print:block">
         {children}
@@ -136,50 +174,91 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
     </div>
   );
 
-  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
+  return typeof document !== "undefined"
+    ? createPortal(content, document.body)
+    : content;
 };
 
-export const PrintPageContainer = React.forwardRef<HTMLDivElement, { children: ReactNode, className?: string }>(({ children, className = '' }, ref) => (
-  <div 
+export const PrintPageContainer = React.forwardRef<
+  HTMLDivElement,
+  { children: ReactNode; className?: string }
+>(({ children, className = "" }, ref) => (
+  <div
     ref={ref}
     className={`print-container w-[210mm] min-h-[297mm] bg-white shadow-xl print:shadow-none print:w-full print:h-auto mx-auto mb-8 print:mb-0 relative text-black ${className}`}
-    style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', padding: '15mm 20mm', boxSizing: 'border-box' }}
+    style={{
+      WebkitPrintColorAdjust: "exact",
+      printColorAdjust: "exact",
+      padding: "15mm 20mm",
+      boxSizing: "border-box",
+    }}
   >
     {children}
   </div>
 ));
 
-export const PrintHeader = ({ title, subtitle, className = '' }: { title: string, subtitle?: ReactNode, className?: string }) => (
-  <div className={`flex flex-col items-center text-center mb-8 relative ${className}`}>
+export const PrintHeader = ({
+  title,
+  subtitle,
+  className = "",
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={`flex flex-col items-center text-center mb-8 relative ${className}`}
+  >
     <div className="absolute top-0 left-0 hidden sm:block print:block">
       <SchoolLogo className="h-20 w-20 text-[#e54a93] drop-shadow-sm" />
     </div>
     <div className="sm:hidden print:hidden mb-4">
       <SchoolLogo className="h-16 w-16 text-[#e54a93] drop-shadow-sm" />
     </div>
-    <h1 className="text-2xl font-bold font-serif mb-1 text-slate-900">{title}</h1>
-    <h2 className="text-lg font-black text-slate-900 mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+    <h1 className="text-2xl font-bold font-serif mb-1 text-slate-900">
+      {title}
+    </h1>
+    <h2 className="text-lg font-black text-slate-900 mb-0.5 tracking-wide">
+      โรงเรียนศิริมงคลศึกษา บางบัวทอง
+    </h2>
     <p className="text-[9px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded border border-pink-100 mb-3 uppercase tracking-wider inline-block">
       Sirimongkolsuksa Bangbuathong School
     </p>
-    {subtitle && (
-      <div className="w-full mt-1">
-        {subtitle}
-      </div>
-    )}
+    {subtitle && <div className="w-full mt-1">{subtitle}</div>}
   </div>
 );
 
-export const PrintSignatureBox = ({ role, name, date, signature, label }: { role: string, name?: string, date?: string, signature?: string, label: string }) => (
+export const PrintSignatureBox = ({
+  role,
+  name,
+  date,
+  signature,
+  label,
+}: {
+  role: string;
+  name?: string;
+  date?: string;
+  signature?: string;
+  label: string;
+}) => (
   <div className="flex flex-col items-center justify-end h-full">
     <p className="text-sm text-slate-600 mb-2">{label}</p>
     <div className="w-40 border-b border-slate-400 mb-2 flex items-center justify-center min-h-[40px] relative">
       {signature && (
-         <img src={signature} alt={`ลายเซ็น${name || ''}`} className="h-10 object-contain absolute bottom-0" crossOrigin="anonymous" />
+        <img
+          src={signature}
+          alt={`ลายเซ็น${name || ""}`}
+          className="h-10 object-contain absolute bottom-0"
+          crossOrigin="anonymous"
+        />
       )}
     </div>
-    <p className="text-sm font-medium text-slate-900">{name ? `(${name})` : '(............................................)'}</p>
+    <p className="text-sm font-medium text-slate-900">
+      {name ? `(${name})` : "(............................................)"}
+    </p>
     <p className="text-xs text-slate-500 mt-1">{role}</p>
-    <p className="text-xs text-slate-500 mt-1">วันที่ {date ? date : '......./......./.......'}</p>
+    <p className="text-xs text-slate-500 mt-1">
+      วันที่ {date ? date : "......./......./......."}
+    </p>
   </div>
 );
