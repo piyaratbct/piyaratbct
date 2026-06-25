@@ -170,11 +170,13 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
             <SchoolLogo className="h-20 w-20 text-[#e54a93] drop-shadow-sm" />
           </div>
           <h1 className="text-2xl font-bold font-serif mb-1 text-slate-900">แผนการจัดการเรียนรู้</h1>
-          <h2 className="text-lg font-black text-[#e54a93] mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
-          <p className="text-[10px] font-bold text-slate-500 font-mono mb-3 uppercase tracking-wider">
+          <h2 className="text-lg font-black text-slate-900 mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+          <p className="text-[9px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded border border-pink-100 mb-3 uppercase tracking-wider inline-block">
             Sirimongkolsuksa Bangbuathong School
           </p>
-          <p className="text-base text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, '')}</p>
+          <div className="w-full mt-1">
+            <p className="text-base text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, '')}</p>
+          </div>
           <p className="text-sm text-slate-600 mt-2">
             {(() => {
               const s = plan.semester || '';
@@ -281,7 +283,7 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
               )}
             </div>
             <p className="text-sm">( {plan.approverName || (academicHead ? (academicHead.thaiName || academicHead.displayName) : '...................................................')} )</p>
-            <p className="text-xs text-slate-600 mt-1">ผู้ตรวจสอบ / หัวหน้างานวิชาการ</p>
+            <p className="text-xs text-slate-600 mt-1">หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ</p>
             <div className="mt-3 inline-flex">
               <span className={`text-xs px-2 py-1 border rounded ${plan.status === 'approved' ? 'border-emerald-600 text-emerald-700 font-bold' : 'border-slate-300 text-slate-400 text-opacity-0 bg-slate-50'}`}>
                 {plan.status === 'approved' ? '✔ อนุมัติแผนการจัดการเรียนรู้' : 'อนุมัติแผนการจัดการเรียนรู้'}

@@ -109,6 +109,8 @@ export default function App() {
 
   // Custom School Logo States & Camera Capture
   const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [systemAcademicYear, setSystemAcademicYear] = useState<string>('2567');
+  const [systemSemester, setSystemSemester] = useState<string>('1');
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -214,7 +216,7 @@ export default function App() {
     };
     window.addEventListener('app-safe-alert', handleSafeAlert);
 
-    // Real-time dynamic subscription to shared school config doc (e.g., customLogo)
+    // Real-time dynamic subscription to shared school config doc (e.g., customLogo, systemAcademicYear, systemSemester)
     let unsubConfig = () => {};
     if (db) {
       try {
@@ -223,6 +225,12 @@ export default function App() {
             const data = snapshot.data();
             if (data && data.customLogo !== undefined) {
               setCustomLogo(data.customLogo);
+            }
+            if (data && data.systemAcademicYear) {
+              setSystemAcademicYear(data.systemAcademicYear);
+            }
+            if (data && data.systemSemester) {
+              setSystemSemester(data.systemSemester);
             }
           }
         }, (err) => {
@@ -487,6 +495,17 @@ export default function App() {
     });
   };
 
+  const handleUpdateAcademicYear = (newYear: string, newSemester: string) => {
+    setSystemAcademicYear(newYear);
+    setSystemSemester(newSemester);
+    if (db) {
+      setDoc(doc(db, 'config', 'school'), { systemAcademicYear: newYear, systemSemester: newSemester }, { merge: true }).catch(err => {
+        console.error("Failed to persist academic year in Firestore:", err);
+      });
+    }
+    addToast('อัปเดตปีการศึกษาและภาคเรียนเรียบร้อยแล้ว', 'success');
+  };
+
   const handleLogin = (teacher: Teacher) => {
     setCurrentTeacher(teacher);
     initProfileStates(teacher);
@@ -736,6 +755,30 @@ export default function App() {
   };
 
   // Delete Teacher (Admin Only)
+  const [teacherToDelete, setTeacherToDelete] = useState<string | null>(null);
+
+  const confirmDeleteTeacher = async () => {
+    if (!teacherToDelete || !currentTeacher) return;
+    
+    const teacherObj = teachers.find(t => t.id === teacherToDelete);
+    if (!teacherObj) return;
+
+    const teacherRecords = records.filter(r => r.teacherId === teacherToDelete);
+
+    try {
+      // 1. Delete associated records
+      for (const rec of teacherRecords) {
+        await deleteDoc(doc(db, 'records', rec.id));
+      }
+      // 2. Delete teacher doc
+      await deleteDoc(doc(db, 'teachers', teacherToDelete));
+      
+      setTeacherToDelete(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `teachers/${teacherToDelete}`);
+    }
+  };
+
   const handleDeleteTeacher = async (teacherId: string) => {
     if (!currentTeacher) return;
     if (currentTeacher.role !== 'admin') {
@@ -756,30 +799,7 @@ export default function App() {
       return;
     }
 
-    const teacherRecords = records.filter(r => r.teacherId === teacherId);
-    const hasApprovedRecords = teacherRecords.some(r => r.deptHeadApproved);
-
-    const confirmationMsg = `⚠️ คุณต้องการลบบัญชีคุณครู "${teacherObj.displayName || teacherObj.thaiName}" ใช่หรือไม่?\n\n` +
-      `การลบบัญชีนี้จะส่งผลให้ บันทึกหลังเรียนทั้งหมดของคุณครูจำนวน ${teacherRecords.length} รายการ ถูกลบออกจากระบบคลาวด์/Firestore อย่างถาวรเพื่อป้องกันข้อมูลค้างคา\n` +
-      `${hasApprovedRecords ? '🚨 โปรดระวัง: คุณครูท่านนี้มีบางรายการที่ได้รับการอนุมัติและลงนามแล้ว!' : ''}\n\n` +
-      `ยืนยันการลบอย่างไม่มีเงื่อนไขและไม่สามารถกู้คืนได้?`;
-
-    if (!window.confirm(confirmationMsg)) {
-      return;
-    }
-
-    try {
-      // 1. Delete associated records
-      for (const rec of teacherRecords) {
-        await deleteDoc(doc(db, 'records', rec.id));
-      }
-      // 2. Delete teacher doc
-      await deleteDoc(doc(db, 'teachers', teacherId));
-      
-      alert(`🗑️ ลบบัญชีผู้ใช้งาน "${teacherObj.displayName || teacherObj.thaiName}" และบันทึกสอนที่เกี่ยวข้องทั้งหมดเรียบร้อยแล้ว`);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `teachers/${teacherId}`);
-    }
+    setTeacherToDelete(teacherId);
   };
 
   // Export records JSON backup
@@ -889,15 +909,25 @@ export default function App() {
               </div>
               <div className="leading-tight">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-slate-800 tracking-tight font-sans">LessonLog</span>
+                  <span className="text-base font-black text-slate-800 tracking-tight font-sans">LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
                   <span className="text-[8px] bg-pink-50 text-pink-600 px-1 py-0.5 rounded font-black border border-pink-100 font-mono scale-90">SMBS</span>
                 </div>
-                <span className="hidden sm:inline-block text-[10px] font-bold text-slate-400">
-                  โรงเรียนศิริมงคลศึกษา บางบัวทอง
-                </span>
-                <span className="sm:hidden text-[9px] font-bold text-slate-400 block">
-                  ศิริมงคลศึกษา บางบัวทอง
-                </span>
+                <div className="hidden sm:flex flex-col mt-0.5 items-start">
+                  <span className="text-[11px] font-bold text-slate-500">
+                    โรงเรียนศิริมงคลศึกษา บางบัวทอง
+                  </span>
+                  <span className="text-[9px] font-semibold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100 uppercase tracking-wider mt-0.5">
+                    Sirimongkolsuksa Bangbuathong School
+                  </span>
+                </div>
+                <div className="sm:hidden flex flex-col mt-0.5 items-start">
+                  <span className="text-[10px] font-bold text-slate-500 block">
+                    ศิริมงคลศึกษา บางบัวทอง
+                  </span>
+                  <span className="text-[8px] font-semibold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100 uppercase tracking-wide block mt-0.5">
+                    Sirimongkolsuksa Bangbuathong School
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1016,7 +1046,7 @@ export default function App() {
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
               <span className="text-sm sm:text-base font-black tracking-wide text-indigo-950 font-sans">
-                LessonLog - ระบบบันทึกผลการจัดการเรียนรู้
+                LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
               </span>
             </div>
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
@@ -1070,7 +1100,7 @@ export default function App() {
               <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
                 <LayoutDashboard className="h-8 w-8" />
               </div>
-              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">ภาพรวมระบบ LessonLog</h2>
+              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">ภาพรวมระบบ LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</h2>
               <p className="text-slate-500 text-sm max-w-lg mx-auto">ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน ข้อมูลสรุปสถิติภาพรวมทั้งหมด</p>
             </div>
             
@@ -1261,6 +1291,8 @@ export default function App() {
                 teacherId={currentTeacher.id}
                 onSave={handleSaveRecord}
                 onCancel={() => setEditingRecord(null)}
+                systemAcademicYear={systemAcademicYear}
+                systemSemester={systemSemester}
               />
             </div>
 
@@ -1319,6 +1351,8 @@ export default function App() {
                 onSave={handleSavePlan}
                 onCancel={() => setEditingPlan(null)}
                 currentUserRole={currentTeacher.role}
+                systemAcademicYear={systemAcademicYear}
+                systemSemester={systemSemester}
               />
             </div>
             
@@ -1620,7 +1654,7 @@ export default function App() {
         ) : null}
         </div>
         ) : activeModule === 'classroom' ? (
-          <ClassroomModule currentTeacher={currentTeacher} />
+          <ClassroomModule currentTeacher={currentTeacher} systemAcademicYear={systemAcademicYear} systemSemester={systemSemester} />
         ) : activeModule === 'analytics' ? (
           <EvaluationModule />
         ) : activeModule === 'admin' ? (
@@ -1637,7 +1671,7 @@ export default function App() {
       {/* 3. Footer branding */}
       <footer className="mt-16 py-8 border-t border-slate-100 bg-white print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
-          <p className="text-xs font-semibold text-slate-400">LessonLog - ระบบบันทึกผลหลังสอนประถมศึกษา</p>
+          <p className="text-xs font-semibold text-slate-400">LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</p>
           <p className="text-[10px] text-slate-400 font-medium">ออกรายงานสรุปและบันทึกผลเพื่อใช้ประกอบการสอนอย่างง่ายดาย</p>
         </div>
       </footer>
@@ -1911,6 +1945,52 @@ export default function App() {
                 </div>
               </div>
 
+              {/* ปรับแต่งปีการศึกษา (Academic Year Setup Panel) */}
+              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl space-y-3">
+                <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4 text-blue-600" />
+                  กำหนดภาคเรียนและปีการศึกษาปัจจุบัน (Academic Year)
+                </span>
+                <p className="text-[10px] text-slate-500 leading-normal">
+                  กำหนดภาคเรียนและปีการศึกษาสำหรับระบบ ซึ่งจะถูกนำไปใช้เป็นค่าเริ่มต้นในเอกสารรายงาน และแบบฟอร์มต่างๆ
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
+                  <div className="space-y-1.5 flex-1 w-full text-left">
+                    {currentTeacher?.role === 'admin' ? (
+                      <div className="flex gap-2">
+                        <select
+                          value={systemSemester}
+                          onChange={(e) => setSystemSemester(e.target.value)}
+                          className="px-3 py-2 text-sm font-bold text-center rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                        >
+                          <option value="1">ภาคเรียนที่ 1</option>
+                          <option value="2">ภาคเรียนที่ 2</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={systemAcademicYear}
+                          onChange={(e) => setSystemAcademicYear(e.target.value)}
+                          className="px-3 py-2 text-sm font-bold text-center rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-24"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateAcademicYear(systemAcademicYear, systemSemester)}
+                          className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition"
+                        >
+                          บันทึกข้อมูล
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
+                        ⚠️ <strong>เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น</strong> ที่มีสิทธิ์แก้ไขภาคเรียนและปีการศึกษา
+                        <div className="mt-1 font-bold text-slate-700">ปีการศึกษาปัจจุบัน: ภาคเรียนที่ {systemSemester}/{systemAcademicYear}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-3 border-t border-slate-150 flex justify-end gap-2.5">
                 <button
                   type="button"
@@ -2060,6 +2140,37 @@ export default function App() {
           })}
         </AnimatePresence>
       </div>
+
+      {/* Delete Teacher Confirmation Modal */}
+      {teacherToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-8 w-8 text-red-600" />
+            </div>
+            <h3 className="font-black text-slate-800 text-lg mb-2">
+              ยืนยันการลบบัญชีผู้ใช้
+            </h3>
+            <p className="text-slate-500 text-sm mb-6">
+              คุณต้องการลบบัญชีผู้ใช้งานนี้ใช่หรือไม่?<br/>ข้อมูลที่เกี่ยวข้องจะถูกลบอย่างถาวร
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setTeacherToDelete(null)}
+                className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmDeleteTeacher}
+                className="flex-1 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                ลบข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

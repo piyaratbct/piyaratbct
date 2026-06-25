@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, CheckCircle, Printer, ChevronDown, UserPlus, FileSpreadsheet, Download, Search } from 'lucide-react';
+import { Users, FileText, CheckCircle, Printer, ChevronDown, UserPlus, FileSpreadsheet, Download, Search, Pencil, Trash2, History, Clock } from 'lucide-react';
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from '../types';
 import { AssessmentPrintTemplate } from './AssessmentPrintTemplate';
 import { ImportStudentData } from './ImportStudentData';
+import { StudentModal } from './StudentModal';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, onSnapshot, query, where, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { AssessmentModal } from './AssessmentModal';
 
 interface ClassroomModuleProps {
   currentTeacher: Teacher | null;
+  systemAcademicYear?: string;
+  systemSemester?: string;
 }
 
-export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher }) => {
+export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher, systemAcademicYear = '2567', systemSemester = '1' }) => {
   const [activeTab, setActiveTab] = useState<'students' | 'assessments'>('students');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [students, setStudents] = useState<Student[]>([]);
   const [showImport, setShowImport] = useState(false);
+  const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   
   // Assessments state
   const [assessments, setAssessments] = useState<Record<string, StudentAssessment>>({});
@@ -23,6 +27,33 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
   
   // Print state
   const [printStudents, setPrintStudents] = useState<Student[] | null>(null);
+
+  // Student Form state
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  
+  // Delete confirmation state
+  const [studentToDelete, setStudentToDelete] = useState<{id: string, name: string} | null>(null);
+  const [assessmentToDelete, setAssessmentToDelete] = useState<StudentAssessment | null>(null);
+
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+
+  const toggleHistory = (studentId: string) => {
+    setExpandedHistory(prev => ({ ...prev, [studentId]: !prev[studentId] }));
+  };
+
+  const thaiFormatDateTime = (isoString?: string) => {
+    if (!isoString) return '-';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleString('th-TH', { 
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+      });
+    } catch {
+      return isoString;
+    }
+  };
 
   useEffect(() => {
     // Fetch students from Firestore
@@ -59,74 +90,106 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
     };
   }, [selectedGrade]);
 
-  const filteredStudents = students;
+  const filteredStudents = students.filter(student => {
+    if (genderFilter === 'all') return true;
+    return student.gender === genderFilter;
+  });
+
+  const totalCount = students.length;
+  const maleCount = students.filter(s => s.gender === 'male').length;
+  const femaleCount = students.filter(s => s.gender === 'female').length;
 
   // Initialize empty assessment if not exist
   const getInitialAssessment = (studentId: string): StudentAssessment => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const currentMonthStr = todayStr.substring(0, 7);
+
     return {
       id: `a-${Date.now()}`,
       studentId,
       gradeLevel: selectedGrade,
-      semester: '1',
-      academicYear: '2567',
+      semester: systemSemester,
+      academicYear: systemAcademicYear,
       teacherId: currentTeacher?.id || 't-unknown',
       characterTraits: { trait1: 0, trait2: 0, trait3: 0, trait4: 0, trait5: 0, trait6: 0, trait7: 0, trait8: 0 },
       competencies: { comp1: 0, comp2: 0, comp3: 0, comp4: 0, comp5: 0 },
       readingWriting: 0,
       comments: '',
+      month: currentMonthStr,
+      recordDate: todayStr,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
   };
 
-  const [isGeneratingMock, setIsGeneratingMock] = useState(false);
-
-  const handleGenerateMockData = async () => {
-    if (!window.confirm(`ต้องการสร้างข้อมูลนักเรียนจำลองสำหรับชั้น ${selectedGrade} หรือไม่? (ระบบจะสร้างข้อมูลให้ 5 คน)`)) {
-      return;
-    }
-    
-    setIsGeneratingMock(true);
+  const handleSaveStudent = async (studentData: Omit<Student, 'id'>, id?: string) => {
     try {
-      const batch = writeBatch(db);
-      const mockStudents = [
-        { studentId: Math.floor(10000 + Math.random() * 90000).toString(), firstName: 'สมชาย', lastName: 'รักเรียน', nickname: 'ชาย', gender: 'male', number: 1 },
-        { studentId: Math.floor(10000 + Math.random() * 90000).toString(), firstName: 'สมหญิง', lastName: 'ตั้งใจ', nickname: 'หญิง', gender: 'female', number: 2 },
-        { studentId: Math.floor(10000 + Math.random() * 90000).toString(), firstName: 'สมศักดิ์', lastName: 'ขยันยิ่ง', nickname: 'ศักดิ์', gender: 'male', number: 3 },
-        { studentId: Math.floor(10000 + Math.random() * 90000).toString(), firstName: 'มาลี', lastName: 'ดีงาม', nickname: 'มะลิ', gender: 'female', number: 4 },
-        { studentId: Math.floor(10000 + Math.random() * 90000).toString(), firstName: 'วิชาญ', lastName: 'ใฝ่รู้', nickname: 'ชาญ', gender: 'male', number: 5 }
-      ];
-
-      for (const student of mockStudents) {
+      if (id) {
+        await setDoc(doc(db, 'students', id), {
+          ...studentData,
+          id
+        }, { merge: true });
+      } else {
         const newDocRef = doc(collection(db, 'students'));
-        batch.set(newDocRef, {
-          id: newDocRef.id,
-          ...student,
-          gradeLevel: selectedGrade,
-          status: 'active'
+        await setDoc(newDocRef, {
+          ...studentData,
+          id: newDocRef.id
         });
       }
-      
-      await batch.commit();
-      alert('สร้างข้อมูลนักเรียนจำลองสำเร็จ');
+      setShowStudentModal(false);
     } catch (error) {
-      console.error(error);
-      alert('เกิดข้อผิดพลาดในการสร้างข้อมูล');
-    } finally {
-      setIsGeneratingMock(false);
+      handleFirestoreError(error, OperationType.WRITE, 'students');
+    }
+  };
+
+  const confirmDeleteStudent = async () => {
+    if (!studentToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'students', studentToDelete.id));
+      setStudentToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'students');
+    }
+  };
+
+  const handleDeleteAssessment = async () => {
+    if (!assessmentToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'assessments', assessmentToDelete.id));
+      setAssessmentToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'assessments');
     }
   };
 
   const handleSaveAssessment = async (assessment: StudentAssessment) => {
     try {
-      const assessmentToSave = {
-        ...assessment,
-        updatedAt: new Date().toISOString()
-      };
-      // We can use the studentId as the document ID so each student has one assessment per grade
+      const now = new Date().toISOString();
+      const teacherName = currentTeacher ? (currentTeacher.displayName || currentTeacher.thaiName) : 'ผู้ใช้งาน';
+
+      let updatedHistory = assessment.editHistory || [];
+      // If the assessment is being updated (i.e. already has an ID, though we construct the ID here),
+      // we check if it already existed.
+      // We can rely on assessments state to check if it's an update.
       const safeGradeLevel = assessment.gradeLevel.replace(/\//g, '-');
       const docId = `${safeGradeLevel}_${assessment.studentId}`;
-      assessmentToSave.id = docId;
+      const existing = assessments[assessment.studentId];
+
+      if (existing) {
+        updatedHistory.push({
+          editedBy: teacherName,
+          editedAt: now
+        });
+      }
+
+      const assessmentToSave = {
+        ...assessment,
+        id: docId,
+        updatedAt: now,
+        ...(existing ? { lastEditedBy: teacherName, lastEditedAt: now, editHistory: updatedHistory } : {})
+      };
+      
       await setDoc(doc(db, 'assessments', docId), assessmentToSave);
       setEvaluatingStudent(null);
     } catch (error) {
@@ -210,23 +273,38 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
         
         {activeTab === 'students' && (
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-black text-slate-800">รายชื่อนักเรียน {selectedGrade}</h3>
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={handleGenerateMockData}
-                  disabled={isGeneratingMock}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-800">รายชื่อนักเรียน {selectedGrade}</h3>
+                <div className="flex gap-3 mt-2 text-sm font-medium">
+                  <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">ทั้งหมด: <span className="font-bold text-slate-900">{totalCount}</span> คน</span>
+                  <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700">ชาย: <span className="font-bold">{maleCount}</span> คน</span>
+                  <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700">หญิง: <span className="font-bold">{femaleCount}</span> คน</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <select 
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value as 'all' | 'male' | 'female')}
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white"
                 >
-                  <Users className="h-4 w-4" /> {isGeneratingMock ? 'กำลังสร้าง...' : 'สร้างข้อมูลสมมติ'}
-                </button>
+                  <option value="all">เพศ: ทั้งหมด</option>
+                  <option value="male">เพศ: ชาย</option>
+                  <option value="female">เพศ: หญิง</option>
+                </select>
                 <button 
                   onClick={() => setShowImport(true)}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                 >
                   <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล (Excel/CSV)
                 </button>
-                <button className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                <button 
+                  onClick={() => {
+                    setEditingStudent(null);
+                    setShowStudentModal(true);
+                  }}
+                  className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                >
                   <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                 </button>
               </div>
@@ -241,12 +319,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
                     <th className="px-4 py-3">ชื่อ-นามสกุล</th>
                     <th className="px-4 py-3 text-center">เพศ</th>
                     <th className="px-4 py-3 text-center">สถานะ</th>
+                    <th className="px-4 py-3 text-right">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-500">ไม่พบข้อมูลนักเรียนในระดับชั้นนี้</td>
+                      <td colSpan={6} className="text-center py-8 text-slate-500">ไม่พบข้อมูลนักเรียนในระดับชั้นนี้</td>
                     </tr>
                   ) : (
                     filteredStudents.map(student => (
@@ -260,7 +339,30 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
                           {student.gender === 'male' ? 'ชาย' : 'หญิง'}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">ปกติ</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                            {student.status === 'active' ? 'ปกติ' : 'ย้าย/ออก'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button 
+                              onClick={() => {
+                                setEditingStudent(student);
+                                setShowStudentModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                              title="แก้ไขข้อมูล"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => setStudentToDelete({ id: student.id, name: `${student.firstName} ${student.lastName}` })}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="ลบนักเรียน"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -276,19 +378,35 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div>
                 <h3 className="text-lg font-black text-slate-800">ประเมินพัฒนาการนักเรียน</h3>
-                <p className="text-sm text-slate-500">บันทึกพัฒนาการรายบุคคล</p>
+                <div className="flex gap-3 mt-2 text-sm font-medium">
+                  <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">ทั้งหมด: <span className="font-bold text-slate-900">{totalCount}</span> คน</span>
+                  <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700">ชาย: <span className="font-bold">{maleCount}</span> คน</span>
+                  <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700">หญิง: <span className="font-bold">{femaleCount}</span> คน</span>
+                </div>
               </div>
-              <button 
-                onClick={printBatchReport}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-              >
-                <Printer className="h-4 w-4" /> ออกรายงานรวมทั้งชั้นเรียน (PDF)
-              </button>
+              <div className="flex flex-wrap gap-2 items-center">
+                <select 
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value as 'all' | 'male' | 'female')}
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white"
+                >
+                  <option value="all">เพศ: ทั้งหมด</option>
+                  <option value="male">เพศ: ชาย</option>
+                  <option value="female">เพศ: หญิง</option>
+                </select>
+                <button 
+                  onClick={printBatchReport}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                >
+                  <Printer className="h-4 w-4" /> ออกรายงานรวมทั้งชั้นเรียน (PDF)
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredStudents.map(student => {
                 const hasAssessed = !!assessments[student.id];
+                const assessment = assessments[student.id];
                 return (
                   <div key={student.id} className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow flex flex-col">
                     <div className="flex justify-between items-start mb-3">
@@ -302,8 +420,36 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
                         <div className="h-5 w-5 rounded-full border-2 border-slate-200"></div>
                       )}
                     </div>
+
+                    {assessment?.lastEditedBy && (
+                      <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2 text-[10px]">
+                        <div 
+                          className="flex items-center justify-between cursor-pointer select-none"
+                          onClick={() => toggleHistory(student.id)}
+                        >
+                          <div className="flex items-center space-x-1 min-w-0">
+                            <History className="h-3 w-3 text-sky-600 shrink-0" />
+                            <span className="font-bold text-slate-600 truncate">แก้ไขล่าสุดโดย: {assessment.lastEditedBy}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 shrink-0 text-slate-400">
+                            <Clock className="h-3 w-3" />
+                            <span>{thaiFormatDateTime(assessment.lastEditedAt)}</span>
+                          </div>
+                        </div>
+                        {expandedHistory[student.id] && assessment.editHistory && assessment.editHistory.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-slate-200 space-y-1 max-h-24 overflow-y-auto">
+                            {assessment.editHistory.slice().reverse().map((history, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-white px-2 py-1 rounded border border-slate-50">
+                                <span className="text-slate-500 font-medium">ครั้งที่ {assessment.editHistory!.length - idx}: <span className="text-slate-700">{history.editedBy}</span></span>
+                                <span className="text-slate-400 italic">{thaiFormatDateTime(history.editedAt)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
-                    <div className="mt-auto pt-4 flex gap-2">
+                    <div className="mt-auto pt-2 flex gap-2">
                       <button 
                         onClick={() => setEvaluatingStudent(student)}
                         className={`flex-1 py-2 rounded-lg text-xs font-bold text-center transition-colors ${
@@ -323,6 +469,16 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
                       >
                         <Printer className="h-4 w-4" />
                       </button>
+
+                      {hasAssessed && assessment && (currentTeacher?.role === 'admin' || currentTeacher?.id === assessment.teacherId) && (
+                        <button
+                          onClick={() => setAssessmentToDelete(assessment)}
+                          className="px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center transition-colors bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          title="ลบการประเมิน"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -356,6 +512,77 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
           }}
         />
       )}
+      
+      {/* Student Add/Edit Modal */}
+      {showStudentModal && (
+        <StudentModal 
+          student={editingStudent}
+          selectedGrade={selectedGrade}
+          onClose={() => setShowStudentModal(false)}
+          onSave={handleSaveStudent}
+        />
+      )}
+      {/* Delete Confirmation Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-8 w-8 text-rose-600" />
+            </div>
+            <h3 className="font-black text-slate-800 text-lg mb-2">
+              ยืนยันการลบนักเรียน
+            </h3>
+            <p className="text-slate-500 text-sm mb-6">
+              คุณต้องการลบนักเรียน "{studentToDelete.name}" ใช่หรือไม่?<br/>การดำเนินการนี้ไม่สามารถกู้คืนได้
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStudentToDelete(null)}
+                className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmDeleteStudent}
+                className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors"
+              >
+                ลบข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Assessment Confirmation Modal */}
+      {assessmentToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-8 w-8 text-rose-600" />
+            </div>
+            <h3 className="font-black text-slate-800 text-lg mb-2">
+              ยืนยันการลบการประเมิน
+            </h3>
+            <p className="text-slate-500 text-sm mb-6">
+              คุณต้องการลบข้อมูลการประเมินนี้ใช่หรือไม่?<br/>การดำเนินการนี้ไม่สามารถกู้คืนได้
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAssessmentToDelete(null)}
+                className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleDeleteAssessment}
+                className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors"
+              >
+                ลบข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Print Overlay */}
@@ -364,8 +591,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
           students={printStudents}
           assessments={assessments}
           teacher={currentTeacher!}
-          academicYear="2567"
-          semester="1"
+          academicYear={systemAcademicYear}
+          semester={systemSemester}
           onClose={() => setPrintStudents(null)}
         />
       )}

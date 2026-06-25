@@ -514,17 +514,14 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               <h2 className={`font-extrabold font-sans tracking-tight text-slate-950 ${
                 isCompact ? 'text-sm' : 'text-xl'
               }`}>บันทึกผลการจัดการเรียนรู้และผลหลังสอนรายวิชา</h2>
-              <span className={`font-black text-[#e54a93] tracking-wide block uppercase ${
+              <span className={`font-black text-slate-900 tracking-wide block ${
                 isCompact ? 'text-[10px]' : 'text-xs'
               }`}>โรงเรียนศิริมงคลศึกษา บางบัวทอง</span>
-              <span className={`font-black text-slate-500 tracking-wider block uppercase font-mono ${
-                isCompact ? 'text-[8px]' : 'text-[10px]'
-              }`}>SIRIMONGKOLSUKSA BANGBUATHONG SCHOOL</span>
-              <p className={`font-bold text-blue-600 bg-blue-50/60 rounded-full inline-block border border-blue-105 print:border-none print:bg-none print:p-0 print:text-black mt-0.5 ${
-                isCompact ? 'text-[9px] px-2 py-0' : 'text-[10px] px-2.5 py-0.5'
-              }`}>
-                ฝ่ายส่งเสริมคุณภาพการศึกษาและวิชาการ<span className="print:hidden"> • (สังกัด: {teacher.affiliation})</span>
-              </p>
+              <div className="w-full mt-0.5">
+                <span className={`font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded border border-pink-100 tracking-wider inline-block uppercase ${
+                  isCompact ? 'text-[8px]' : 'text-[9px]'
+                }`}>Sirimongkolsuksa Bangbuathong School</span>
+              </div>
             </div>
           </div>
 
@@ -726,14 +723,14 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 </div>
 
                 <p className="font-semibold text-slate-500">
-                  ลงชื่อ {isDeptHeadApproved && record.deptHeadSignature ? '_________________________' : '..........................................................'} ผู้ตรวจรับรอง
+                  ลงชื่อ {isDeptHeadApproved && record.deptHeadSignature ? '_________________________' : '..........................................................'} ผู้ตรวจสอบ
                 </p>
                 <div>
                   <p className="font-semibold">
                     (&nbsp;&nbsp;{record.deptHeadName || academicHead?.thaiName || '..........................................................'}&nbsp;&nbsp;)
                   </p>
                   <p className={`text-slate-400 mt-1 font-sans ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>
-                     {academicHead?.role === 'admin' ? 'ผู้ดูแลระบบ' : academicHead?.role === 'deputy' ? 'รองผู้อำนวยการ' : 'หัวหน้าฝ่ายวิชาการ'} {isDeptHeadApproved && record.deptHeadDate ? `(ลงนามตรวจเมื่อ: ${formatThaiDateFull(record.deptHeadDate)})` : ''}
+                     หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ {isDeptHeadApproved && record.deptHeadDate ? `(ลงนามตรวจเมื่อ: ${formatThaiDateFull(record.deptHeadDate)})` : ''}
                   </p>
                 </div>
               </div>
@@ -742,7 +739,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
           {/* Footer Timestamp for document registry */}
           <div className={`text-center text-slate-400 font-mono print:text-black ${isCompact ? 'mt-8 text-[9px]' : 'mt-16 text-[10px]'}`}>
-            เอกสารบันทึกประเภทอิเล็กทรอนิกส์ออกตามระบบ LessonLog - เลขอ้างอิง: {record.id}
+            เอกสารบันทึกประเภทอิเล็กทรอนิกส์ออกตามระบบ LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา - เลขอ้างอิง: {record.id}
           </div>
 
         </div>

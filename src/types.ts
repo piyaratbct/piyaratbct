@@ -139,8 +139,16 @@ export interface StudentAssessment {
   comments: string;
 
   // 4. บันทึกพัฒนาการ (ลักษณะเดียวกับบันทึกหลังสอน)
-  subject?: string;
-  date?: string;
+  month?: string;        // ระบุเพียงเดือนที่ได้ลงบันทึกประเมิน
+  recordDate?: string;   // ระบุวันที่บันทึกข้อมูล (kept for backward compatibility or backend use, but won't be in form)
+  
+  // Edit History Tracking
+  lastEditedBy?: string;
+  lastEditedAt?: string;
+  editHistory?: {
+    editedBy: string;
+    editedAt: string;
+  }[];
   content?: string;      // พฤติกรรม/พัฒนาการที่พบ
   activities?: string;   // วิธีการส่งเสริม/แก้ไขปัญหา
   limitations?: string;  // ปัญหาอุปสรรค

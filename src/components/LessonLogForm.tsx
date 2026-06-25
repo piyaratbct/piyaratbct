@@ -8,13 +8,16 @@ interface LessonLogFormProps {
   teacherId: string;
   onSave: (record: LessonRecord) => void;
   onCancel?: () => void;
+  systemAcademicYear?: string;
+  systemSemester?: string;
 }
 
-export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: LessonLogFormProps) {
+export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1' }: LessonLogFormProps) {
   const [subject, setSubject] = useState<SubjectType>('ภาษาไทย');
 
   const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
-  const [semester, setSemester] = useState(SEMESTERS[0]);
+  const defaultSemester = `ภาคเรียนที่ ${systemSemester}/${systemAcademicYear}`;
+  const [semester, setSemester] = useState(defaultSemester);
   
   // Default date to today's local date (YYYY-MM-DD)
   const getTodayString = () => {
@@ -50,7 +53,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
         setSelectedGrades([GRADE_LEVELS[0]]);
       }
       
-      setSemester(initialRecord.semester || SEMESTERS[0]);
+      setSemester(initialRecord.semester || defaultSemester);
       setDate(initialRecord.date);
       setContent(initialRecord.content);
       setActivities(initialRecord.activities);
@@ -60,12 +63,12 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
     } else {
       resetForm();
     }
-  }, [initialRecord]);
+  }, [initialRecord, defaultSemester]);
 
   const resetForm = () => {
     setSubject('ภาษาไทย');
     setSelectedGrades([GRADE_LEVELS[0]]);
-    setSemester(SEMESTERS[0]);
+    setSemester(defaultSemester);
     setDate(getTodayString());
     setContent('');
     setActivities('');
@@ -176,7 +179,14 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel }: Le
               onChange={(e) => setSemester(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-sans"
             >
-              {SEMESTERS.map((sem) => (
+              {[
+                `ภาคเรียนที่ 1/${systemAcademicYear}`,
+                `ภาคเรียนที่ 2/${systemAcademicYear}`,
+                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 1}`,
+                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 1}`,
+                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 2}`,
+                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 2}`
+              ].map((sem) => (
                 <option key={sem} value={sem}>{sem}</option>
               ))}
             </select>

@@ -43,6 +43,7 @@ export function LessonPlanList({
   const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedStatus, setSelectedStatus] = useState<string>("ทั้งหมด");
+  const [planToDelete, setPlanToDelete] = useState<{id: string, title: string} | null>(null);
 
   const filteredPlans = plans.filter((plan) => {
     const textMatch = searchMatches(plan, searchTerm);
@@ -322,11 +323,7 @@ export function LessonPlanList({
                       {canDelete && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบแผนการสอนเรื่อง "${plan.title}"?\n\nการลบจะไม่สามารถกู้คืนได้`)) {
-                              onDelete(plan.id);
-                            }
-                          }}
+                          onClick={() => setPlanToDelete({ id: plan.id, title: plan.title })}
                           className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-red-500 hover:bg-red-50"
                           title="ลบ"
                         >
@@ -370,6 +367,40 @@ export function LessonPlanList({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {planToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-8 w-8 text-red-600" />
+            </div>
+            <h3 className="font-black text-slate-800 text-lg mb-2">
+              ยืนยันการลบแผนการสอน
+            </h3>
+            <p className="text-slate-500 text-sm mb-6">
+              คุณต้องการลบแผนการสอนเรื่อง "{planToDelete.title}" ใช่หรือไม่?<br/>การดำเนินการนี้ไม่สามารถกู้คืนได้
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPlanToDelete(null)}
+                className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(planToDelete.id);
+                  setPlanToDelete(null);
+                }}
+                className="flex-1 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                ลบข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

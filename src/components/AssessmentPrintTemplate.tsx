@@ -82,8 +82,8 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
               <div className="flex flex-col items-center text-center mb-8">
                 <SchoolLogo className="w-20 h-20 mb-3 text-[#e54a93] drop-shadow-sm" />
                 <h1 className="text-2xl font-black mb-2 text-slate-900 tracking-tight">รายงานผลการพัฒนาผู้เรียนรายบุคคล</h1>
-                <h2 className="text-xl font-black text-[#e54a93] mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
-                <p className="text-xs font-bold text-slate-500 font-mono mb-4 uppercase tracking-wider">
+                <h2 className="text-xl font-black text-slate-900 mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+                <p className="text-[10px] font-bold text-pink-700 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100 mb-4 uppercase tracking-wider inline-block">
                   Sirimongkolsuksa Bangbuathong School
                 </p>
                 <p className="text-sm font-semibold text-sky-700 bg-sky-50 px-5 py-1.5 rounded-full border border-sky-100">
@@ -111,8 +111,7 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
                   </h3>
                   
                   <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm bg-white p-3 rounded-lg border border-pink-100">
-                    <div><span className="font-bold text-slate-700">รายวิชา/กิจกรรมที่ประเมิน:</span> {assessment.subject || '-'}</div>
-                    <div><span className="font-bold text-slate-700">วันที่ประเมิน:</span> {assessment.date || '-'}</div>
+                    <div><span className="font-bold text-slate-700">การประเมินประจำเดือน:</span> {assessment.month ? new Date(assessment.month).toLocaleDateString('th-TH', { year: 'numeric', month: 'long' }) : '-'}</div>
                   </div>
 
                   <div className="space-y-4">
@@ -150,7 +149,7 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
                 <div>
                   <div className="mb-2">ลงชื่อ..............................................................</div>
                   <div className="mb-1">(..............................................................)</div>
-                  <div className="text-sm">หัวหน้าวิชาการ / ผู้อำนวยการโรงเรียน</div>
+                  <div className="text-sm">หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ</div>
                 </div>
               </div>
 

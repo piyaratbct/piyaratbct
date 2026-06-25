@@ -35,6 +35,8 @@ interface LessonPlanFormProps {
   onSave: (plan: LessonPlan) => void;
   onCancel?: () => void;
   currentUserRole?: string;
+  systemAcademicYear?: string;
+  systemSemester?: string;
 }
 
 export function LessonPlanForm({
@@ -43,13 +45,16 @@ export function LessonPlanForm({
   onSave,
   onCancel,
   currentUserRole,
+  systemAcademicYear = '2567',
+  systemSemester = '1',
 }: LessonPlanFormProps) {
   const [subject, setSubject] = useState<SubjectType>("ภาษาไทย");
 
   const [selectedGrades, setSelectedGrades] = useState<string[]>([
     GRADE_LEVELS[0],
   ]);
-  const [semester, setSemester] = useState(SEMESTERS[0]);
+  const defaultSemester = `ภาคเรียนที่ ${systemSemester}/${systemAcademicYear}`;
+  const [semester, setSemester] = useState(defaultSemester);
 
   const [signingRole, setSigningRole] = useState<"deptHead" | null>(null);
 
@@ -85,7 +90,7 @@ export function LessonPlanForm({
         setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
       }
 
-      setSemester(initialPlan.semester || SEMESTERS[0]);
+      setSemester(initialPlan.semester || defaultSemester);
       setDate(initialPlan.date);
       setTitle(initialPlan.title);
       setObjectives(initialPlan.objectives);
@@ -96,11 +101,12 @@ export function LessonPlanForm({
     } else {
       resetForm();
     }
-  }, [initialPlan]);
+  }, [initialPlan, defaultSemester]);
 
   const resetForm = () => {
     setSubject("ภาษาไทย");
     setSelectedGrades([GRADE_LEVELS[0]]);
+    setSemester(defaultSemester);
     setDate(getTodayString());
     setTitle("");
     setObjectives("");
@@ -218,7 +224,14 @@ export function LessonPlanForm({
               onChange={(e) => setSemester(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-sans"
             >
-              {SEMESTERS.map((s) => (
+              {[
+                `ภาคเรียนที่ 1/${systemAcademicYear}`,
+                `ภาคเรียนที่ 2/${systemAcademicYear}`,
+                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 1}`,
+                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 1}`,
+                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 2}`,
+                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 2}`
+              ].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>

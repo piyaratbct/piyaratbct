@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, History, Clock } from 'lucide-react';
 import { Student, StudentAssessment } from '../types';
 
 interface AssessmentModalProps {
@@ -11,6 +11,21 @@ interface AssessmentModalProps {
 
 export const AssessmentModal: React.FC<AssessmentModalProps> = ({ student, existingAssessment, onClose, onSave }) => {
   const [formData, setFormData] = useState<StudentAssessment>(existingAssessment);
+  const [expandedHistory, setExpandedHistory] = useState(false);
+
+  // Helper for formatting date/time
+  const thaiFormatDateTime = (isoString?: string) => {
+    if (!isoString) return '-';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleString('th-TH', { 
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+      });
+    } catch {
+      return isoString;
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4 print:hidden">
@@ -32,26 +47,14 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({ student, exist
           <section>
             <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">บันทึกพัฒนาการรายบุคคล</h4>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">รายวิชา/กิจกรรมที่ประเมิน</label>
-                  <input 
-                    type="text" 
-                    value={formData.subject || ''}
-                    onChange={(e) => setFormData(prev => ({...prev, subject: e.target.value}))}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
-                    placeholder="เช่น ภาษาไทย, กิจกรรมโฮมรูม"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">วันที่ประเมิน</label>
-                  <input 
-                    type="date" 
-                    value={formData.date || ''}
-                    onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">การประเมินประจำเดือน</label>
+                <input 
+                  type="month" 
+                  value={formData.month || ''}
+                  onChange={(e) => setFormData(prev => ({...prev, month: e.target.value}))}
+                  className="w-full max-w-xs border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
+                />
               </div>
 
               <div>
@@ -95,6 +98,48 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({ student, exist
               </div>
             </div>
           </section>
+
+          {/* Edit History Section */}
+          {formData.lastEditedBy && (
+            <div className="mt-6 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/50 mb-2">
+              <div 
+                className="flex items-center justify-between cursor-pointer select-none" 
+                onClick={() => setExpandedHistory(!expandedHistory)}
+                title={formData.editHistory && formData.editHistory.length > 1 ? "คลิกเพื่อดูกลุ่มประวัติทั้งหมด" : undefined}
+              >
+                <div className="flex items-center space-x-2 min-w-0">
+                  <History className="h-4 w-4 text-sky-600 shrink-0" />
+                  <span className="text-xs font-bold text-slate-600 truncate">
+                    แก้ไขล่าสุดโดย: <span className="font-extrabold text-slate-800">{formData.lastEditedBy}</span>
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs font-semibold text-slate-400 shrink-0">
+                  <span className="font-mono flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-slate-400" />
+                    {thaiFormatDateTime(formData.lastEditedAt)}
+                  </span>
+                  {formData.editHistory && formData.editHistory.length > 1 && (
+                    <span className="text-sky-600 font-extrabold text-[10px] bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded hover:bg-sky-100/70 transition-colors">
+                      {expandedHistory ? 'ซ่อน' : `+ประวัติ (${formData.editHistory.length})`}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {expandedHistory && formData.editHistory && formData.editHistory.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-200/60 max-h-32 overflow-y-auto space-y-1.5">
+                  {formData.editHistory.slice().reverse().map((history, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs py-1.5 bg-white/50 px-3 rounded-lg border border-slate-50">
+                      <span className="text-slate-600 font-medium">
+                        แก้ไขครั้งที่ {formData.editHistory!.length - idx}: <span className="font-bold text-slate-800">{history.editedBy}</span>
+                      </span>
+                      <span className="text-slate-400 font-mono shrink-0 italic">{thaiFormatDateTime(history.editedAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
 

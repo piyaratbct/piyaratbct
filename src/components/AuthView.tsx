@@ -300,12 +300,16 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
               <BookOpen className="h-9 w-9 text-white animate-pulse" />
             </div>
           )}
-          <h1 className="mt-4 text-center text-3xl font-black text-slate-800 tracking-tight font-sans">
+          <h1 className="mt-4 text-center text-4xl font-black text-slate-800 tracking-tight font-sans">
             LessonLog
           </h1>
-          <p className="mt-2 text-center text-xs font-semibold text-sky-600/90 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-100">
-            ระบบบันทึกผลหลังสอนสําหรับคุณครู
+          <p className="mt-2 text-center text-sm font-semibold text-sky-600/90 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100">
+            ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
           </p>
+          <div className="mt-4 text-center">
+            <h2 className="text-base font-bold text-slate-700">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+            <h3 className="text-[10px] font-bold text-pink-600 bg-pink-50 px-2 py-1 rounded-md inline-block border border-pink-100 uppercase tracking-wide mt-1">Sirimongkolsuksa Bangbuathong School</h3>
+          </div>
         </div>
       </div>
 
