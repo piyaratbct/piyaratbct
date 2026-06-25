@@ -16,7 +16,12 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
   const [signingRole, setSigningRole] = useState<'teacher' | 'deptHead' | null>(null);
   
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (e) {
+      console.warn("window.print() is blocked or unsupported in this sandbox:", e);
+      window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
+    }
   };
 
   const handleSaveSignature = (name: string, signatureBase64: string) => {
@@ -82,10 +87,16 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
       
       {/* Controls Header (Hidden while printing) */}
       <div className="sticky top-0 w-full bg-white border-b border-slate-200 p-4 flex flex-wrap gap-4 justify-between items-center shadow-sm print:hidden z-10 max-w-4xl mx-auto rounded-b-xl">
-        <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-          <Printer className="h-5 w-5 text-indigo-600" />
-          ตัวอย่างก่อนพิมพ์: แผนการจัดการเรียนรู้
-        </h2>
+        <div className="flex flex-col">
+          <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+            <Printer className="h-5 w-5 text-indigo-600" />
+            ตัวอย่างก่อนพิมพ์: แผนการจัดการเรียนรู้
+          </h2>
+          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            หากปุ่มพิมพ์ไม่ทำงาน กรุณาเปิดแอปในแท็บใหม่ (Open in new tab)
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           
           {/* Action buttons based on Role */}
@@ -151,26 +162,39 @@ export function LessonPlanPrintTemplate({ plan, teacher, academicHead, currentUs
       </div>
 
       {/* A4 Paper Container */}
-      <div className="w-full max-w-[800px] bg-white my-8 p-12 shadow-xl print:m-0 print:p-0 print:shadow-none mx-auto border border-slate-200">
+      <div className="w-full max-w-[800px] bg-white my-8 p-12 shadow-xl print:m-0 print:p-0 print:shadow-none mx-auto border border-slate-200" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
         {/* Document Header */}
-        <div className="text-center mb-8 pb-6 border-b-2 border-slate-900 relative">
+        <div className="text-center mb-8 pb-6 border-b-2 border-[#e54a93] relative">
           <div className="absolute top-0 left-0">
-            <SchoolLogo className="h-20 w-20 grayscale brightness-75 contrast-125" />
+            <SchoolLogo className="h-20 w-20 text-[#e54a93] drop-shadow-sm" />
           </div>
-          <h1 className="text-2xl font-bold font-serif mb-2">แผนการจัดการเรียนรู้</h1>
-          <p className="text-base text-slate-700">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel}</p>
-          <p className="text-sm text-slate-600 mt-1">ภาคเรียน {plan.semester} ปีการศึกษา {plan.semester?.split('/').pop() || '-'}</p>
+          <h1 className="text-2xl font-bold font-serif mb-1 text-slate-900">แผนการจัดการเรียนรู้</h1>
+          <h2 className="text-lg font-black text-[#e54a93] mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+          <p className="text-[10px] font-bold text-slate-500 font-mono mb-3 uppercase tracking-wider">
+            Sirimongkolsuksa Bangbuathong School
+          </p>
+          <p className="text-base text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100">กลุ่มสาระการเรียนรู้ {plan.subject === 'อื่น ๆ' ? plan.customSubject : plan.subject} ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, '')}</p>
+          <p className="text-sm text-slate-600 mt-2">
+            {(() => {
+              const s = plan.semester || '';
+              const parts = s.replace('ภาคเรียนที่ ', '').split('/');
+              if (parts.length === 2) {
+                return `ภาคเรียนที่ ${parts[0]} ปีการศึกษา ${parts[1]}`;
+              }
+              return s;
+            })()}
+          </p>
         </div>
 
         {/* Info Grid */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 mb-1">สัปดาห์/วันที่สอน (Date)</p>
+          <div className="bg-sky-50/50 p-4 rounded-xl border border-sky-200">
+            <p className="text-xs font-bold text-sky-800 mb-1">สัปดาห์/วันที่สอน (Date)</p>
             <p className="font-medium text-slate-900">{thaiFormatDate(plan.date)}</p>
           </div>
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 mb-1">ผู้สอน (Teacher)</p>
+          <div className="bg-pink-50/40 p-4 rounded-xl border border-pink-200">
+            <p className="text-xs font-bold text-pink-800 mb-1">ผู้สอน (Teacher)</p>
             <p className="font-medium text-slate-900">{teacher.thaiName || teacher.displayName}</p>
           </div>
         </div>

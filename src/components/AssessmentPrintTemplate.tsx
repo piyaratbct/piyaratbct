@@ -24,16 +24,11 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
   }, []);
 
   const handlePrint = () => {
-    window.print();
-  };
-
-  const getTraitLabel = (value: number) => {
-    switch (value) {
-      case 3: return 'ดีเยี่ยม';
-      case 2: return 'ดี';
-      case 1: return 'ผ่าน';
-      case 0: return 'ไม่ผ่าน';
-      default: return '-';
+    try {
+      window.print();
+    } catch (e) {
+      console.warn("window.print() is blocked or unsupported in this sandbox:", e);
+      window.alert("ไม่สามารถเปิดระบบพิมพ์เอกสารได้เนื่องจากข้อจำกัดความปลอดภัยของเบราว์เซอร์ในโหมดพรีวิว กรุณากดเปิดแท็บใหม่ (Open in new tab) เพื่อพิมพ์");
     }
   };
 
@@ -41,11 +36,17 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
     <div className="fixed inset-0 z-[100] bg-slate-900 overflow-y-auto print:static print:bg-white print:overflow-visible">
       {/* Control Bar (Hidden when printing) */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center print:hidden shadow-sm">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-slate-800">
-            ตัวอย่างก่อนพิมพ์รายงานพัฒนาการ ({students.length} รายการ)
-          </h2>
-          <span className="text-sm text-slate-500">กระดาษ A4 แนวตั้ง</span>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-bold text-slate-800">
+              ตัวอย่างก่อนพิมพ์รายงานพัฒนาการ ({students.length} รายการ)
+            </h2>
+            <span className="text-sm text-slate-500 bg-slate-100 px-2 py-0.5 rounded">กระดาษ A4 แนวตั้ง</span>
+          </div>
+          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            หากปุ่มพิมพ์ไม่ทำงาน กรุณาเปิดแอปในแท็บใหม่ (Open in new tab)
+          </p>
         </div>
         <div className="flex gap-3">
           <button 
@@ -74,140 +75,68 @@ export const AssessmentPrintTemplate: React.FC<AssessmentPrintTemplateProps> = (
             <div 
               key={student.id} 
               className="w-[210mm] min-h-[297mm] bg-white shadow-xl print:shadow-none print:w-full print:h-auto mx-auto mb-8 print:mb-0 relative text-black"
-              style={{ padding: '20mm', boxSizing: 'border-box', pageBreakAfter: index < students.length - 1 ? 'always' : 'auto' }}
+              style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', padding: '20mm', boxSizing: 'border-box', pageBreakAfter: index < students.length - 1 ? 'always' : 'auto' }}
             >
               
               {/* Header */}
               <div className="flex flex-col items-center text-center mb-8">
-                <SchoolLogo className="w-20 h-20 mb-4" />
-                <h1 className="text-2xl font-bold mb-1">รายงานผลการพัฒนาผู้เรียนรายบุคคล</h1>
-                <h2 className="text-xl font-bold mb-1">โรงเรียนตัวอย่าง (LessonLog School)</h2>
-                <p className="text-base mb-1">
-                  ภาคเรียนที่ {assessment.semester} ปีการศึกษา {assessment.academicYear}
+                <SchoolLogo className="w-20 h-20 mb-3 text-[#e54a93] drop-shadow-sm" />
+                <h1 className="text-2xl font-black mb-2 text-slate-900 tracking-tight">รายงานผลการพัฒนาผู้เรียนรายบุคคล</h1>
+                <h2 className="text-xl font-black text-[#e54a93] mb-0.5 tracking-wide">โรงเรียนศิริมงคลศึกษา บางบัวทอง</h2>
+                <p className="text-xs font-bold text-slate-500 font-mono mb-4 uppercase tracking-wider">
+                  Sirimongkolsuksa Bangbuathong School
                 </p>
-                <p className="text-base">
-                  ระดับชั้น {student.gradeLevel}
+                <p className="text-sm font-semibold text-sky-700 bg-sky-50 px-5 py-1.5 rounded-full border border-sky-100">
+                  ภาคเรียนที่ {assessment.semester} ปีการศึกษา {assessment.academicYear} • ระดับชั้น {student.gradeLevel.replace(/\s*\(.*?\)/g, '')}
                 </p>
               </div>
 
               {/* Student Info */}
-              <div className="border border-black p-4 mb-6">
+              <div className="border border-sky-200 bg-sky-50/50 rounded-xl p-5 mb-6 text-slate-800">
                 <div className="grid grid-cols-2 gap-4 text-base">
-                  <div><span className="font-bold">รหัสประจำตัวนักเรียน:</span> {student.studentId}</div>
-                  <div><span className="font-bold">เลขที่:</span> {student.number}</div>
-                  <div className="col-span-2"><span className="font-bold">ชื่อ-นามสกุล:</span> {student.firstName} {student.lastName} {student.nickname && `(${student.nickname})`}</div>
+                  <div><span className="font-bold text-sky-900">รหัสประจำตัวนักเรียน:</span> {student.studentId}</div>
+                  <div><span className="font-bold text-sky-900">เลขที่:</span> {student.number}</div>
+                  <div className="col-span-2"><span className="font-bold text-sky-900">ชื่อ-นามสกุล:</span> {student.firstName} {student.lastName} {student.nickname && <span className="text-slate-600">({student.nickname})</span>}</div>
                 </div>
               </div>
 
               {/* Assessment Data */}
               <div className="space-y-6 text-sm">
                 
-                {/* Section 1 */}
-                <div>
-                  <h3 className="font-bold text-base mb-2">1. ผลการประเมินคุณลักษณะอันพึงประสงค์ 8 ประการ</h3>
-                  <table className="w-full border-collapse border border-black text-center">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-black py-2 px-2 w-[15%]">หัวข้อ</th>
-                        <th className="border border-black py-2 px-2 text-left">คุณลักษณะ</th>
-                        <th className="border border-black py-2 px-2 w-[25%]">ผลการประเมิน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { k: 'trait1', l: 'รักชาติ ศาสน์ กษัตริย์' },
-                        { k: 'trait2', l: 'ซื่อสัตย์สุจริต' },
-                        { k: 'trait3', l: 'มีวินัย' },
-                        { k: 'trait4', l: 'ใฝ่เรียนรู้' },
-                        { k: 'trait5', l: 'อยู่อย่างพอเพียง' },
-                        { k: 'trait6', l: 'มุ่งมั่นในการทำงาน' },
-                        { k: 'trait7', l: 'รักความเป็นไทย' },
-                        { k: 'trait8', l: 'มีจิตสาธารณะ' },
-                      ].map((item, i) => (
-                        <tr key={item.k}>
-                          <td className="border border-black py-1 px-2">{i+1}</td>
-                          <td className="border border-black py-1 px-2 text-left">{item.l}</td>
-                          <td className="border border-black py-1 px-2 font-bold">{getTraitLabel(assessment.characterTraits[item.k as keyof typeof assessment.characterTraits])}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {/* Narrative Log */}
+                <div className="border border-pink-200 bg-pink-50/40 rounded-xl p-5 space-y-5">
+                  <h3 className="font-bold text-lg text-pink-700 border-b border-pink-200 pb-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                    บันทึกพัฒนาการรายบุคคล
+                  </h3>
+                  
+                  <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm bg-white p-3 rounded-lg border border-pink-100">
+                    <div><span className="font-bold text-slate-700">รายวิชา/กิจกรรมที่ประเมิน:</span> {assessment.subject || '-'}</div>
+                    <div><span className="font-bold text-slate-700">วันที่ประเมิน:</span> {assessment.date || '-'}</div>
+                  </div>
 
-                {/* Section 2 */}
-                <div>
-                  <h3 className="font-bold text-base mb-2">2. ผลการประเมินสมรรถนะสำคัญของผู้เรียน 5 ประการ</h3>
-                  <table className="w-full border-collapse border border-black text-center">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-black py-2 px-2 w-[15%]">หัวข้อ</th>
-                        <th className="border border-black py-2 px-2 text-left">สมรรถนะ</th>
-                        <th className="border border-black py-2 px-2 w-[25%]">ผลการประเมิน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { k: 'comp1', l: 'ความสามารถในการสื่อสาร' },
-                        { k: 'comp2', l: 'ความสามารถในการคิด' },
-                        { k: 'comp3', l: 'ความสามารถในการแก้ปัญหา' },
-                        { k: 'comp4', l: 'ความสามารถในการใช้ทักษะชีวิต' },
-                        { k: 'comp5', l: 'ความสามารถในการใช้เทคโนโลยี' },
-                      ].map((item, i) => (
-                        <tr key={item.k}>
-                          <td className="border border-black py-1 px-2">{i+1}</td>
-                          <td className="border border-black py-1 px-2 text-left">{item.l}</td>
-                          <td className="border border-black py-1 px-2 font-bold">{getTraitLabel(assessment.competencies[item.k as keyof typeof assessment.competencies])}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Section 3 */}
-                <div className="flex items-center gap-4 border border-black p-4">
-                  <h3 className="font-bold text-base">3. การประเมินการอ่าน คิดวิเคราะห์ และเขียน:</h3>
-                  <span className="text-base font-bold underline underline-offset-4 decoration-dotted px-8">
-                    {getTraitLabel(assessment.readingWriting)}
-                  </span>
-                </div>
-
-                {/* Section 4 */}
-                <div className="border border-black p-4 min-h-[60px]">
-                  <h3 className="font-bold text-base mb-2">4. ความคิดเห็นเพิ่มเติม / ข้อเสนอแนะ:</h3>
-                  <p className="whitespace-pre-wrap">{assessment.comments || '-'}</p>
-                </div>
-
-                {/* Section 5: Narrative Log */}
-                {(assessment.content || assessment.activities || assessment.limitations || assessment.suggestions) && (
-                  <div className="border border-black p-4 space-y-4">
-                    <h3 className="font-bold text-base border-b border-slate-300 pb-2">5. บันทึกพัฒนาการรายบุคคล (เพิ่มเติม):</h3>
-                    
-                    <div className="flex gap-8 text-sm">
-                      <div><span className="font-bold">รายวิชา/กิจกรรมที่ประเมิน:</span> {assessment.subject || '-'}</div>
-                      <div><span className="font-bold">วันที่ประเมิน:</span> {assessment.date || '-'}</div>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-800 mb-1">พฤติกรรม/พัฒนาการที่พบ:</h4>
+                      <p className="text-sm whitespace-pre-wrap text-slate-700 bg-white p-3 rounded border border-slate-100">{assessment.content || '-'}</p>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm">พฤติกรรม/พัฒนาการที่พบ:</h4>
-                      <p className="text-sm whitespace-pre-wrap mt-1">{assessment.content || '-'}</p>
+                      <h4 className="font-bold text-sm text-slate-800 mb-1">วิธีการส่งเสริม/แก้ไขปัญหา:</h4>
+                      <p className="text-sm whitespace-pre-wrap text-slate-700 bg-white p-3 rounded border border-slate-100">{assessment.activities || '-'}</p>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm">วิธีการส่งเสริม/แก้ไขปัญหา:</h4>
-                      <p className="text-sm whitespace-pre-wrap mt-1">{assessment.activities || '-'}</p>
+                      <h4 className="font-bold text-sm text-slate-800 mb-1">ปัญหาอุปสรรค:</h4>
+                      <p className="text-sm whitespace-pre-wrap text-slate-700 bg-white p-3 rounded border border-slate-100">{assessment.limitations || '-'}</p>
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm">ปัญหาอุปสรรค:</h4>
-                      <p className="text-sm whitespace-pre-wrap mt-1">{assessment.limitations || '-'}</p>
-                    </div>
-
-                    <div>
-                      <h4 className="font-bold text-sm">ผลการพัฒนา/ข้อเสนอแนะ:</h4>
-                      <p className="text-sm whitespace-pre-wrap mt-1">{assessment.suggestions || '-'}</p>
+                      <h4 className="font-bold text-sm text-slate-800 mb-1">ผลการพัฒนา/ข้อเสนอแนะ:</h4>
+                      <p className="text-sm whitespace-pre-wrap text-slate-700 bg-white p-3 rounded border border-slate-100">{assessment.suggestions || '-'}</p>
                     </div>
                   </div>
-                )}
+                </div>
 
               </div>
 

@@ -90,7 +90,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       let thaiError = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
       if (err.code === 'auth/invalid-email') thaiError = 'รูปแบบอีเมลไม่ถูกต้อง';
       if (err.code === 'auth/user-not-found') thaiError = 'ไม่พบผู้ใช้งานนี้ในระบบ';
-      if (err.code === 'auth/wrong-password') thaiError = 'รหัสผ่านป้อนไม่ถูกต้อง';
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') thaiError = 'รหัสผ่านป้อนไม่ถูกต้อง';
       if (err.code === 'auth/operation-not-allowed') {
         thaiError = 'ยังไม่ได้เปิดใช้งานผู้ให้บริการล็อกอินด้วย Email/Password ใน Firebase Console ของฝั่งผู้เริ่มโครงการ';
       }

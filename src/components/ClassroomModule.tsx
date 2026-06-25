@@ -5,6 +5,7 @@ import { AssessmentPrintTemplate } from './AssessmentPrintTemplate';
 import { ImportStudentData } from './ImportStudentData';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, onSnapshot, query, where, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { AssessmentModal } from './AssessmentModal';
 
 interface ClassroomModuleProps {
   currentTeacher: Teacher | null;
@@ -123,7 +124,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
         updatedAt: new Date().toISOString()
       };
       // We can use the studentId as the document ID so each student has one assessment per grade
-      const docId = `${assessment.gradeLevel}_${assessment.studentId}`;
+      const safeGradeLevel = assessment.gradeLevel.replace(/\//g, '-');
+      const docId = `${safeGradeLevel}_${assessment.studentId}`;
       assessmentToSave.id = docId;
       await setDoc(doc(db, 'assessments', docId), assessmentToSave);
       setEvaluatingStudent(null);
@@ -274,7 +276,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div>
                 <h3 className="text-lg font-black text-slate-800">ประเมินพัฒนาการนักเรียน</h3>
-                <p className="text-sm text-slate-500">บันทึกคุณลักษณะฯ สมรรถนะ และการอ่านเขียน</p>
+                <p className="text-sm text-slate-500">บันทึกพัฒนาการรายบุคคล</p>
               </div>
               <button 
                 onClick={printBatchReport}
@@ -368,221 +370,6 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({ currentTeacher
         />
       )}
 
-    </div>
-  );
-};
-
-// --- Subcomponent: Assessment Modal ---
-interface AssessmentModalProps {
-  student: Student;
-  existingAssessment: StudentAssessment;
-  onClose: () => void;
-  onSave: (assessment: StudentAssessment) => void;
-}
-
-const AssessmentModal: React.FC<AssessmentModalProps> = ({ student, existingAssessment, onClose, onSave }) => {
-  const [formData, setFormData] = useState<StudentAssessment>(existingAssessment);
-
-  const handleTraitChange = (key: keyof StudentAssessment['characterTraits'], value: number) => {
-    setFormData(prev => ({
-      ...prev,
-      characterTraits: { ...prev.characterTraits, [key]: value }
-    }));
-  };
-
-  const handleCompChange = (key: keyof StudentAssessment['competencies'], value: number) => {
-    setFormData(prev => ({
-      ...prev,
-      competencies: { ...prev.competencies, [key]: value }
-    }));
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4 print:hidden">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl animate-in zoom-in-95 duration-200">
-        
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <div>
-            <h3 className="font-black text-slate-800 text-lg">แบบประเมินพัฒนาการ</h3>
-            <p className="text-sm text-slate-500">นักเรียน: {student.firstName} {student.lastName} (เลขที่ {student.number})</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-
-        <div className="p-6 overflow-y-auto flex-1 space-y-8">
-          
-          {/* Section 1: Character Traits */}
-          <section>
-            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">1. คุณลักษณะอันพึงประสงค์ 8 ประการ</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-              {[
-                { k: 'trait1', l: '1. รักชาติ ศาสน์ กษัตริย์' },
-                { k: 'trait2', l: '2. ซื่อสัตย์สุจริต' },
-                { k: 'trait3', l: '3. มีวินัย' },
-                { k: 'trait4', l: '4. ใฝ่เรียนรู้' },
-                { k: 'trait5', l: '5. อยู่อย่างพอเพียง' },
-                { k: 'trait6', l: '6. มุ่งมั่นในการทำงาน' },
-                { k: 'trait7', l: '7. รักความเป็นไทย' },
-                { k: 'trait8', l: '8. มีจิตสาธารณะ' },
-              ].map((item) => (
-                <div key={item.k} className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">{item.l}</span>
-                  <select 
-                    value={formData.characterTraits[item.k as keyof typeof formData.characterTraits]}
-                    onChange={(e) => handleTraitChange(item.k as any, Number(e.target.value))}
-                    className="border border-slate-200 rounded p-1 text-sm bg-slate-50"
-                  >
-                    <option value={0}>0 - ไม่ผ่าน</option>
-                    <option value={1}>1 - ผ่าน</option>
-                    <option value={2}>2 - ดี</option>
-                    <option value={3}>3 - ดีเยี่ยม</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Section 2: Competencies */}
-          <section>
-            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">2. สมรรถนะสำคัญของผู้เรียน 5 ประการ</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-              {[
-                { k: 'comp1', l: '1. ความสามารถในการสื่อสาร' },
-                { k: 'comp2', l: '2. ความสามารถในการคิด' },
-                { k: 'comp3', l: '3. ความสามารถในการแก้ปัญหา' },
-                { k: 'comp4', l: '4. ความสามารถในการใช้ทักษะชีวิต' },
-                { k: 'comp5', l: '5. ความสามารถในการใช้เทคโนโลยี' },
-              ].map((item) => (
-                <div key={item.k} className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">{item.l}</span>
-                  <select 
-                    value={formData.competencies[item.k as keyof typeof formData.competencies]}
-                    onChange={(e) => handleCompChange(item.k as any, Number(e.target.value))}
-                    className="border border-slate-200 rounded p-1 text-sm bg-slate-50"
-                  >
-                    <option value={0}>0 - ไม่ผ่าน</option>
-                    <option value={1}>1 - ผ่าน</option>
-                    <option value={2}>2 - ดี</option>
-                    <option value={3}>3 - ดีเยี่ยม</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Section 3: Reading/Writing */}
-          <section>
-            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">3. การประเมินการอ่าน คิดวิเคราะห์ และเขียน</h4>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-600">ผลการประเมิน:</span>
-              <select 
-                value={formData.readingWriting}
-                onChange={(e) => setFormData(prev => ({...prev, readingWriting: Number(e.target.value)}))}
-                className="border border-slate-200 rounded p-1.5 text-sm bg-slate-50 w-40"
-              >
-                <option value={0}>0 - ไม่ผ่าน</option>
-                <option value={1}>1 - ผ่าน</option>
-                <option value={2}>2 - ดี</option>
-                <option value={3}>3 - ดีเยี่ยม</option>
-              </select>
-            </div>
-          </section>
-
-          {/* Section 4: Comments */}
-          <section>
-            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">4. ความคิดเห็นเพิ่มเติม (ข้อเสนอแนะ)</h4>
-            <textarea 
-              value={formData.comments}
-              onChange={(e) => setFormData(prev => ({...prev, comments: e.target.value}))}
-              className="w-full border border-slate-200 rounded-lg p-3 text-sm min-h-[100px] outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-              placeholder="ระบุข้อเสนอแนะเพื่อการพัฒนาผู้เรียน..."
-            />
-          </section>
-
-          {/* Section 5: Narrative Log */}
-          <section>
-            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">5. บันทึกพัฒนาการรายบุคคล (เพิ่มเติม)</h4>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">รายวิชา/กิจกรรมที่ประเมิน</label>
-                  <input 
-                    type="text" 
-                    value={formData.subject || ''}
-                    onChange={(e) => setFormData(prev => ({...prev, subject: e.target.value}))}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
-                    placeholder="เช่น ภาษาไทย, กิจกรรมโฮมรูม"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">วันที่ประเมิน</label>
-                  <input 
-                    type="date" 
-                    value={formData.date || ''}
-                    onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))}
-                    className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">พฤติกรรม/พัฒนาการที่พบ</label>
-                <textarea 
-                  value={formData.content || ''}
-                  onChange={(e) => setFormData(prev => ({...prev, content: e.target.value}))}
-                  className="w-full border border-slate-200 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:border-pink-500"
-                  placeholder="ระบุพฤติกรรมหรือพัฒนาการที่สังเกตพบ..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">วิธีการส่งเสริม/แก้ไขปัญหา</label>
-                <textarea 
-                  value={formData.activities || ''}
-                  onChange={(e) => setFormData(prev => ({...prev, activities: e.target.value}))}
-                  className="w-full border border-slate-200 rounded-lg p-3 text-sm min-h-[80px] outline-none focus:border-pink-500"
-                  placeholder="ระบุวิธีการหรือกิจกรรมที่ใช้..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">ปัญหาอุปสรรค</label>
-                <textarea 
-                  value={formData.limitations || ''}
-                  onChange={(e) => setFormData(prev => ({...prev, limitations: e.target.value}))}
-                  className="w-full border border-slate-200 rounded-lg p-3 text-sm min-h-[60px] outline-none focus:border-pink-500"
-                  placeholder="ระบุปัญหาหรืออุปสรรค..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">ผลการพัฒนา/ข้อเสนอแนะ</label>
-                <textarea 
-                  value={formData.suggestions || ''}
-                  onChange={(e) => setFormData(prev => ({...prev, suggestions: e.target.value}))}
-                  className="w-full border border-slate-200 rounded-lg p-3 text-sm min-h-[60px] outline-none focus:border-pink-500"
-                  placeholder="ระบุผลที่ได้หรือข้อเสนอแนะเพิ่มเติม..."
-                />
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors">
-            ยกเลิก
-          </button>
-          <button 
-            onClick={() => onSave(formData)}
-            className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
-          >
-            <CheckCircle className="h-4 w-4" /> บันทึกผลประเมิน
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

@@ -382,7 +382,10 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             </div>
             <div>
               <h4 className="font-bold text-sm text-white">พิมพ์รายงานแผน / PDF บันทึกหลังสอน</h4>
-              <p className="text-[10px] text-slate-300">ความปลอดภัยมาตรฐานอิเล็กทรอนิกส์ลายมือชื่อ 2 ชั้น</p>
+              <p className="text-[10px] text-amber-400 mt-0.5 font-bold flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                หากปุ่มพิมพ์ไม่ทำงาน กรุณาเปิดแอปในแท็บใหม่ (Open in new tab)
+              </p>
             </div>
           </div>
 
@@ -488,7 +491,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
         {/* Formal A4 Blueprint Sheet */}
         <div id="printable-lesson-log" className={`print-container bg-white rounded-b-2xl shadow-xl flex-1 print:shadow-none print:rounded-none transition-all duration-150 ${
           isCompact ? 'p-6 sm:p-8' : 'p-12 sm:p-16'
-        }`}>
+        }`} style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
           
           {/* Official Document Emblem & Header */}
           <div className={`flex flex-col items-center text-center transition-all duration-150 ${
@@ -558,13 +561,13 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
               <div className="flex items-baseline gap-1.5">
                 <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ระดับชั้น:</span>
-                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.gradeLevel}</span>
+                <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.gradeLevel.replace(/\s*\(.*?\)/g, '')}</span>
               </div>
 
               {record.semester && (
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">ภาคเรียน/ปีการศึกษา:</span>
-                  <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.semester}</span>
+                  <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{record.semester.replace('ภาคเรียนที่ ', '')}</span>
                 </div>
               )}
 
