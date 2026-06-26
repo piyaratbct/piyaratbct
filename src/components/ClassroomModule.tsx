@@ -54,6 +54,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   );
 
   // Assessments state
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    new Date().toISOString().slice(0, 7)
+  );
+  const [allAssessments, setAllAssessments] = useState<StudentAssessment[]>([]);
   const [assessments, setAssessments] = useState<
     Record<string, StudentAssessment>
   >({});
@@ -132,17 +136,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     const unsubscribeAssessments = onSnapshot(
       qAssessments,
       (snapshot) => {
-        const fetchedAssessments: Record<string, StudentAssessment> = {};
+        const fetchedAssessments: StudentAssessment[] = [];
         snapshot.docs.forEach((doc) => {
           const data = doc.data() as StudentAssessment;
           if (data.gradeLevel) {
             data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
           }
           if (data.gradeLevel === selectedGrade) {
-            fetchedAssessments[data.studentId] = data;
+            fetchedAssessments.push(data);
           }
         });
-        setAssessments(fetchedAssessments);
+        setAllAssessments(fetchedAssessments);
       },
       (error) => {
         handleFirestoreError(error, OperationType.GET, "assessments");
@@ -154,6 +158,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       unsubscribeAssessments();
     };
   }, [selectedGrade]);
+
+  useEffect(() => {
+    const currentMonthAssessments: Record<string, StudentAssessment> = {};
+    allAssessments.forEach((assessment) => {
+      // If assessment has no month, we default to showing it or mapping it to the selected month?
+      // Better to map it by its stored month. If no month, treat as 'no-month'
+      if ((assessment.month || "") === selectedMonth) {
+        currentMonthAssessments[assessment.studentId] = assessment;
+      }
+    });
+    setAssessments(currentMonthAssessments);
+  }, [allAssessments, selectedMonth]);
 
   const filteredStudents = students.filter((student) => {
     if (genderFilter === "all") return true;
@@ -168,7 +184,6 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const getInitialAssessment = (studentId: string): StudentAssessment => {
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
-    const currentMonthStr = todayStr.substring(0, 7);
 
     return {
       id: `a-${Date.now()}`,
@@ -190,7 +205,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       competencies: { comp1: 0, comp2: 0, comp3: 0, comp4: 0, comp5: 0 },
       readingWriting: 0,
       comments: "",
-      month: currentMonthStr,
+      month: selectedMonth,
       recordDate: todayStr,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -256,7 +271,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       // we check if it already existed.
       // We can rely on assessments state to check if it's an update.
       const safeGradeLevel = assessment.gradeLevel.replace(/\//g, "-");
-      const docId = `${safeGradeLevel}_${assessment.studentId}`;
+      const targetMonth = assessment.month || selectedMonth;
+      const docId = `${safeGradeLevel}_${assessment.studentId}_${targetMonth}`;
+      
+      // existing assessment for this specific month
       const existing = assessments[assessment.studentId];
 
       if (existing) {
@@ -348,28 +366,42 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-md">
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "students"
-                ? "bg-pink-100 text-pink-700"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <UserPlus className="h-4 w-4" /> ฐานข้อมูลนักเรียน
-          </button>
-          <button
-            onClick={() => setActiveTab("assessments")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "assessments"
-                ? "bg-pink-100 text-pink-700"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <CheckCircle className="h-4 w-4" /> ประเมินพัฒนาการ
-          </button>
+        {/* Tabs and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 max-w-2xl">
+          <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 flex-1">
+            <button
+              onClick={() => setActiveTab("students")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "students"
+                  ? "bg-pink-100 text-pink-700"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <UserPlus className="h-4 w-4" /> ฐานข้อมูลนักเรียน
+            </button>
+            <button
+              onClick={() => setActiveTab("assessments")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "assessments"
+                  ? "bg-pink-100 text-pink-700"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <CheckCircle className="h-4 w-4" /> ประเมินพัฒนาการ
+            </button>
+          </div>
+          
+          {activeTab === "assessments" && (
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0">
+              <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer"
+              />
+            </div>
+          )}
         </div>
 
         {/* Tab Content */}

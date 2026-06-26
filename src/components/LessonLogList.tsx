@@ -45,6 +45,7 @@ export function LessonLogList({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
   const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
+  const [selectedMonth, setSelectedMonth] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedApproval, setSelectedApproval] = useState<string>("ทั้งหมด");
   const [expandedHistory, setExpandedHistory] = useState<
@@ -83,6 +84,11 @@ export function LessonLogList({
     const gradeMatch =
       selectedGrade === "ทั้งหมด" || record.gradeLevel.includes(selectedGrade);
 
+    // Month filter
+    const recordMonth = record.date ? record.date.substring(0, 7) : "";
+    const monthMatch =
+      selectedMonth === "ทั้งหมด" || recordMonth === selectedMonth;
+
     // 4. Teacher filter
     const teacherMatch =
       !showTeacherFilter ||
@@ -100,7 +106,7 @@ export function LessonLogList({
     }
 
     return (
-      textMatch && subjMatch && gradeMatch && teacherMatch && approvalMatch
+      textMatch && subjMatch && gradeMatch && monthMatch && teacherMatch && approvalMatch
     );
   });
 
@@ -252,6 +258,26 @@ export function LessonLogList({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Month Filter */}
+          <div className="flex items-center gap-1.5 min-w-[180px]">
+            <input
+              type="month"
+              value={selectedMonth !== "ทั้งหมด" ? selectedMonth : ""}
+              onChange={(e) => setSelectedMonth(e.target.value || "ทั้งหมด")}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
+              title="เดือนที่สอน"
+            />
+            {selectedMonth !== "ทั้งหมด" && (
+              <button 
+                onClick={() => setSelectedMonth("ทั้งหมด")}
+                className="text-slate-400 hover:text-slate-600 text-xs"
+                title="ล้างตัวกรองเดือน"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Approval Filter */}
