@@ -1,35 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { Teacher, LessonRecord, LessonPlan, SUBJECTS } from './types';
-import { MOCK_RECORDS, DEFAULT_TEACHER } from './data';
-import { AuthView } from './components/AuthView';
-import { DashboardStats } from './components/DashboardStats';
-import { LessonLogForm } from './components/LessonLogForm';
-import { LessonLogList } from './components/LessonLogList';
-import { LessonPlanForm } from './components/LessonPlanForm';
-import { LessonPlanList } from './components/LessonPlanList';
-import { ClassroomModule } from './components/ClassroomModule';
-import { EvaluationModule } from './components/EvaluationModule';
-import { UserManagementModule } from './components/UserManagementModule';
-import { PrintTemplate, SchoolLogo } from './components/PrintTemplate';
-import { LessonPlanPrintTemplate } from './components/LessonPlanPrintTemplate';
-import { 
-  BookOpen, LogOut, User, Award, Phone, Building, 
-  Settings, HelpCircle, CheckCircle, ChevronDown, 
-  CalendarDays, Download, FileJson, FileSpreadsheet, School, PlusCircle,
-  Lock, Unlock, KeyRound, ShieldCheck, Eye, EyeOff, ShieldAlert,
-  Camera, Upload, RotateCcw, Loader2, Bell, X, FileText,
-  Users, BarChart3, LayoutDashboard, Presentation, Wrench, Trash2
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, query, where, doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import React, { useState, useEffect } from "react";
+import { Teacher, LessonRecord, LessonPlan, SUBJECTS, Student } from "./types";
+import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
+import { AuthView } from "./components/AuthView";
+import { DashboardStats } from "./components/DashboardStats";
+import { StudentStatsModal } from "./components/StudentStatsModal";
+import { LessonLogForm } from "./components/LessonLogForm";
+import { LessonLogList } from "./components/LessonLogList";
+import { LessonPlanForm } from "./components/LessonPlanForm";
+import { LessonPlanList } from "./components/LessonPlanList";
+import { ClassroomModule } from "./components/ClassroomModule";
+import { EvaluationModule } from "./components/EvaluationModule";
+import { UserManagementModule } from "./components/UserManagementModule";
+import { PrintTemplate, SchoolLogo } from "./components/PrintTemplate";
+import { LessonPlanPrintTemplate } from "./components/LessonPlanPrintTemplate";
+import {
+  BookOpen,
+  LogOut,
+  User,
+  Award,
+  Phone,
+  Building,
+  Settings,
+  HelpCircle,
+  CheckCircle,
+  ChevronDown,
+  CalendarDays,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  School,
+  PlusCircle,
+  Lock,
+  Unlock,
+  KeyRound,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  ShieldAlert,
+  Camera,
+  Upload,
+  RotateCcw,
+  Loader2,
+  Bell,
+  X,
+  FileText,
+  Users,
+  BarChart3,
+  LayoutDashboard,
+  Presentation,
+  Wrench,
+  Trash2,
+  PenLine,
+  List,
+  History,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  collection,
+  query,
+  where,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+} from "firebase/firestore";
 
 // Safe localStorage helper to avoid SecurityError in restricted sandboxed iframes
 const safeLocalStorage = {
   getItem(key: string): string | null {
     try {
-      return typeof window !== 'undefined' && window.localStorage ? localStorage.getItem(key) : null;
+      return typeof window !== "undefined" && window.localStorage
+        ? localStorage.getItem(key)
+        : null;
     } catch (e) {
       console.warn(`[SafeStorage] Failed to read key "${key}":`, e);
       return null;
@@ -37,7 +82,7 @@ const safeLocalStorage = {
   },
   setItem(key: string, value: string): void {
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
+      if (typeof window !== "undefined" && window.localStorage) {
         localStorage.setItem(key, value);
       }
     } catch (e) {
@@ -46,19 +91,22 @@ const safeLocalStorage = {
   },
   removeItem(key: string): void {
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
+      if (typeof window !== "undefined" && window.localStorage) {
         localStorage.removeItem(key);
       }
     } catch (e) {
       console.warn(`[SafeStorage] Failed to remove key "${key}":`, e);
     }
-  }
+  },
 };
 
 // Safe scroll helper to prevent sandbox limitations from throwing errors
 const safeScrollTo = (options: ScrollToOptions) => {
   try {
-    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.scrollTo === "function"
+    ) {
       window.scrollTo(options);
     }
   } catch (e) {
@@ -72,22 +120,26 @@ export default function App() {
     id: string;
     title: string;
     message: string;
-    type: 'success' | 'info' | 'warning' | 'error';
+    type: "success" | "info" | "warning" | "error";
   }
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const addToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success', title?: string) => {
+  const addToast = (
+    message: string,
+    type: "success" | "info" | "warning" | "error" = "success",
+    title?: string,
+  ) => {
     const id = Math.random().toString(36).substring(2, 9);
     const defaultTitles = {
-      success: '🎉 สำเร็จ',
-      info: 'ℹ️ แจ้งเตือน',
-      warning: '⚠️ ข้อควรระวัง',
-      error: '❌ เกิดข้อผิดพลาด'
+      success: "🎉 สำเร็จ",
+      info: "ℹ️ แจ้งเตือน",
+      warning: "⚠️ ข้อควรระวัง",
+      error: "❌ เกิดข้อผิดพลาด",
     };
     const toastTitle = title || defaultTitles[type];
     const newToast: ToastItem = { id, title: toastTitle, message, type };
     setToasts((prev) => [...prev, newToast]);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -103,14 +155,22 @@ export default function App() {
   const [records, setRecords] = useState<LessonRecord[]>([]);
   const [plans, setPlans] = useState<LessonPlan[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [activeModule, setActiveModule] = useState<'home' | 'teaching' | 'classroom' | 'analytics' | 'admin'>('home');
-  const [activeTab, setActiveTab] = useState<'form' | 'dashboard' | 'plan-form' | 'plan-list'>('form');
-  const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] = useState<string>('all');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsCount, setStudentsCount] = useState<number>(0);
+  const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
+  const [activeModule, setActiveModule] = useState<
+    "home" | "teaching" | "classroom" | "analytics" | "admin"
+  >("home");
+  const [activeTab, setActiveTab] = useState<
+    "form" | "dashboard" | "plan-form" | "plan-list"
+  >("form");
+  const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] =
+    useState<string>("all");
 
   // Custom School Logo States & Camera Capture
   const [customLogo, setCustomLogo] = useState<string | null>(null);
-  const [systemAcademicYear, setSystemAcademicYear] = useState<string>('2567');
-  const [systemSemester, setSystemSemester] = useState<string>('1');
+  const [systemAcademicYear, setSystemAcademicYear] = useState<string>("2567");
+  const [systemSemester, setSystemSemester] = useState<string>("1");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -118,29 +178,31 @@ export default function App() {
 
   // Dashboard Lock Passcode States
   const [isDashboardUnlocked, setIsDashboardUnlocked] = useState(false);
-  const [dashboardPasswordInput, setDashboardPasswordInput] = useState('');
-  const [dashboardPasswordError, setDashboardPasswordError] = useState('');
-  const [sysDashboardPassword, setSysDashboardPassword] = useState('admin123');
+  const [dashboardPasswordInput, setDashboardPasswordInput] = useState("");
+  const [dashboardPasswordError, setDashboardPasswordError] = useState("");
+  const [sysDashboardPassword, setSysDashboardPassword] = useState("admin123");
   const [showPasswordChangeField, setShowPasswordChangeField] = useState(false);
-  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState("");
   const [showPassRaw, setShowPassRaw] = useState(false);
 
   // Editing and preview modals/states
   const [editingRecord, setEditingRecord] = useState<LessonRecord | null>(null);
   const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
-  const [activePrintPreview, setActivePrintPreview] = useState<LessonRecord | null>(null);
-  const [activePlanPrintPreview, setActivePlanPrintPreview] = useState<LessonPlan | null>(null);
+  const [activePrintPreview, setActivePrintPreview] =
+    useState<LessonRecord | null>(null);
+  const [activePlanPrintPreview, setActivePlanPrintPreview] =
+    useState<LessonPlan | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFormOnMobile, setShowFormOnMobile] = useState(false);
 
   // Edit Teacher profile temporary states
-  const [pThaiName, setPThaiName] = useState('');
-  const [pEnglishName, setPEnglishName] = useState('');
-  const [pEmployeeId, setPEmployeeId] = useState('');
-  const [pPhoneNumber, setPPhoneNumber] = useState('');
-  const [pAffiliation, setPAffiliation] = useState('');
-  const [pDisplayName, setPDisplayName] = useState('');
-  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [pThaiName, setPThaiName] = useState("");
+  const [pEnglishName, setPEnglishName] = useState("");
+  const [pEmployeeId, setPEmployeeId] = useState("");
+  const [pPhoneNumber, setPPhoneNumber] = useState("");
+  const [pAffiliation, setPAffiliation] = useState("");
+  const [pDisplayName, setPDisplayName] = useState("");
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
 
   // 1. Firebase Authentication state change listener
   useEffect(() => {
@@ -150,7 +212,7 @@ export default function App() {
         if (user) {
           try {
             if (db) {
-              const profileRef = doc(db, 'teachers', user.uid);
+              const profileRef = doc(db, "teachers", user.uid);
               const profileSnap = await getDoc(profileRef);
               if (profileSnap.exists()) {
                 const t = profileSnap.data() as Teacher;
@@ -163,31 +225,36 @@ export default function App() {
             // Fallback if db is unavailable or profile missing
             const fallback: Teacher = {
               id: user.uid,
-              email: user.email || '',
-              thaiName: 'คุณครูผู้เขียน',
-              englishName: 'Teacher Profile',
-              employeeId: 'ED-' + user.uid.substring(0, 5).toUpperCase(),
-              phoneNumber: 'N/A',
-              affiliation: 'กลุ่มสาระการเรียนรู้',
-              displayName: user.displayName || user.email?.split('@')[0] || 'Teacher',
-              role: 'teacher',
-              hasSeeded: true
+              email: user.email || "",
+              thaiName: "คุณครูผู้เขียน",
+              englishName: "Teacher Profile",
+              employeeId: "ED-" + user.uid.substring(0, 5).toUpperCase(),
+              phoneNumber: "N/A",
+              affiliation: "กลุ่มสาระการเรียนรู้",
+              displayName:
+                user.displayName || user.email?.split("@")[0] || "Teacher",
+              role: "teacher",
+              hasSeeded: true,
             };
             setCurrentTeacher(fallback);
             initProfileStates(fallback);
           } catch (err) {
-            console.warn("Error setting up active teacher session, using fallback:", err);
+            console.warn(
+              "Error setting up active teacher session, using fallback:",
+              err,
+            );
             const fallback: Teacher = {
               id: user.uid,
-              email: user.email || '',
-              thaiName: 'คุณครูผู้เขียน',
-              englishName: 'Teacher Profile',
-              employeeId: 'ED-' + user.uid.substring(0, 5).toUpperCase(),
-              phoneNumber: 'N/A',
-              affiliation: 'กลุ่มสาระการเรียนรู้',
-              displayName: user.displayName || user.email?.split('@')[0] || 'Teacher',
-              role: 'teacher',
-              hasSeeded: true
+              email: user.email || "",
+              thaiName: "คุณครูผู้เขียน",
+              englishName: "Teacher Profile",
+              employeeId: "ED-" + user.uid.substring(0, 5).toUpperCase(),
+              phoneNumber: "N/A",
+              affiliation: "กลุ่มสาระการเรียนรู้",
+              displayName:
+                user.displayName || user.email?.split("@")[0] || "Teacher",
+              role: "teacher",
+              hasSeeded: true,
             };
             setCurrentTeacher(fallback);
             initProfileStates(fallback);
@@ -202,7 +269,7 @@ export default function App() {
     }
 
     // Load custom logo
-    const savedLogo = safeLocalStorage.getItem('lessonlog_custom_logo');
+    const savedLogo = safeLocalStorage.getItem("lessonlog_custom_logo");
     if (savedLogo) {
       setCustomLogo(savedLogo);
     }
@@ -211,38 +278,44 @@ export default function App() {
     const handleSafeAlert = (event: Event) => {
       const customEv = event as CustomEvent<{ message: string }>;
       if (customEv.detail && customEv.detail.message) {
-        addToast(customEv.detail.message, 'info');
+        addToast(customEv.detail.message, "info");
       }
     };
-    window.addEventListener('app-safe-alert', handleSafeAlert);
+    window.addEventListener("app-safe-alert", handleSafeAlert);
 
     // Real-time dynamic subscription to shared school config doc (e.g., customLogo, systemAcademicYear, systemSemester)
     let unsubConfig = () => {};
     if (db) {
       try {
-        unsubConfig = onSnapshot(doc(db, 'config', 'school'), (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            if (data && data.customLogo !== undefined) {
-              setCustomLogo(data.customLogo);
+        unsubConfig = onSnapshot(
+          doc(db, "config", "school"),
+          (snapshot) => {
+            if (snapshot.exists()) {
+              const data = snapshot.data();
+              if (data && data.customLogo !== undefined) {
+                setCustomLogo(data.customLogo);
+              }
+              if (data && data.systemAcademicYear) {
+                setSystemAcademicYear(data.systemAcademicYear);
+              }
+              if (data && data.systemSemester) {
+                setSystemSemester(data.systemSemester);
+              }
             }
-            if (data && data.systemAcademicYear) {
-              setSystemAcademicYear(data.systemAcademicYear);
-            }
-            if (data && data.systemSemester) {
-              setSystemSemester(data.systemSemester);
-            }
-          }
-        }, (err) => {
-          console.warn("Config fetch error or offline model:", err);
-        });
+          },
+          (err) => {
+            console.warn("Config fetch error or offline model:", err);
+          },
+        );
       } catch (e) {
-         console.warn("Could not connect to Firestore config doc", e);
+        console.warn("Could not connect to Firestore config doc", e);
       }
     }
 
     // Load sys dashboard password
-    const savedPassword = safeLocalStorage.getItem('lessonlog_sys_dashboard_password');
+    const savedPassword = safeLocalStorage.getItem(
+      "lessonlog_sys_dashboard_password",
+    );
     if (savedPassword) {
       setSysDashboardPassword(savedPassword);
     }
@@ -250,7 +323,7 @@ export default function App() {
     return () => {
       unsubAuth();
       unsubConfig();
-      window.removeEventListener('app-safe-alert', handleSafeAlert);
+      window.removeEventListener("app-safe-alert", handleSafeAlert);
     };
   }, []);
 
@@ -264,170 +337,250 @@ export default function App() {
     // Set records query based on Role-Based Access Control list constraints
     let recordsQuery;
     try {
-      if (currentTeacher.role !== 'teacher') {
-        recordsQuery = collection(db, 'records');
+      if (currentTeacher.role !== "teacher") {
+        recordsQuery = collection(db, "records");
       } else {
-        recordsQuery = query(collection(db, 'records'), where('teacherId', '==', currentTeacher.id));
+        recordsQuery = query(
+          collection(db, "records"),
+          where("teacherId", "==", currentTeacher.id),
+        );
       }
     } catch (e) {
       console.warn("Could not setup Firestore queries", e);
       return;
     }
 
-    const unsubRecords = onSnapshot(recordsQuery, async (snapshot) => {
-      const fetchedRecords: LessonRecord[] = [];
-      snapshot.forEach((doc) => {
-        fetchedRecords.push(doc.data() as LessonRecord);
-      });
-
-      // Sort chronological descending
-      fetchedRecords.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-      // Auto-seeding for new teachers (highly polished out-of-the-box system demo)
-      if (fetchedRecords.length === 0 && currentTeacher.role === 'teacher' && !currentTeacher.hasSeeded) {
-        const updatedTeacher = { ...currentTeacher, hasSeeded: true };
-        setCurrentTeacher(updatedTeacher);
-        setDoc(doc(db, 'teachers', currentTeacher.id), updatedTeacher).catch(console.error);
-
-        const seedPayloads = MOCK_RECORDS.map((r, index) => ({
-          ...r,
-          id: `rec-${currentTeacher.id}-${index}`,
-          teacherId: currentTeacher.id,
-          createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString()
-        }));
-
-        for (const payload of seedPayloads) {
-          setDoc(doc(db, 'records', payload.id), payload).catch(console.error);
-        }
-      } else {
-        setRecords((prevRecords) => {
-          if (prevRecords && prevRecords.length > 0) {
-            fetchedRecords.forEach((newRec) => {
-              const oldRec = prevRecords.find((r) => r.id === newRec.id);
-              if (oldRec) {
-                const oldApproved = !!oldRec.deptHeadApproved;
-                const newApproved = !!newRec.deptHeadApproved;
-
-                if (!oldApproved && newApproved) {
-                  addToast(
-                    `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ได้รับการลงนามตรวจอนุมัติโดยหัวหน้าฝ่ายวิชาการเรียบร้อยแล้ว 🌸`,
-                    'success',
-                    '✍️ ตรวจอนุมัติเอกสารสำเร็จ'
-                  );
-                } else if (oldApproved && !newApproved) {
-                  addToast(
-                    `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ถูกยกเลิกขั้นตอนลงนามรับรองกรุณาตรวจสอบ ⚠️`,
-                    'warning',
-                    'ยกเลิกการตรวจรับรอง'
-                  );
-                } else if (!oldRec.teacherSigned && newRec.teacherSigned) {
-                  addToast(
-                    `คุณครูผู้บันทึกได้กดลงลายมือชื่อในเอกสาร "${newRec.subject}" เรียบร้อยแล้ว ✍️`,
-                    'info',
-                    'คุณครูลงนามส่งแผน'
-                  );
-                }
-              } else {
-                // New record added by someone else
-                if (newRec.teacherId !== currentTeacher.id) {
-                  addToast(
-                    `มีบันทึกหลังสอนใหม่เข้ามา: วิชา "${newRec.subject}" ชั้น ${newRec.gradeLevel} 📝`,
-                    'info',
-                    'พบบันทึกการสอนใหม่'
-                  );
-                }
-              }
-            });
+    const unsubRecords = onSnapshot(
+      recordsQuery,
+      async (snapshot) => {
+        const fetchedRecords: LessonRecord[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data() as LessonRecord;
+          if (data.gradeLevel) {
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
           }
-          return fetchedRecords;
+          fetchedRecords.push(data);
         });
-        if (fetchedRecords.length > 0 && currentTeacher.role === 'teacher' && !currentTeacher.hasSeeded) {
+
+        // Sort chronological descending
+        fetchedRecords.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+        // Auto-seeding for new teachers (highly polished out-of-the-box system demo)
+        if (
+          fetchedRecords.length === 0 &&
+          currentTeacher.role === "teacher" &&
+          !currentTeacher.hasSeeded
+        ) {
           const updatedTeacher = { ...currentTeacher, hasSeeded: true };
           setCurrentTeacher(updatedTeacher);
-          setDoc(doc(db, 'teachers', currentTeacher.id), updatedTeacher).catch(console.error);
+          setDoc(doc(db, "teachers", currentTeacher.id), updatedTeacher).catch(
+            console.error,
+          );
+
+          const seedPayloads = MOCK_RECORDS.map((r, index) => ({
+            ...r,
+            id: `rec-${currentTeacher.id}-${index}`,
+            teacherId: currentTeacher.id,
+            createdAt: new Date(
+              Date.now() - index * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            updatedAt: new Date(
+              Date.now() - index * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+          }));
+
+          for (const payload of seedPayloads) {
+            setDoc(doc(db, "records", payload.id), payload).catch(
+              console.error,
+            );
+          }
+        } else {
+          setRecords((prevRecords) => {
+            if (prevRecords && prevRecords.length > 0) {
+              fetchedRecords.forEach((newRec) => {
+                const oldRec = prevRecords.find((r) => r.id === newRec.id);
+                if (oldRec) {
+                  const oldApproved = !!oldRec.deptHeadApproved;
+                  const newApproved = !!newRec.deptHeadApproved;
+
+                  if (!oldApproved && newApproved) {
+                    addToast(
+                      `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ได้รับการลงนามตรวจอนุมัติโดยหัวหน้าฝ่ายวิชาการเรียบร้อยแล้ว 🌸`,
+                      "success",
+                      "✍️ ตรวจอนุมัติเอกสารสำเร็จ",
+                    );
+                  } else if (oldApproved && !newApproved) {
+                    addToast(
+                      `เอกสารการสอนชั้น ${newRec.gradeLevel} "${newRec.subject}" ถูกยกเลิกขั้นตอนลงนามรับรองกรุณาตรวจสอบ ⚠️`,
+                      "warning",
+                      "ยกเลิกการตรวจรับรอง",
+                    );
+                  } else if (!oldRec.teacherSigned && newRec.teacherSigned) {
+                    addToast(
+                      `คุณครูผู้บันทึกได้กดลงลายมือชื่อในเอกสาร "${newRec.subject}" เรียบร้อยแล้ว ✍️`,
+                      "info",
+                      "คุณครูลงนามส่งแผน",
+                    );
+                  }
+                } else {
+                  // New record added by someone else
+                  if (newRec.teacherId !== currentTeacher.id) {
+                    addToast(
+                      `มีบันทึกหลังสอนใหม่เข้ามา: วิชา "${newRec.subject}" ชั้น ${newRec.gradeLevel} 📝`,
+                      "info",
+                      "พบบันทึกการสอนใหม่",
+                    );
+                  }
+                }
+              });
+            }
+            return fetchedRecords;
+          });
+          if (
+            fetchedRecords.length > 0 &&
+            currentTeacher.role === "teacher" &&
+            !currentTeacher.hasSeeded
+          ) {
+            const updatedTeacher = { ...currentTeacher, hasSeeded: true };
+            setCurrentTeacher(updatedTeacher);
+            setDoc(
+              doc(db, "teachers", currentTeacher.id),
+              updatedTeacher,
+            ).catch(console.error);
+          }
         }
-      }
-    }, (err) => {
-      console.error("Records snapshot failed:", err);
-    });
+      },
+      (err) => {
+        console.error("Records snapshot failed:", err);
+      },
+    );
 
     // Subscription for all academic profiles lookup
-    const unsubTeachers = onSnapshot(collection(db, 'teachers'), (snapshot) => {
-      const fetchedTeachers: Teacher[] = [];
-      snapshot.forEach((doc) => {
-        fetchedTeachers.push(doc.data() as Teacher);
-      });
-      if (!fetchedTeachers.some(t => t.id === DEFAULT_TEACHER.id)) {
-        fetchedTeachers.push(DEFAULT_TEACHER);
-      }
-      setTeachers(fetchedTeachers);
-    }, (err) => {
-      console.error("Teachers catalog lookup error:", err);
-    });
+    const unsubTeachers = onSnapshot(
+      collection(db, "teachers"),
+      (snapshot) => {
+        const fetchedTeachers: Teacher[] = [];
+        snapshot.forEach((doc) => {
+          fetchedTeachers.push(doc.data() as Teacher);
+        });
+        if (!fetchedTeachers.some((t) => t.id === DEFAULT_TEACHER.id)) {
+          fetchedTeachers.push(DEFAULT_TEACHER);
+        }
+        setTeachers(fetchedTeachers);
+      },
+      (err) => {
+        console.error("Teachers catalog lookup error:", err);
+      },
+    );
 
-    let plansQuery: any = collection(db, 'lessonPlans');
+    let plansQuery: any = collection(db, "lessonPlans");
     try {
-      if (currentTeacher.role === 'teacher') {
-        plansQuery = query(collection(db, 'lessonPlans'), where('teacherId', '==', currentTeacher.id));
+      if (currentTeacher.role === "teacher") {
+        plansQuery = query(
+          collection(db, "lessonPlans"),
+          where("teacherId", "==", currentTeacher.id),
+        );
       }
     } catch (e) {
       console.warn("Could not setup Firestore queries for plans", e);
     }
-    const unsubPlans = onSnapshot(plansQuery, (snapshot) => {
-      const fetchedPlans: LessonPlan[] = [];
-      snapshot.forEach((doc) => {
-        fetchedPlans.push(doc.data() as LessonPlan);
-      });
-      fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      setPlans(fetchedPlans);
-    }, (err) => {
-      console.error("Plans lookup error:", err);
-    });
+    const unsubPlans = onSnapshot(
+      plansQuery,
+      (snapshot) => {
+        const fetchedPlans: LessonPlan[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data() as LessonPlan;
+          if (data.gradeLevels && Array.isArray(data.gradeLevels)) {
+            data.gradeLevels = data.gradeLevels.map(grade => 
+              grade.replace(/\s*\(ป\..*\)/g, '')
+            );
+          }
+          fetchedPlans.push(data);
+        });
+        fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        setPlans(fetchedPlans);
+      },
+      (err) => {
+        console.error("Plans lookup error:", err);
+      },
+    );
+
+    const unsubStudents = onSnapshot(
+      collection(db, "students"),
+      (snapshot) => {
+        setStudentsCount(snapshot.size);
+        const fetchedStudents = snapshot.docs.map((doc) => {
+          const data = doc.data() as Student;
+          if (data.gradeLevel) {
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+          }
+          return { id: doc.id, ...data };
+        });
+        setStudents(fetchedStudents);
+      },
+      (err) => {
+        console.error("Students lookup error:", err);
+      },
+    );
 
     return () => {
       unsubRecords();
       unsubTeachers();
       unsubPlans();
+      unsubStudents();
     };
   }, [currentTeacher]);
 
   const initProfileStates = (t: Teacher) => {
-    setPThaiName(t.thaiName || '');
-    setPEnglishName(t.englishName || '');
-    setPEmployeeId(t.employeeId || '');
-    setPPhoneNumber(t.phoneNumber || '');
-    setPAffiliation(t.affiliation || '');
-    setPDisplayName(t.displayName || '');
+    setPThaiName(t.thaiName || "");
+    setPEnglishName(t.englishName || "");
+    setPEmployeeId(t.employeeId || "");
+    setPPhoneNumber(t.phoneNumber || "");
+    setPAffiliation(t.affiliation || "");
+    setPDisplayName(t.displayName || "");
   };
-
 
   // Camera Capture Control Effect
   useEffect(() => {
     if (isCameraActive) {
       let activeStream: MediaStream | null = null;
-      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError("เบราว์เซอร์หรือสภาพแวดล้อมระบบของคุณไม่สนับสนุนการใช้งานกล้องถ่ายรูป");
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        setCameraError(
+          "เบราว์เซอร์หรือสภาพแวดล้อมระบบของคุณไม่สนับสนุนการใช้งานกล้องถ่ายรูป",
+        );
         return;
       }
-      navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 480 }, height: { ideal: 480 } },
-        audio: false
-      }).then(stream => {
-        activeStream = stream;
-        setCameraStream(stream);
-        setCameraError(null);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }).catch(err => {
-        console.error("Camera capture error:", err);
-        setCameraError("ไม่สามารถเปิดใช้งานกล้องได้กรุณาตรวจสอบสิทธิ์การใช้งานกล้องในเบราว์เซอร์");
-      });
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: "environment",
+            width: { ideal: 480 },
+            height: { ideal: 480 },
+          },
+          audio: false,
+        })
+        .then((stream) => {
+          activeStream = stream;
+          setCameraStream(stream);
+          setCameraError(null);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.error("Camera capture error:", err);
+          setCameraError(
+            "ไม่สามารถเปิดใช้งานกล้องได้กรุณาตรวจสอบสิทธิ์การใช้งานกล้องในเบราว์เซอร์",
+          );
+        });
 
       return () => {
         if (activeStream) {
-          activeStream.getTracks().forEach(track => track.stop());
+          activeStream.getTracks().forEach((track) => track.stop());
         }
       };
     }
@@ -435,7 +588,7 @@ export default function App() {
 
   const stopCamera = () => {
     if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream.getTracks().forEach((track) => track.stop());
       setCameraStream(null);
     }
     setIsCameraActive(false);
@@ -445,20 +598,24 @@ export default function App() {
     if (!videoRef.current) return;
     try {
       const video = videoRef.current;
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       const size = Math.min(video.videoWidth || 480, video.videoHeight || 480);
       canvas.width = size;
       canvas.height = size;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (ctx) {
         // Crop center to square
         const sx = (video.videoWidth - size) / 2;
         const sy = (video.videoHeight - size) / 2;
         ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL("image/png");
         setCustomLogo(dataUrl);
-        safeLocalStorage.setItem('lessonlog_custom_logo', dataUrl);
-        setDoc(doc(db, 'config', 'school'), { customLogo: dataUrl }, { merge: true }).catch(err => {
+        safeLocalStorage.setItem("lessonlog_custom_logo", dataUrl);
+        setDoc(
+          doc(db, "config", "school"),
+          { customLogo: dataUrl },
+          { merge: true },
+        ).catch((err) => {
           console.error("Failed to persist custom logo in Firestore:", err);
         });
       }
@@ -478,8 +635,12 @@ export default function App() {
       if (event.target?.result) {
         const base64String = event.target.result as string;
         setCustomLogo(base64String);
-        safeLocalStorage.setItem('lessonlog_custom_logo', base64String);
-        setDoc(doc(db, 'config', 'school'), { customLogo: base64String }, { merge: true }).catch(err => {
+        safeLocalStorage.setItem("lessonlog_custom_logo", base64String);
+        setDoc(
+          doc(db, "config", "school"),
+          { customLogo: base64String },
+          { merge: true },
+        ).catch((err) => {
           console.error("Failed to persist uploaded logo in Firestore:", err);
         });
       }
@@ -489,8 +650,12 @@ export default function App() {
 
   const handleClearCustomLogo = () => {
     setCustomLogo(null);
-    safeLocalStorage.removeItem('lessonlog_custom_logo');
-    setDoc(doc(db, 'config', 'school'), { customLogo: null }, { merge: true }).catch(err => {
+    safeLocalStorage.removeItem("lessonlog_custom_logo");
+    setDoc(
+      doc(db, "config", "school"),
+      { customLogo: null },
+      { merge: true },
+    ).catch((err) => {
       console.error("Failed to clear custom logo in Firestore:", err);
     });
   };
@@ -499,11 +664,15 @@ export default function App() {
     setSystemAcademicYear(newYear);
     setSystemSemester(newSemester);
     if (db) {
-      setDoc(doc(db, 'config', 'school'), { systemAcademicYear: newYear, systemSemester: newSemester }, { merge: true }).catch(err => {
+      setDoc(
+        doc(db, "config", "school"),
+        { systemAcademicYear: newYear, systemSemester: newSemester },
+        { merge: true },
+      ).catch((err) => {
         console.error("Failed to persist academic year in Firestore:", err);
       });
     }
-    addToast('อัปเดตปีการศึกษาและภาคเรียนเรียบร้อยแล้ว', 'success');
+    addToast("อัปเดตปีการศึกษาและภาคเรียนเรียบร้อยแล้ว", "success");
   };
 
   const handleLogin = (teacher: Teacher) => {
@@ -530,30 +699,37 @@ export default function App() {
     e.preventDefault();
     if (dashboardPasswordInput.trim() === sysDashboardPassword) {
       setIsDashboardUnlocked(true);
-      setDashboardPasswordError('');
-      setDashboardPasswordInput('');
+      setDashboardPasswordError("");
+      setDashboardPasswordInput("");
     } else {
-      setDashboardPasswordError('❌ รหัสผ่านคลังระบบไม่ถูกต้อง กรุณาติดต่อฝ่ายวิชาการ/ฝ่ายบริหาร หรือลองใหม่อีกครั้ง');
+      setDashboardPasswordError(
+        "❌ รหัสผ่านคลังระบบไม่ถูกต้อง กรุณาติดต่อฝ่ายวิชาการ/ฝ่ายบริหาร หรือลองใหม่อีกครั้ง",
+      );
     }
   };
 
   const handleLockDashboard = () => {
     setIsDashboardUnlocked(false);
-    setDashboardPasswordInput('');
-    setDashboardPasswordError('');
+    setDashboardPasswordInput("");
+    setDashboardPasswordError("");
   };
 
   const handleChangeSysDashboardPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPasswordInput.trim()) {
-      alert('กรุณาระบุรหัสผ่านใหม่');
+      alert("กรุณาระบุรหัสผ่านใหม่");
       return;
     }
     setSysDashboardPassword(newPasswordInput.trim());
-    safeLocalStorage.setItem('lessonlog_sys_dashboard_password', newPasswordInput.trim());
-    setNewPasswordInput('');
+    safeLocalStorage.setItem(
+      "lessonlog_sys_dashboard_password",
+      newPasswordInput.trim(),
+    );
+    setNewPasswordInput("");
     setShowPasswordChangeField(false);
-    alert('🔒 บันทึกรหัสผ่านควบคุมความปลอดภัยตัวใหม่สำหรับเข้าคลังเรียบร้อยแล้ว!');
+    alert(
+      "🔒 บันทึกรหัสผ่านควบคุมความปลอดภัยตัวใหม่สำหรับเข้าคลังเรียบร้อยแล้ว!",
+    );
   };
 
   // Profile Save Changes
@@ -561,8 +737,15 @@ export default function App() {
     e.preventDefault();
     if (!currentTeacher) return;
 
-    if (!pThaiName || !pEnglishName || !pEmployeeId || !pPhoneNumber || !pAffiliation || !pDisplayName) {
-      alert('กรุณากรอกข้อมูลโปรไฟล์ของคุณครูให้ครบทุกช่อง');
+    if (
+      !pThaiName ||
+      !pEnglishName ||
+      !pEmployeeId ||
+      !pPhoneNumber ||
+      !pAffiliation ||
+      !pDisplayName
+    ) {
+      alert("กรุณากรอกข้อมูลโปรไฟล์ของคุณครูให้ครบทุกช่อง");
       return;
     }
 
@@ -574,40 +757,54 @@ export default function App() {
         employeeId: pEmployeeId,
         phoneNumber: pPhoneNumber,
         affiliation: pAffiliation,
-        displayName: pDisplayName
+        displayName: pDisplayName,
       };
 
-      await setDoc(doc(db, 'teachers', currentTeacher.id), updatedTeacher);
+      await setDoc(doc(db, "teachers", currentTeacher.id), updatedTeacher);
       setCurrentTeacher(updatedTeacher);
-      addToast('แก้ไขและอัปเดตข้อมูลโปรไฟล์ผู้ใช้งานสำเร็จแล้ว 💼', 'success', 'อัปเดตโปรไฟล์');
+      addToast(
+        "แก้ไขและอัปเดตข้อมูลโปรไฟล์ผู้ใช้งานสำเร็จแล้ว 💼",
+        "success",
+        "อัปเดตโปรไฟล์",
+      );
 
-      setProfileSuccessMsg('อัปเดตข้อมูลคุณครูเรียบร้อยแล้ว ในระบบคลาวด์/Firestore!');
+      setProfileSuccessMsg(
+        "อัปเดตข้อมูลคุณครูเรียบร้อยแล้ว ในระบบคลาวด์/Firestore!",
+      );
       setTimeout(() => {
-        setProfileSuccessMsg('');
+        setProfileSuccessMsg("");
         setShowProfileModal(false);
       }, 1500);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `teachers/${currentTeacher.id}`);
+      handleFirestoreError(
+        err,
+        OperationType.WRITE,
+        `teachers/${currentTeacher.id}`,
+      );
     }
   };
 
   // Create or Update Record
   const handleSaveRecord = async (record: LessonRecord) => {
     try {
-      const isEdit = records.some(r => r.id === record.id);
-      const existing = records.find(r => r.id === record.id);
-      
+      const isEdit = records.some((r) => r.id === record.id);
+      const existing = records.find((r) => r.id === record.id);
+
       if (isEdit && existing && currentTeacher) {
         const isOwner = existing.teacherId === currentTeacher.id;
-        const isAdmin = currentTeacher.role === 'admin';
+        const isAdmin = currentTeacher.role === "admin";
         if (!isAdmin && !isOwner) {
-          alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์แก้ไขบันทึกนี้ได้');
+          alert(
+            "🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์แก้ไขบันทึกนี้ได้",
+          );
           return;
         }
       }
 
       if (existing && existing.deptHeadApproved) {
-        alert('🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้');
+        alert(
+          "🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขได้",
+        );
         return;
       }
 
@@ -617,48 +814,52 @@ export default function App() {
 
       if (isEdit) {
         const roleMap: any = {
-          teacher: 'คุณครูผู้สอน',
-          academic: 'หัวหน้าฝ่ายวิชาการ',
-          deputy: 'รองผู้อำนวยการ',
-          admin: 'ผู้ดูแลระบบ'
+          teacher: "คุณครูผู้สอน",
+          academic: "หัวหน้าฝ่ายวิชาการ",
+          deputy: "รองผู้อำนวยการ",
+          admin: "ผู้ดูแลระบบ",
         };
-        const currentRoleStr = currentTeacher ? (roleMap[currentTeacher.role || ''] || 'ผู้ใช้งาน') : 'ผู้ใช้งาน';
-        const editorNameStr = currentTeacher 
-          ? `${currentTeacher.thaiName || currentTeacher.displayName} (${currentRoleStr})` 
-          : 'ผู้ใช้งานระบบ';
-        
+        const currentRoleStr = currentTeacher
+          ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
+          : "ผู้ใช้งาน";
+        const editorNameStr = currentTeacher
+          ? `${currentTeacher.thaiName || currentTeacher.displayName} (${currentRoleStr})`
+          : "ผู้ใช้งานระบบ";
+
         lastEditedBy = editorNameStr;
         lastEditedAt = new Date().toISOString();
-        
+
         updatedHistory = [
           ...updatedHistory,
           {
             editedBy: editorNameStr,
-            editedAt: lastEditedAt
-          }
+            editedAt: lastEditedAt,
+          },
         ];
       }
 
       const payload = {
         ...record,
         updatedAt: new Date().toISOString(),
-        ...(isEdit ? { lastEditedBy, lastEditedAt, editHistory: updatedHistory } : {})
+        ...(isEdit
+          ? { lastEditedBy, lastEditedAt, editHistory: updatedHistory }
+          : {}),
       };
-      
+
       // Filter out undefined property values to prevent Firestore serialization errors
       const cleanPayload = Object.fromEntries(
-        Object.entries(payload).filter(([_, v]) => v !== undefined)
+        Object.entries(payload).filter(([_, v]) => v !== undefined),
       );
-      
-      await setDoc(doc(db, 'records', record.id), cleanPayload);
+
+      await setDoc(doc(db, "records", record.id), cleanPayload);
       setEditingRecord(null);
       setShowFormOnMobile(false);
       addToast(
-        isEdit 
-          ? `แก้ไขและอัปเดตบันทึกผลหลังสอนรายวิชา "${record.subject}" เรียบร้อยแล้ว ✨` 
+        isEdit
+          ? `แก้ไขและอัปเดตบันทึกผลหลังสอนรายวิชา "${record.subject}" เรียบร้อยแล้ว ✨`
           : `สร้างและส่งบันทึกผลหลังสอนรายวิชา "${record.subject}" สำเร็จ จัดเก็บเข้าคลาวด์แล้ว 🎉`,
-        'success',
-        isEdit ? 'อัปเดตข้อมูลสำเร็จ' : 'บันทึกการสอนสำเร็จ'
+        "success",
+        isEdit ? "อัปเดตข้อมูลสำเร็จ" : "บันทึกการสอนสำเร็จ",
       );
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `records/${record.id}`);
@@ -670,27 +871,35 @@ export default function App() {
     if (!currentTeacher) return;
 
     try {
-      const existing = records.find(r => r.id === id);
+      const existing = records.find((r) => r.id === id);
       if (!existing) return;
 
       const isOwner = existing.teacherId === currentTeacher.id;
-      const isAdmin = currentTeacher.role === 'admin';
+      const isAdmin = currentTeacher.role === "admin";
 
       if (!isAdmin && !isOwner) {
-        alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์ลบประวัตินี้ได้');
+        alert(
+          "🔒 ขออภัย! เฉพาะผู้ดูแลระบบ (System Administrator) หรือคุณครูที่เป็นเจ้าของเอกสารเท่านั้นที่มีสิทธิ์ลบประวัตินี้ได้",
+        );
         return;
       }
 
       if (existing.deptHeadApproved) {
-        alert('🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขหรือลบได้');
+        alert(
+          "🔒 ขออภัย! เอกสารนี้ได้รับการลงนามอนุมัติและล็อกระบบแล้ว ไม่สามารถแก้ไขหรือลบได้",
+        );
         return;
       }
 
-      await deleteDoc(doc(db, 'records', id));
+      await deleteDoc(doc(db, "records", id));
       if (editingRecord?.id === id) {
         setEditingRecord(null);
       }
-      addToast('ลบบันทึกหลังสอนรายวิชาออกจากระบบคลาวด์เสร็จสิ้น 🗑️', 'info', 'ลบเอกสารสำเร็จ');
+      addToast(
+        "ลบบันทึกหลังสอนรายวิชาออกจากระบบคลาวด์เสร็จสิ้น 🗑️",
+        "info",
+        "ลบเอกสารสำเร็จ",
+      );
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `records/${id}`);
     }
@@ -698,26 +907,26 @@ export default function App() {
 
   const handleSavePlan = async (plan: LessonPlan) => {
     try {
-      const isEdit = plans.some(p => p.id === plan.id);
-      
+      const isEdit = plans.some((p) => p.id === plan.id);
+
       const payload = {
         ...plan,
         updatedAt: new Date().toISOString(),
       };
-      
+
       const cleanPayload = Object.fromEntries(
-        Object.entries(payload).filter(([_, v]) => v !== undefined)
+        Object.entries(payload).filter(([_, v]) => v !== undefined),
       );
-      
-      await setDoc(doc(db, 'lessonPlans', plan.id), cleanPayload);
+
+      await setDoc(doc(db, "lessonPlans", plan.id), cleanPayload);
       setEditingPlan(null);
       setShowFormOnMobile(false);
       addToast(
-        isEdit 
-          ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" เรียบร้อยแล้ว ✨` 
+        isEdit
+          ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" เรียบร้อยแล้ว ✨`
           : `สร้างแผนการสอน "${plan.title}" สำเร็จ จัดเก็บเข้าคลาวด์แล้ว 🎉`,
-        'success',
-        isEdit ? 'อัปเดตแผนการสอนสำเร็จ' : 'บันทึกแผนการสอนสำเร็จ'
+        "success",
+        isEdit ? "อัปเดตแผนการสอนสำเร็จ" : "บันทึกแผนการสอนสำเร็จ",
       );
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `lessonPlans/${plan.id}`);
@@ -728,27 +937,31 @@ export default function App() {
     if (!currentTeacher) return;
 
     try {
-      const existing = plans.find(p => p.id === id);
+      const existing = plans.find((p) => p.id === id);
       if (!existing) return;
 
       const isOwner = existing.teacherId === currentTeacher.id;
-      const isAdmin = currentTeacher.role === 'admin';
+      const isAdmin = currentTeacher.role === "admin";
 
       if (!isAdmin && !isOwner) {
-        alert('🔒 ขออภัย! เฉพาะผู้ดูแลระบบ หรือคุณครูเจ้าของแผนการสอนเท่านั้นที่มีสิทธิ์ลบแผนการสอนนี้ได้');
+        alert(
+          "🔒 ขออภัย! เฉพาะผู้ดูแลระบบ หรือคุณครูเจ้าของแผนการสอนเท่านั้นที่มีสิทธิ์ลบแผนการสอนนี้ได้",
+        );
         return;
       }
 
-      if (existing.status === 'approved') {
-        alert('🔒 ขออภัย! แผนการสอนนี้ได้รับการลงนามอนุมัติแล้ว ไม่สามารถลบได้');
+      if (existing.status === "approved") {
+        alert(
+          "🔒 ขออภัย! แผนการสอนนี้ได้รับการลงนามอนุมัติแล้ว ไม่สามารถลบได้",
+        );
         return;
       }
 
-      await deleteDoc(doc(db, 'lessonPlans', id));
+      await deleteDoc(doc(db, "lessonPlans", id));
       if (editingPlan?.id === id) {
         setEditingPlan(null);
       }
-      addToast('ลบแผนการสอนออกจากระบบเสร็จสิ้น 🗑️', 'info', 'ลบข้อมูลสำเร็จ');
+      addToast("ลบแผนการสอนออกจากระบบเสร็จสิ้น 🗑️", "info", "ลบข้อมูลสำเร็จ");
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `lessonPlans/${id}`);
     }
@@ -759,43 +972,51 @@ export default function App() {
 
   const confirmDeleteTeacher = async () => {
     if (!teacherToDelete || !currentTeacher) return;
-    
-    const teacherObj = teachers.find(t => t.id === teacherToDelete);
+
+    const teacherObj = teachers.find((t) => t.id === teacherToDelete);
     if (!teacherObj) return;
 
-    const teacherRecords = records.filter(r => r.teacherId === teacherToDelete);
+    const teacherRecords = records.filter(
+      (r) => r.teacherId === teacherToDelete,
+    );
 
     try {
       // 1. Delete associated records
       for (const rec of teacherRecords) {
-        await deleteDoc(doc(db, 'records', rec.id));
+        await deleteDoc(doc(db, "records", rec.id));
       }
       // 2. Delete teacher doc
-      await deleteDoc(doc(db, 'teachers', teacherToDelete));
-      
+      await deleteDoc(doc(db, "teachers", teacherToDelete));
+
       setTeacherToDelete(null);
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `teachers/${teacherToDelete}`);
+      handleFirestoreError(
+        err,
+        OperationType.DELETE,
+        `teachers/${teacherToDelete}`,
+      );
     }
   };
 
   const handleDeleteTeacher = async (teacherId: string) => {
     if (!currentTeacher) return;
-    if (currentTeacher.role !== 'admin') {
-      alert('🔒 เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบบัญชีผู้ใช้ได้');
+    if (currentTeacher.role !== "admin") {
+      alert("🔒 เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบบัญชีผู้ใช้ได้");
       return;
     }
 
     if (teacherId === currentTeacher.id) {
-      alert('❌ คุณไม่สามารถลบบัญชีของคุณเองได้ในหน้าต่างการใช้งานปัจจุบัน');
+      alert("❌ คุณไม่สามารถลบบัญชีของคุณเองได้ในหน้าต่างการใช้งานปัจจุบัน");
       return;
     }
 
-    const teacherObj = teachers.find(t => t.id === teacherId);
+    const teacherObj = teachers.find((t) => t.id === teacherId);
     if (!teacherObj) return;
 
-    if (teacherId === 't-default-1') {
-      alert('❌ บัญชีผู้ใช้นี้เป็นผู้ใช้งานจำลองหลักเริ่มต้นของวิชาการ ไม่ฝังตัวให้ลบเด็ดขาด');
+    if (teacherId === "t-default-1") {
+      alert(
+        "❌ บัญชีผู้ใช้นี้เป็นผู้ใช้งานจำลองหลักเริ่มต้นของวิชาการ ไม่ฝังตัวให้ลบเด็ดขาด",
+      );
       return;
     }
 
@@ -805,12 +1026,13 @@ export default function App() {
   // Export records JSON backup
   const handleExportBackup = () => {
     const backupStr = JSON.stringify(records, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(backupStr);
-    const exportFileDefaultName = `LessonLog_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    const dataUri =
+      "data:application/json;charset=utf-8," + encodeURIComponent(backupStr);
+    const exportFileDefaultName = `LessonLog_Backup_${new Date().toISOString().slice(0, 10)}.json`;
 
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
   };
 
@@ -818,18 +1040,18 @@ export default function App() {
   const handleExportCSV = () => {
     // CSV headers
     const headers = [
-      'ลำดับ',
-      'วันที่สอน_บันทึก',
-      'ระดับชั้น',
-      'วิชา',
-      'สาระการจัดกิจกรรมการเรียนรู้',
-      'กิจกรรมการสอน_กระบวนการ',
-      'ข้อจำกัด_ปัญหาการสอน',
-      'ข้อเสนอแนะ_แนวทางแก้ไข',
-      'ครูผู้สอนต้องการลงนาม',
-      'หัวหน้าวิชาการอนุมัติ',
-      'ชื่อหัวหน้าผู้อนุมัติ',
-      'วันที่หัวหน้าอนุมัติ'
+      "ลำดับ",
+      "วันที่สอน_บันทึก",
+      "ระดับชั้น",
+      "วิชา",
+      "สาระการจัดกิจกรรมการเรียนรู้",
+      "กิจกรรมการสอน_กระบวนการ",
+      "ข้อจำกัด_ปัญหาการสอน",
+      "ข้อเสนอแนะ_แนวทางแก้ไข",
+      "ครูผู้สอนต้องการลงนาม",
+      "หัวหน้าวิชาการอนุมัติ",
+      "ชื่อหัวหน้าผู้อนุมัติ",
+      "วันที่หัวหน้าอนุมัติ",
     ];
 
     const rows = records.map((rec, index) => {
@@ -838,8 +1060,10 @@ export default function App() {
         return `"${val.replace(/"/g, '""')}"`;
       };
 
-      const subj = rec.customSubject ? `${rec.subject} (${rec.customSubject})` : rec.subject;
-      
+      const subj = rec.customSubject
+        ? `${rec.subject} (${rec.customSubject})`
+        : rec.subject;
+
       return [
         index + 1,
         rec.date,
@@ -849,25 +1073,27 @@ export default function App() {
         escape(rec.activities),
         escape(rec.limitations),
         escape(rec.suggestions),
-        rec.teacherSigned ? 'ลงนามแล้ว' : 'ยังไม่ได้ลงนาม',
-        rec.deptHeadApproved ? 'อนุมัติแล้ว' : 'ยังไม่อนุมัติ',
-        escape(rec.deptHeadName || ''),
-        rec.deptHeadDate ? rec.deptHeadDate : ''
-      ].join(',');
+        rec.teacherSigned ? "ลงนามแล้ว" : "ยังไม่ได้ลงนาม",
+        rec.deptHeadApproved ? "อนุมัติแล้ว" : "ยังไม่อนุมัติ",
+        escape(rec.deptHeadName || ""),
+        rec.deptHeadDate ? rec.deptHeadDate : "",
+      ].join(",");
     });
 
-    const csvContent = [headers.join(','), ...rows].join('\n');
+    const csvContent = [headers.join(","), ...rows].join("\n");
     // Using BOM to prevent Thai characters encoding issue in Excel
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    
-    const exportFileDefaultName = `LessonLog_Export_${new Date().toISOString().slice(0,10)}.csv`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', url);
-    linkElement.setAttribute('download', exportFileDefaultName);
+
+    const exportFileDefaultName = `LessonLog_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", url);
+    linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
-    
+
     // Clean up
     URL.revokeObjectURL(url);
   };
@@ -877,7 +1103,9 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="flex flex-col items-center justify-center space-y-4">
           <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
-          <p className="text-sm font-semibold text-slate-500">กำลังเชื่อมต่อฐานข้อมูลความปลอดภัยครู...</p>
+          <p className="text-sm font-semibold text-slate-500">
+            กำลังเชื่อมต่อฐานข้อมูลความปลอดภัยครู...
+          </p>
         </div>
       </div>
     );
@@ -889,28 +1117,34 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-tr from-pink-50/40 via-white to-sky-50/40 flex flex-col font-sans mb-12">
-      
       {/* Dynamic Theme Color Top Border */}
       <div className="h-1.5 w-full bg-gradient-to-r from-sky-400 via-white to-pink-400 print:hidden" />
-      
+
       {/* 1. Header Layout */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-sky-100/60 shadow-xs print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            
             {/* App Branding */}
             <div className="flex items-center space-x-3">
               <div className="h-11 w-11 bg-white rounded-xl flex items-center justify-center border border-sky-200/80 overflow-hidden shadow-xs hover:scale-105 hover:border-pink-300 transition shrink-0">
                 {customLogo ? (
-                  <img src={customLogo} alt="School Custom Logo" className="h-full w-full object-contain p-1" />
+                  <img
+                    src={customLogo}
+                    alt="School Custom Logo"
+                    className="h-full w-full object-contain p-1"
+                  />
                 ) : (
                   <SchoolLogo className="h-9 w-9 text-sky-500" />
                 )}
               </div>
               <div className="leading-tight">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-slate-800 tracking-tight font-sans">LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
-                  <span className="text-[8px] bg-pink-50 text-pink-600 px-1 py-0.5 rounded font-black border border-pink-100 font-mono scale-90">SMBS</span>
+                  <span className="text-base font-black text-slate-800 tracking-tight font-sans">
+                    LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
+                  </span>
+                  <span className="text-[8px] bg-pink-50 text-pink-600 px-1 py-0.5 rounded font-black border border-pink-100 font-mono scale-90">
+                    SMBS
+                  </span>
                 </div>
                 <div className="hidden sm:flex flex-col mt-0.5 items-start">
                   <span className="text-[11px] font-bold text-slate-500">
@@ -934,7 +1168,7 @@ export default function App() {
             {/* Profile Dropdown / Actions */}
             <div className="flex items-center space-x-3">
               {/* User badge */}
-              <button 
+              <button
                 onClick={() => setShowProfileModal(true)}
                 className="flex items-center space-x-2.5 px-3 py-1.5 hover:bg-sky-50/50 active:bg-sky-100 rounded-xl border border-sky-100 transition text-left cursor-pointer"
               >
@@ -942,8 +1176,12 @@ export default function App() {
                   {currentTeacher.displayName.charAt(0)}
                 </div>
                 <div className="hidden md:block">
-                  <span className="block text-xs font-bold text-slate-800 leading-none">{currentTeacher.displayName}</span>
-                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">{currentTeacher.employeeId}</span>
+                  <span className="block text-xs font-bold text-slate-800 leading-none">
+                    {currentTeacher.displayName}
+                  </span>
+                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
+                    {currentTeacher.employeeId}
+                  </span>
                 </div>
                 <ChevronDown className="h-3 w-3 text-slate-400 hidden sm:block" />
               </button>
@@ -967,22 +1205,20 @@ export default function App() {
                 <span className="hidden sm:inline">ออกจากระบบ</span>
               </button>
             </div>
-
           </div>
         </div>
       </header>
 
       {/* 2. Main Page Layout Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-1 space-y-6 print:m-0 print:p-0">
-        
         {/* Module Selector */}
         <div className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 overflow-x-auto print:hidden">
           <button
-            onClick={() => setActiveModule('home')}
+            onClick={() => setActiveModule("home")}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
-              activeModule === 'home'
-                ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              activeModule === "home"
+                ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <LayoutDashboard className="h-4.5 w-4.5" />
@@ -990,24 +1226,23 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => {}} // Disabled
-            disabled
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-6 py-2 rounded-xl text-sm font-bold transition-all min-w-[200px] bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed opacity-70"
-            title="ปิดปรับปรุงชั่วคราว"
-          >
-            <div className="flex items-center gap-2">
-              <Presentation className="h-4.5 w-4.5" />
-              <span>1. การจัดการผู้สอน (LessonTeach)</span>
-            </div>
-            <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">ปิดปรับปรุงชั่วคราว</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveModule('classroom')}
+            onClick={() => setActiveModule("teaching")}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
-              activeModule === 'classroom'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              activeModule === "teaching"
+                ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <Presentation className="h-4.5 w-4.5" />
+            <span>1. การจัดการผู้สอน (LessonTeach)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveModule("classroom")}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              activeModule === "classroom"
+                ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <Users className="h-4.5 w-4.5" />
@@ -1015,24 +1250,24 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActiveModule('analytics')}
+            onClick={() => setActiveModule("analytics")}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
-              activeModule === 'analytics'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              activeModule === "analytics"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <BarChart3 className="h-4.5 w-4.5" />
             <span>3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</span>
           </button>
-          
-          {currentTeacher.role === 'admin' && (
+
+          {currentTeacher.role === "admin" && (
             <button
-              onClick={() => setActiveModule('admin' as any)}
+              onClick={() => setActiveModule("admin" as any)}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
-                activeModule === 'admin' as any
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                activeModule === ("admin" as any)
+                  ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
               <ShieldCheck className="h-4.5 w-4.5" />
@@ -1051,10 +1286,12 @@ export default function App() {
               </span>
             </div>
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
-              <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ, {currentTeacher.displayName}
+              <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ,{" "}
+              {currentTeacher.displayName}
             </h2>
             <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">
-              ยินดีต้อนรับสู่ระบบบันทึกผลการสอน สังกัดของคุณครูคือ <b className="text-sky-700">{currentTeacher.affiliation}</b>
+              ยินดีต้อนรับสู่ระบบบันทึกผลการสอน สังกัดของคุณครูคือ{" "}
+              <b className="text-sky-700">{currentTeacher.affiliation}</b>
             </p>
           </div>
 
@@ -1088,12 +1325,12 @@ export default function App() {
               className="flex-1 md:flex-none md:hidden flex items-center justify-center gap-1 bg-gradient-to-r from-sky-500 to-pink-500 text-white px-3 py-2 text-xs font-bold rounded-xl active:scale-95 transition"
             >
               <PlusCircle className="h-3.5 w-3.5" />
-              <span>{showFormOnMobile ? 'ปิดฟอร์ม' : 'เขียนบันทึกใหม่'}</span>
+              <span>{showFormOnMobile ? "ปิดฟอร์ม" : "เขียนบันทึกใหม่"}</span>
             </button>
           </div>
         </div>
 
-        {activeModule === 'home' ? (
+        {activeModule === "home" ? (
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Hero Banner */}
             <div className="bg-white rounded-2xl border border-violet-100 p-8 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
@@ -1101,10 +1338,15 @@ export default function App() {
               <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
                 <LayoutDashboard className="h-8 w-8" />
               </div>
-              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">ภาพรวมระบบ LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</h2>
-              <p className="text-slate-500 text-sm max-w-lg mx-auto">ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน ข้อมูลสรุปสถิติภาพรวมทั้งหมด</p>
+              <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">
+                ภาพรวมระบบ LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
+              </h2>
+              <p className="text-slate-500 text-sm max-w-lg mx-auto">
+                ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน
+                ข้อมูลสรุปสถิติภาพรวมทั้งหมด
+              </p>
             </div>
-            
+
             {/* Quick Stats Cards (Mockup) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -1112,25 +1354,38 @@ export default function App() {
                   <Presentation className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">แผนการสอนทั้งหมด</div>
-                  <div className="text-2xl font-black text-slate-800">{plans.length || 0}</div>
+                  <div className="text-sm font-bold text-slate-500">
+                    แผนการสอนทั้งหมด
+                  </div>
+                  <div className="text-2xl font-black text-slate-800">
+                    {plans.length || 0}
+                  </div>
                 </div>
               </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+              <button
+                onClick={() => setShowStudentStatsModal(true)}
+                className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md hover:border-pink-200 transition-all text-left text-inherit cursor-pointer"
+              >
                 <div className="h-12 w-12 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
                   <Users className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">นักเรียนทั้งหมด (จำลอง)</div>
-                  <div className="text-2xl font-black text-slate-800">1,250</div>
+                  <div className="text-sm font-bold text-slate-500">
+                    นักเรียนทั้งหมด
+                  </div>
+                  <div className="text-2xl font-black text-slate-800">
+                    {studentsCount.toLocaleString()}
+                  </div>
                 </div>
-              </div>
+              </button>
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
                 <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
                   <CheckCircle className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">สถิติเข้าเรียนวันนี้</div>
+                  <div className="text-sm font-bold text-slate-500">
+                    สถิติเข้าเรียนวันนี้
+                  </div>
                   <div className="text-2xl font-black text-slate-800">95%</div>
                 </div>
               </div>
@@ -1139,54 +1394,75 @@ export default function App() {
                   <School className="h-6 w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">ครูผู้สอน (ระบบ)</div>
-                  <div className="text-2xl font-black text-slate-800">{teachers.length || 0}</div>
+                  <div className="text-sm font-bold text-slate-500">
+                    ครูผู้สอน (ระบบ)
+                  </div>
+                  <div className="text-2xl font-black text-slate-800">
+                    {teachers.length || 0}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Quick Actions / Modules Navigation */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <button 
-                onClick={() => {}} 
-                disabled
-                className="bg-slate-50 p-8 rounded-2xl border border-slate-200 text-left flex flex-col items-center text-center group cursor-not-allowed opacity-70"
-                title="ปิดปรับปรุงชั่วคราว"
+              <button
+                onClick={() => setActiveModule("teaching")}
+                className="bg-white p-8 rounded-2xl border border-violet-100 shadow-sm hover:shadow-md hover:border-violet-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
               >
-                <div className="h-16 w-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-4">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-violet-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="h-16 w-16 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Presentation className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-500 mb-2">1. การจัดการผู้สอน (LessonTeach)</h3>
-                <p className="text-sm text-slate-400">บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน</p>
-                <div className="mt-4 px-3 py-1 bg-slate-200 text-slate-500 text-xs font-bold rounded-full">ปิดปรับปรุงชั่วคราว</div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">
+                  1. การจัดการผู้สอน (LessonTeach)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
+                </p>
+                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
+                  <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
+                </div>
               </button>
-              
-              <button 
-                onClick={() => setActiveModule('classroom')} 
+
+              <button
+                onClick={() => setActiveModule("classroom")}
                 className="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm hover:shadow-md hover:border-pink-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group"
               >
                 <div className="h-16 w-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">2. การจัดการชั้นเรียน (LessonClass)</h3>
-                <p className="text-sm text-slate-500">จัดการข้อมูลนักเรียน เช็คชื่อ และบันทึกพฤติกรรม</p>
-                <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">เปิดใช้งาน</div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">
+                  2. การจัดการชั้นเรียน (LessonClass)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  จัดการข้อมูลนักเรียน เช็คชื่อ และบันทึกพฤติกรรม
+                </p>
+                <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">
+                  เปิดใช้งาน
+                </div>
               </button>
 
-              <button 
-                onClick={() => setActiveModule('analytics')} 
+              <button
+                onClick={() => setActiveModule("analytics")}
                 className="bg-white p-8 rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md hover:border-emerald-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
                 <div className="h-16 w-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <BarChart3 className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</h3>
-                <p className="text-sm text-slate-500">รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน</p>
-                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1"><Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน</div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">
+                  3. การวัดและประเมินผลผู้เรียน (LessonAchieve)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน
+                </p>
+                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
+                  <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
+                </div>
               </button>
             </div>
-            
+
             {/* Recent Activity Mockup */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <h3 className="text-base font-black text-slate-800 mb-6 flex items-center gap-2">
@@ -1195,44 +1471,226 @@ export default function App() {
               </h3>
               <div className="space-y-4">
                 {[
-                  { name: "คุณครูสมหญิง ใจดี", action: "บันทึกหลังสอน", subject: "วิชาภาษาไทย ม.2", time: "10 นาทีที่แล้ว", color: "bg-pink-400" },
-                  { name: "คุณครูสมชาย รักเรียน", action: "เช็คชื่อเข้าเรียน", subject: "วิชาคณิตศาสตร์ ม.1", time: "35 นาทีที่แล้ว", color: "bg-sky-400" },
-                  { name: "คุณครูวิภาดา ตั้งใจ", action: "เพิ่มแผนการสอนใหม่", subject: "วิชาวิทยาศาสตร์ ม.3", time: "1 ชั่วโมงที่แล้ว", color: "bg-emerald-400" }
+                  {
+                    name: "คุณครูสมหญิง ใจดี",
+                    action: "บันทึกหลังสอน",
+                    subject: "วิชาภาษาไทย ม.2",
+                    time: "10 นาทีที่แล้ว",
+                    color: "bg-pink-400",
+                  },
+                  {
+                    name: "คุณครูสมชาย รักเรียน",
+                    action: "เช็คชื่อเข้าเรียน",
+                    subject: "วิชาคณิตศาสตร์ ม.1",
+                    time: "35 นาทีที่แล้ว",
+                    color: "bg-sky-400",
+                  },
+                  {
+                    name: "คุณครูวิภาดา ตั้งใจ",
+                    action: "เพิ่มแผนการสอนใหม่",
+                    subject: "วิชาวิทยาศาสตร์ ม.3",
+                    time: "1 ชั่วโมงที่แล้ว",
+                    color: "bg-emerald-400",
+                  },
                 ].map((item, i) => (
-                  <div key={i} className="flex gap-4 items-start pb-4 border-b border-slate-50 last:border-0 last:pb-0">
-                    <div className={`h-2.5 w-2.5 rounded-full ${item.color} mt-1.5 shadow-sm`}></div>
+                  <div
+                    key={i}
+                    className="flex gap-4 items-start pb-4 border-b border-slate-50 last:border-0 last:pb-0"
+                  >
+                    <div
+                      className={`h-2.5 w-2.5 rounded-full ${item.color} mt-1.5 shadow-sm`}
+                    ></div>
                     <div>
                       <div className="text-sm font-bold text-slate-700">
-                        {item.name} <span className="font-normal text-slate-500">ได้ทำการ</span> {item.action}
+                        {item.name}{" "}
+                        <span className="font-normal text-slate-500">
+                          ได้ทำการ
+                        </span>{" "}
+                        {item.action}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">{item.subject} • {item.time}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {item.subject} • {item.time}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        ) : activeModule === 'teaching' ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4 animate-in fade-in duration-300">
-            <div className="h-24 w-24 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mb-2">
-              <Presentation className="h-12 w-12" />
+        ) : activeModule === "teaching" ? (
+          <div className="space-y-6 animate-in fade-in duration-300 relative">
+            {/* Maintenance Overlay */}
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+              <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                  <Wrench className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800">
+                  ปิดปรับปรุงชั่วคราว
+                </h3>
+                <p className="text-slate-500 mt-2 text-sm font-medium">
+                  โมดูลการจัดการผู้สอนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ
+                  ขออภัยในความไม่สะดวก
+                </p>
+                <button
+                  onClick={() => setActiveModule("home")}
+                  className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                >
+                  กลับสู่หน้าหลัก
+                </button>
+              </div>
             </div>
-            <h2 className="text-2xl font-black text-slate-700">1. การจัดการผู้สอน (LessonTeach)</h2>
-            <p className="text-slate-500 max-w-md">
-              โมดูลนี้กำลังอยู่ระหว่างการปิดปรับปรุงชั่วคราวเพื่อพัฒนาระบบ ขออภัยในความไม่สะดวก
-            </p>
-            <button 
-              onClick={() => setActiveModule('home')}
-              className="mt-4 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-            >
-              กลับสู่หน้าหลัก
-            </button>
+
+            <div className="opacity-40 pointer-events-none space-y-6">
+              {/* Header and Tabs */}
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
+                <div className="flex bg-slate-100 p-1 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar">
+                  <button
+                    onClick={() => setActiveTab("form")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "form"
+                        ? "bg-white text-slate-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <PenLine className="h-4 w-4" />
+                    บันทึกหลังสอน
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("dashboard")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "dashboard"
+                        ? "bg-white text-slate-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                    หน้ารายการสอน
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("plan-form")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "plan-form"
+                        ? "bg-white text-slate-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <FileText className="h-4 w-4" />
+                    สร้างแผนการสอน
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("plan-list")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "plan-list"
+                        ? "bg-white text-slate-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <History className="h-4 w-4" />
+                    คลังแผนการสอน
+                  </button>
+                </div>
+              </div>
+
+              {/* Content area */}
+              {activeTab === "form" && (
+                <LessonLogForm
+                  currentTeacher={currentTeacher}
+                  onSave={handleSaveRecord}
+                  initialData={editingRecord || undefined}
+                  onCancelEdit={
+                    editingRecord ? () => setEditingRecord(null) : undefined
+                  }
+                />
+              )}
+
+              {activeTab === "dashboard" && (
+                <LessonLogList
+                  records={records}
+                  teachers={teachers}
+                  showTeacherFilter={
+                    currentTeacher.role === "admin" ||
+                    currentTeacher.role === "academic" ||
+                    currentTeacher.role === "deputy"
+                  }
+                  currentUserRole={currentTeacher.role}
+                  currentTeacherId={currentTeacher.id}
+                  onEdit={(r) => {
+                    setEditingRecord(r);
+                    setActiveTab("form");
+                  }}
+                  onDelete={handleDeleteRecord}
+                  onPrintPreview={(r) => setActivePrintPreview(r)}
+                />
+              )}
+
+              {activeTab === "plan-form" && (
+                <LessonPlanForm
+                  currentTeacher={currentTeacher}
+                  onSave={handleSavePlan}
+                  initialData={editingPlan || undefined}
+                  onCancelEdit={
+                    editingPlan ? () => setEditingPlan(null) : undefined
+                  }
+                />
+              )}
+
+              {activeTab === "plan-list" && (
+                <LessonPlanList
+                  plans={plans}
+                  teachers={teachers}
+                  showTeacherFilter={
+                    currentTeacher.role === "admin" ||
+                    currentTeacher.role === "academic" ||
+                    currentTeacher.role === "deputy"
+                  }
+                  currentUserRole={currentTeacher.role}
+                  currentTeacherId={currentTeacher.id}
+                  onEdit={(p) => {
+                    setEditingPlan(p);
+                    setActiveTab("plan-form");
+                  }}
+                  onDelete={handleDeletePlan}
+                  onPrintPreview={(p) => setActivePlanPrintPreview(p)}
+                />
+              )}
+            </div>
           </div>
-        ) : activeModule === 'classroom' ? (
-          <ClassroomModule currentTeacher={currentTeacher} systemAcademicYear={systemAcademicYear} systemSemester={systemSemester} />
-        ) : activeModule === 'analytics' ? (
-          <EvaluationModule />
-        ) : activeModule === 'admin' ? (
+        ) : activeModule === "classroom" ? (
+          <ClassroomModule
+            currentTeacher={currentTeacher}
+            systemAcademicYear={systemAcademicYear}
+            systemSemester={systemSemester}
+          />
+        ) : activeModule === "analytics" ? (
+          <div className="space-y-6 animate-in fade-in duration-300 relative">
+            {/* Maintenance Overlay */}
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+              <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                  <Wrench className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800">
+                  ปิดปรับปรุงชั่วคราว
+                </h3>
+                <p className="text-slate-500 mt-2 text-sm font-medium">
+                  โมดูลการวัดและประเมินผลผู้เรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ
+                  ขออภัยในความไม่สะดวก
+                </p>
+                <button
+                  onClick={() => setActiveModule("home")}
+                  className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                >
+                  กลับสู่หน้าหลัก
+                </button>
+              </div>
+            </div>
+
+            <div className="opacity-40 pointer-events-none space-y-6">
+              <EvaluationModule />
+            </div>
+          </div>
+        ) : activeModule === "admin" ? (
           <UserManagementModule
             teachers={teachers}
             records={records}
@@ -1240,25 +1698,36 @@ export default function App() {
             onDeleteTeacher={handleDeleteTeacher}
           />
         ) : null}
-
       </main>
 
       {/* 3. Footer branding */}
       <footer className="mt-16 py-8 border-t border-slate-100 bg-white print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
-          <p className="text-xs font-semibold text-slate-400">LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</p>
-          <p className="text-[10px] text-slate-400 font-medium">ออกรายงานสรุปและบันทึกผลเพื่อใช้ประกอบการสอนอย่างง่ายดาย</p>
+          <p className="text-xs font-semibold text-slate-400">
+            LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
+          </p>
+          <p className="text-[10px] text-slate-400 font-medium">
+            ออกรายงานสรุปและบันทึกผลเพื่อใช้ประกอบการสอนอย่างง่ายดาย
+          </p>
         </div>
       </footer>
 
       {/* 4. Overlay Modals: */}
 
-       {/* 4.1. Print/PDF Template Viewer Overlay Modal */}
+      {/* 4.1. Print/PDF Template Viewer Overlay Modal */}
       {activePrintPreview && (
-        <PrintTemplate 
+        <PrintTemplate
           record={activePrintPreview}
-          teacher={teachers.find(t => t.id === activePrintPreview.teacherId) || (currentTeacher?.role === 'teacher' ? currentTeacher : DEFAULT_TEACHER)}
-          academicHead={teachers.find(t => t.role !== 'teacher') || (currentTeacher?.role !== 'teacher' ? currentTeacher : null)}
+          teacher={
+            teachers.find((t) => t.id === activePrintPreview.teacherId) ||
+            (currentTeacher?.role === "teacher"
+              ? currentTeacher
+              : DEFAULT_TEACHER)
+          }
+          academicHead={
+            teachers.find((t) => t.role !== "teacher") ||
+            (currentTeacher?.role !== "teacher" ? currentTeacher : null)
+          }
           currentUser={currentTeacher}
           customLogo={customLogo}
           allowAcademicSignature={true}
@@ -1269,25 +1738,27 @@ export default function App() {
               let lastEditedAt = updated.lastEditedAt;
 
               const roleMap: any = {
-                teacher: 'คุณครูผู้สอน',
-                academic: 'หัวหน้าฝ่ายวิชาการ',
-                deputy: 'รองผู้อำนวยการ',
-                admin: 'ผู้ดูแลระบบ'
+                teacher: "คุณครูผู้สอน",
+                academic: "หัวหน้าฝ่ายวิชาการ",
+                deputy: "รองผู้อำนวยการ",
+                admin: "ผู้ดูแลระบบ",
               };
-              const currentRoleStr = currentTeacher ? (roleMap[currentTeacher.role || ''] || 'ผู้ใช้งาน') : 'ผู้ใช้งาน';
-              const editorNameStr = currentTeacher 
-                ? `${currentTeacher.thaiName || currentTeacher.displayName} (${currentRoleStr})` 
-                : 'ผู้ใช้งานระบบ';
-              
+              const currentRoleStr = currentTeacher
+                ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
+                : "ผู้ใช้งาน";
+              const editorNameStr = currentTeacher
+                ? `${currentTeacher.thaiName || currentTeacher.displayName} (${currentRoleStr})`
+                : "ผู้ใช้งานระบบ";
+
               lastEditedBy = editorNameStr;
               lastEditedAt = new Date().toISOString();
-              
+
               updatedHistory = [
                 ...updatedHistory,
                 {
                   editedBy: editorNameStr,
-                  editedAt: lastEditedAt
-                }
+                  editedAt: lastEditedAt,
+                },
               ];
 
               const dbPayload = {
@@ -1295,17 +1766,24 @@ export default function App() {
                 lastEditedBy,
                 lastEditedAt,
                 editHistory: updatedHistory,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
               };
 
               const cleanDbPayload = Object.fromEntries(
-                Object.entries(dbPayload).filter(([_, v]) => v !== undefined)
+                Object.entries(dbPayload).filter(([_, v]) => v !== undefined),
               );
 
-              await setDoc(doc(db, 'records', updated.id), cleanDbPayload as any);
+              await setDoc(
+                doc(db, "records", updated.id),
+                cleanDbPayload as any,
+              );
               setActivePrintPreview(cleanDbPayload as any);
             } catch (err) {
-              handleFirestoreError(err, OperationType.UPDATE, `records/${updated.id}`);
+              handleFirestoreError(
+                err,
+                OperationType.UPDATE,
+                `records/${updated.id}`,
+              );
             }
           }}
           onClose={() => setActivePrintPreview(null)}
@@ -1316,8 +1794,16 @@ export default function App() {
       {activePlanPrintPreview && (
         <LessonPlanPrintTemplate
           plan={activePlanPrintPreview}
-          teacher={teachers.find(t => t.id === activePlanPrintPreview.teacherId) || (currentTeacher?.role === 'teacher' ? currentTeacher : DEFAULT_TEACHER)}
-          academicHead={teachers.find(t => t.role !== 'teacher') || (currentTeacher?.role !== 'teacher' ? currentTeacher : null)}
+          teacher={
+            teachers.find((t) => t.id === activePlanPrintPreview.teacherId) ||
+            (currentTeacher?.role === "teacher"
+              ? currentTeacher
+              : DEFAULT_TEACHER)
+          }
+          academicHead={
+            teachers.find((t) => t.role !== "teacher") ||
+            (currentTeacher?.role !== "teacher" ? currentTeacher : null)
+          }
           currentUser={currentTeacher}
           onUpdatePlan={(updated: any) => {
             handleSavePlan(updated);
@@ -1331,16 +1817,18 @@ export default function App() {
       {showProfileModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
-            
             <div className="bg-gradient-to-r from-indigo-700 to-blue-700 p-5 text-white flex justify-between items-center">
               <div>
                 <h3 className="font-bold text-sm tracking-tight flex items-center gap-1.5">
                   <User className="h-4 w-4" />
                   ตั้งค่าข้อมูลของคุณครู
                 </h3>
-                <p className="text-[10px] text-indigo-100 mt-0.5">ข้อมูลจริงที่ใช้สำหรับแสดงในใบประเมินและไฟล์รายงาน PDF อัตโนมัติ</p>
+                <p className="text-[10px] text-indigo-100 mt-0.5">
+                  ข้อมูลจริงที่ใช้สำหรับแสดงในใบประเมินและไฟล์รายงาน PDF
+                  อัตโนมัติ
+                </p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowProfileModal(false)}
                 className="p-1 px-2.5 hover:bg-white/10 rounded-lg text-xs"
               >
@@ -1429,7 +1917,7 @@ export default function App() {
                 </div>
               </div>
 
-              {currentTeacher?.role === 'teacher' && (
+              {currentTeacher?.role === "teacher" && (
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
                     <School className="h-3.5 w-3.5 text-slate-400" />
@@ -1441,9 +1929,13 @@ export default function App() {
                     onChange={(e) => setPAffiliation(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white cursor-pointer"
                   >
-                    <option value="" disabled>-- เลือกกลุ่มสาระการเรียนรู้ --</option>
+                    <option value="" disabled>
+                      -- เลือกกลุ่มสาระการเรียนรู้ --
+                    </option>
                     {SUBJECTS.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -1456,28 +1948,40 @@ export default function App() {
                   ปรับแต่งตราสัญลักษณ์โรงเรียน (School Logo)
                 </span>
                 <p className="text-[10px] text-slate-500 leading-normal">
-                  กำหนดภาพตราสัญลักษณ์ที่จะใช้สำหรับใบรายงาน PDF และแท็บด้านบนของครู สามารถกดจับภาพจากกล้องถ่ายรูปได้โดยตรง หรืออัปโหลดไฟล์
+                  กำหนดภาพตราสัญลักษณ์ที่จะใช้สำหรับใบรายงาน PDF
+                  และแท็บด้านบนของครู สามารถกดจับภาพจากกล้องถ่ายรูปได้โดยตรง
+                  หรืออัปโหลดไฟล์
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
                   <div className="h-16 w-16 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-150 overflow-hidden relative group shrink-0 shadow-inner">
                     {customLogo ? (
                       <>
-                        <img src={customLogo} alt="Custom school logo" className="h-full w-full object-contain p-1" />
-                        <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">ตรากำหนดเอง</span>
+                        <img
+                          src={customLogo}
+                          alt="Custom school logo"
+                          className="h-full w-full object-contain p-1"
+                        />
+                        <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">
+                          ตรากำหนดเอง
+                        </span>
                       </>
                     ) : (
                       <>
                         <SchoolLogo className="h-12 w-12" />
-                        <span className="absolute bottom-0 inset-x-0 bg-pink-600/90 text-white text-[8px] text-center font-black py-0.5 pointer-events-none scale-90">ตราเริ่มต้น</span>
+                        <span className="absolute bottom-0 inset-x-0 bg-pink-600/90 text-white text-[8px] text-center font-black py-0.5 pointer-events-none scale-90">
+                          ตราเริ่มต้น
+                        </span>
                       </>
                     )}
                   </div>
 
                   <div className="space-y-1.5 flex-1 w-full text-left">
-                    {currentTeacher?.role === 'admin' ? (
+                    {currentTeacher?.role === "admin" ? (
                       <>
-                        <span className="text-[10px] font-bold text-slate-500 block">ตัวเลือกปรับเปลี่ยนตราสัญลักษณ์:</span>
+                        <span className="text-[10px] font-bold text-slate-500 block">
+                          ตัวเลือกปรับเปลี่ยนตราสัญลักษณ์:
+                        </span>
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -1487,7 +1991,7 @@ export default function App() {
                             <Camera className="h-3 w-3" />
                             จับภาพจากกล้อง
                           </button>
-                          
+
                           <label className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer transition">
                             <Upload className="h-3 w-3" />
                             อัปโหลดรูปภาพ
@@ -1513,7 +2017,12 @@ export default function App() {
                       </>
                     ) : (
                       <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
-                        ⚠️ <strong>เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น</strong> ที่มีสิทธิ์แก้ไขสัญลักษณ์/ตราสัญลักษณ์โรงเรียนได้ (ของบัญชีคุณครูและฝ่ายวิชาการจะเป็นสถานะอ่านอย่างเดียว)
+                        ⚠️{" "}
+                        <strong>
+                          เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น
+                        </strong>{" "}
+                        ที่มีสิทธิ์แก้ไขสัญลักษณ์/ตราสัญลักษณ์โรงเรียนได้
+                        (ของบัญชีคุณครูและฝ่ายวิชาการจะเป็นสถานะอ่านอย่างเดียว)
                       </div>
                     )}
                   </div>
@@ -1527,12 +2036,13 @@ export default function App() {
                   กำหนดภาคเรียนและปีการศึกษาปัจจุบัน (Academic Year)
                 </span>
                 <p className="text-[10px] text-slate-500 leading-normal">
-                  กำหนดภาคเรียนและปีการศึกษาสำหรับระบบ ซึ่งจะถูกนำไปใช้เป็นค่าเริ่มต้นในเอกสารรายงาน และแบบฟอร์มต่างๆ
+                  กำหนดภาคเรียนและปีการศึกษาสำหรับระบบ
+                  ซึ่งจะถูกนำไปใช้เป็นค่าเริ่มต้นในเอกสารรายงาน และแบบฟอร์มต่างๆ
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
                   <div className="space-y-1.5 flex-1 w-full text-left">
-                    {currentTeacher?.role === 'admin' ? (
+                    {currentTeacher?.role === "admin" ? (
                       <div className="flex gap-2">
                         <select
                           value={systemSemester}
@@ -1545,12 +2055,19 @@ export default function App() {
                         <input
                           type="text"
                           value={systemAcademicYear}
-                          onChange={(e) => setSystemAcademicYear(e.target.value)}
+                          onChange={(e) =>
+                            setSystemAcademicYear(e.target.value)
+                          }
                           className="px-3 py-2 text-sm font-bold text-center rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-24"
                         />
                         <button
                           type="button"
-                          onClick={() => handleUpdateAcademicYear(systemAcademicYear, systemSemester)}
+                          onClick={() =>
+                            handleUpdateAcademicYear(
+                              systemAcademicYear,
+                              systemSemester,
+                            )
+                          }
                           className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition"
                         >
                           บันทึกข้อมูล
@@ -1558,8 +2075,15 @@ export default function App() {
                       </div>
                     ) : (
                       <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
-                        ⚠️ <strong>เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น</strong> ที่มีสิทธิ์แก้ไขภาคเรียนและปีการศึกษา
-                        <div className="mt-1 font-bold text-slate-700">ปีการศึกษาปัจจุบัน: ภาคเรียนที่ {systemSemester}/{systemAcademicYear}</div>
+                        ⚠️{" "}
+                        <strong>
+                          เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น
+                        </strong>{" "}
+                        ที่มีสิทธิ์แก้ไขภาคเรียนและปีการศึกษา
+                        <div className="mt-1 font-bold text-slate-700">
+                          ปีการศึกษาปัจจุบัน: ภาคเรียนที่ {systemSemester}/
+                          {systemAcademicYear}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1581,7 +2105,6 @@ export default function App() {
                   บันทึกข้อมูล
                 </button>
               </div>
-
             </form>
           </div>
         </div>
@@ -1591,14 +2114,14 @@ export default function App() {
       {isCameraActive && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col justify-center items-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl p-6 text-center space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            
             <div className="space-y-1">
               <h3 className="font-extrabold text-sm text-white flex items-center justify-center gap-2">
                 <Camera className="h-4.5 w-4.5 text-indigo-400 animate-pulse" />
                 ถ่ายภาพโลโก้ / ตราสัญลักษณ์สด
               </h3>
               <p className="text-[10px] text-slate-400 text-center leading-normal">
-                เพื่อความกึ่งกลางและภาพออกมาสวยงาม โปรดปรับตราสัญลักษณ์ให้อยู่ในกรอบเป้าเล็ง
+                เพื่อความกึ่งกลางและภาพออกมาสวยงาม
+                โปรดปรับตราสัญลักษณ์ให้อยู่ในกรอบเป้าเล็ง
               </p>
             </div>
 
@@ -1606,7 +2129,7 @@ export default function App() {
             <div className="relative aspect-square w-full max-w-[240px] mx-auto bg-black rounded-2xl overflow-hidden border border-slate-700/80">
               {/* Scanning laser line animation */}
               <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-indigo-405 to-transparent top-0 animate-[scan_2.5s_ease-in-out_infinite] z-20 shadow-[0_0_8px_rgba(99,102,241,1)]" />
-              
+
               <video
                 ref={videoRef}
                 autoPlay
@@ -1619,11 +2142,13 @@ export default function App() {
               <div className="absolute inset-4 border-2 border-dashed border-indigo-400/40 rounded-full pointer-events-none flex items-center justify-center">
                 <div className="w-10 h-10 border border-dashed border-indigo-400/60 rounded-full" />
               </div>
-              
+
               {cameraError && (
                 <div className="absolute inset-0 bg-slate-950/90 flex flex-col justify-center items-center p-4 space-y-3">
                   <ShieldAlert className="h-8 w-8 text-rose-500 animate-[bounce_1s_infinite]" />
-                  <p className="text-[10px] text-rose-400 font-bold text-center leading-normal">{cameraError}</p>
+                  <p className="text-[10px] text-rose-400 font-bold text-center leading-normal">
+                    {cameraError}
+                  </p>
                 </div>
               )}
             </div>
@@ -1637,7 +2162,7 @@ export default function App() {
               >
                 ยกเลิก
               </button>
-              
+
               <button
                 type="button"
                 disabled={!!cameraError}
@@ -1648,36 +2173,38 @@ export default function App() {
                 ถ่ายคู่รูปตรา
               </button>
             </div>
-
           </div>
         </div>
       )}
 
       {/* Toast Notification Container */}
-      <div id="toast-container" className="fixed bottom-5 right-5 z-55 flex flex-col gap-3 pointer-events-none max-w-sm w-full font-sans print:hidden">
+      <div
+        id="toast-container"
+        className="fixed bottom-5 right-5 z-55 flex flex-col gap-3 pointer-events-none max-w-sm w-full font-sans print:hidden"
+      >
         <AnimatePresence>
           {toasts.map((toast) => {
             const colors = {
               success: {
-                bg: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-                iconBg: 'bg-emerald-500 text-white',
-                progressBg: 'bg-emerald-500'
+                bg: "bg-emerald-50 border-emerald-200 text-emerald-800",
+                iconBg: "bg-emerald-500 text-white",
+                progressBg: "bg-emerald-500",
               },
               info: {
-                bg: 'bg-sky-50 border-sky-200 text-sky-800',
-                iconBg: 'bg-sky-500 text-white',
-                progressBg: 'bg-sky-500'
+                bg: "bg-sky-50 border-sky-200 text-sky-800",
+                iconBg: "bg-sky-500 text-white",
+                progressBg: "bg-sky-500",
               },
               warning: {
-                bg: 'bg-amber-50 border-amber-200 text-amber-800',
-                iconBg: 'bg-amber-500 text-white',
-                progressBg: 'bg-amber-500'
+                bg: "bg-amber-50 border-amber-200 text-amber-800",
+                iconBg: "bg-amber-500 text-white",
+                progressBg: "bg-amber-500",
               },
               error: {
-                bg: 'bg-rose-50 border-rose-200 text-rose-800',
-                iconBg: 'bg-rose-500 text-white',
-                progressBg: 'bg-rose-500'
-              }
+                bg: "bg-rose-50 border-rose-200 text-rose-800",
+                iconBg: "bg-rose-500 text-white",
+                progressBg: "bg-rose-500",
+              },
             }[toast.type];
 
             return (
@@ -1685,16 +2212,26 @@ export default function App() {
                 key={toast.id}
                 initial={{ opacity: 0, y: 30, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.85,
+                  transition: { duration: 0.15 },
+                }}
                 layout
                 className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl border shadow-lg backdrop-blur-md ${colors.bg} relative overflow-hidden`}
               >
-                <div className={`p-2 rounded-xl shrink-0 ${colors.iconBg} flex items-center justify-center`}>
+                <div
+                  className={`p-2 rounded-xl shrink-0 ${colors.iconBg} flex items-center justify-center`}
+                >
                   <Bell className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0 pr-4">
-                  <h4 className="text-xs font-black tracking-tight">{toast.title}</h4>
-                  <p className="text-[11px] font-semibold mt-0.5 leading-normal opacity-90">{toast.message}</p>
+                  <h4 className="text-xs font-black tracking-tight">
+                    {toast.title}
+                  </h4>
+                  <p className="text-[11px] font-semibold mt-0.5 leading-normal opacity-90">
+                    {toast.message}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -1705,9 +2242,9 @@ export default function App() {
                 </button>
                 {/* Auto expire progress bar anim */}
                 <motion.div
-                  initial={{ width: '100%' }}
+                  initial={{ width: "100%" }}
                   animate={{ width: 0 }}
-                  transition={{ duration: 5, ease: 'linear' }}
+                  transition={{ duration: 5, ease: "linear" }}
                   className={`absolute bottom-0 left-0 h-1 ${colors.progressBg}`}
                 />
               </motion.div>
@@ -1727,7 +2264,9 @@ export default function App() {
               ยืนยันการลบบัญชีผู้ใช้
             </h3>
             <p className="text-slate-500 text-sm mb-6">
-              คุณต้องการลบบัญชีผู้ใช้งานนี้ใช่หรือไม่?<br/>ข้อมูลที่เกี่ยวข้องจะถูกลบอย่างถาวร
+              คุณต้องการลบบัญชีผู้ใช้งานนี้ใช่หรือไม่?
+              <br />
+              ข้อมูลที่เกี่ยวข้องจะถูกลบอย่างถาวร
             </p>
             <div className="flex gap-3">
               <button
@@ -1747,6 +2286,12 @@ export default function App() {
         </div>
       )}
 
+      {/* Student Stats Modal */}
+      <StudentStatsModal
+        isOpen={showStudentStatsModal}
+        onClose={() => setShowStudentStatsModal(false)}
+        students={students}
+      />
     </div>
   );
 }

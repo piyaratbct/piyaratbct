@@ -103,16 +103,19 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   useEffect(() => {
     // Fetch students from Firestore
-    const qStudents = query(
-      collection(db, "students"),
-      where("gradeLevel", "==", selectedGrade),
-    );
+    const qStudents = query(collection(db, "students"));
     const unsubscribeStudents = onSnapshot(
       qStudents,
       (snapshot) => {
-        const fetchedStudents = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-        })) as Student[];
+        const fetchedStudents = snapshot.docs
+          .map((doc) => {
+            const data = doc.data() as Student;
+            if (data.gradeLevel) {
+              data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+            }
+            return { id: doc.id, ...data };
+          })
+          .filter(student => student.gradeLevel === selectedGrade);
 
         // Sort by number
         fetchedStudents.sort((a, b) => a.number - b.number);
@@ -125,17 +128,19 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     );
 
     // Fetch assessments for the current grade level
-    const qAssessments = query(
-      collection(db, "assessments"),
-      where("gradeLevel", "==", selectedGrade),
-    );
+    const qAssessments = query(collection(db, "assessments"));
     const unsubscribeAssessments = onSnapshot(
       qAssessments,
       (snapshot) => {
         const fetchedAssessments: Record<string, StudentAssessment> = {};
         snapshot.docs.forEach((doc) => {
           const data = doc.data() as StudentAssessment;
-          fetchedAssessments[data.studentId] = data;
+          if (data.gradeLevel) {
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+          }
+          if (data.gradeLevel === selectedGrade) {
+            fetchedAssessments[data.studentId] = data;
+          }
         });
         setAssessments(fetchedAssessments);
       },
