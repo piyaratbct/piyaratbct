@@ -18,17 +18,17 @@ export const ParentFeedbackPrintTemplate: React.FC<
 
   const FeedbackForm = () => (
     <div
-      className={`flex flex-col flex-1 justify-center ${isCompact ? "py-2" : "py-4"}`}
+      className={`flex flex-col justify-center h-[125mm] ${isCompact ? "py-1" : "py-2"}`}
     >
       {/* Header */}
-      <div className="text-center mb-6 border-b border-slate-800 pb-4">
+      <div className="text-center mb-4 border-b border-slate-800 pb-3">
         <h2
-          className={`font-black text-slate-800 ${isCompact ? "text-lg mb-1" : "text-xl mb-2"}`}
+          className={`font-black text-slate-800 ${isCompact ? "text-base mb-1" : "text-lg mb-1"}`}
         >
           แบบตอบกลับจากผู้ปกครอง (ส่วนที่ 2)
         </h2>
         <h3
-          className={`font-bold text-slate-600 ${isCompact ? "text-sm" : "text-base"}`}
+          className={`font-bold text-slate-600 ${isCompact ? "text-xs" : "text-sm"}`}
         >
           รับทราบผลการประเมินพัฒนาการนักเรียน
         </h3>
@@ -36,9 +36,9 @@ export const ParentFeedbackPrintTemplate: React.FC<
 
       {/* Generic Student Info */}
       <div
-        className={`bg-slate-50 border border-slate-200 rounded-xl ${isCompact ? "p-3 mb-4" : "p-5 mb-6"}`}
+        className={`bg-slate-50 border border-slate-200 rounded-xl ${isCompact ? "p-2 mb-3" : "p-4 mb-4"}`}
       >
-        <div className="grid grid-cols-2 gap-y-6 gap-x-8">
+        <div className="grid grid-cols-2 gap-y-4 gap-x-8">
           <div className="flex items-end border-b border-dotted border-slate-400 pb-1">
             <span
               className={`text-slate-500 font-bold mr-2 whitespace-nowrap ${isCompact ? "text-xs" : "text-sm"}`}
@@ -72,11 +72,11 @@ export const ParentFeedbackPrintTemplate: React.FC<
 
       {/* Parent Feedback */}
       <div
-        className={`border border-slate-300 rounded-xl bg-slate-50/30 flex-1 ${isCompact ? "p-4" : "p-6"}`}
+        className={`border border-slate-300 rounded-xl bg-slate-50/30 flex-1 ${isCompact ? "p-3" : "p-4"}`}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-start gap-4">
-            <div className="w-4 h-4 mt-1 rounded-sm border-2 border-slate-400 bg-white"></div>
+            <div className="w-4 h-4 mt-0.5 rounded-sm border-2 border-slate-400 bg-white flex-shrink-0"></div>
             <span
               className={`text-slate-700 font-bold ${isCompact ? "text-xs" : "text-sm"}`}
             >
@@ -84,28 +84,28 @@ export const ParentFeedbackPrintTemplate: React.FC<
             </span>
           </div>
           <div className="flex items-start gap-4">
-            <div className="w-4 h-4 mt-1 rounded-sm border-2 border-slate-400 bg-white"></div>
+            <div className="w-4 h-4 mt-0.5 rounded-sm border-2 border-slate-400 bg-white flex-shrink-0"></div>
             <div
               className={`flex-1 text-slate-700 ${isCompact ? "text-xs" : "text-sm"}`}
             >
               <p className="mb-2 font-bold">
                 ความคิดเห็น / ข้อเสนอแนะเพิ่มเติม:
               </p>
-              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-2"></div>
-              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-4"></div>
-              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-4"></div>
+              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-1"></div>
+              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-3"></div>
+              <div className="border-b border-dotted border-slate-400 h-6 w-full mt-3"></div>
             </div>
           </div>
           <div
-            className={`flex justify-end pt-4 font-serif ${isCompact ? "mt-4" : "mt-8"}`}
+            className={`flex justify-end pt-2 font-serif ${isCompact ? "mt-2" : "mt-4"}`}
           >
-            <div className="text-center w-64">
+            <div className="text-center w-56">
               <div className="border-b border-dotted border-slate-400 h-6 w-full mb-2"></div>
               <p
                 className={`text-slate-600 ${isCompact ? "text-xs" : "text-sm"}`}
               >
                 ลงชื่อ
-                (......................................................................)
+                (...................................................................)
               </p>
               <p
                 className={`text-slate-500 mt-1 ${isCompact ? "text-[10px]" : "text-xs"}`}
@@ -132,7 +132,7 @@ export const ParentFeedbackPrintTemplate: React.FC<
       onToggleCompact={() => setIsCompact(!isCompact)}
     >
       <PrintPageContainer>
-        <div className="flex flex-col h-[267mm] justify-between">
+        <div className="flex flex-col h-[255mm] justify-between">
           <FeedbackForm />
 
           {/* Tear-off Line */}
