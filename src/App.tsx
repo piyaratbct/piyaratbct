@@ -1657,28 +1657,30 @@ export default function App() {
         ) : activeModule === "teaching" ? (
           <div className="space-y-6 animate-in fade-in duration-300 relative">
             {/* Maintenance Overlay */}
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
-              <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                  <Wrench className="h-8 w-8" />
+            {currentTeacher.role !== "admin" && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">
+                    โมดูลการจัดการผู้สอนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ
+                    ขออภัยในความไม่สะดวก
+                  </p>
+                  <button
+                    onClick={() => setActiveModule("home")}
+                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                  >
+                    กลับสู่หน้าหลัก
+                  </button>
                 </div>
-                <h3 className="text-lg font-black text-slate-800">
-                  ปิดปรับปรุงชั่วคราว
-                </h3>
-                <p className="text-slate-500 mt-2 text-sm font-medium">
-                  โมดูลการจัดการผู้สอนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ
-                  ขออภัยในความไม่สะดวก
-                </p>
-                <button
-                  onClick={() => setActiveModule("home")}
-                  className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                >
-                  กลับสู่หน้าหลัก
-                </button>
               </div>
-            </div>
+            )}
 
-            <div className="opacity-40 pointer-events-none space-y-6">
+            <div className={currentTeacher.role !== "admin" ? "opacity-40 pointer-events-none space-y-6" : "space-y-6"}>
               {/* Header and Tabs */}
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
                 <div className="flex bg-slate-100 p-1 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar">

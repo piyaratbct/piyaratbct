@@ -455,22 +455,6 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                   )}
                 </button>
               </div>
-
-              {/* Demo Login Buttons */}
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-xs text-center text-slate-500 mb-3">หรือเข้าสู่ระบบด้วยบัญชีสาธิตเพื่อทดสอบระบบ</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleUseDemoAccount()}
-                    disabled={isLoading}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg transition-colors border border-indigo-100 disabled:opacity-50"
-                  >
-                    <User className="h-3.5 w-3.5" /> บัญชีสาธิตสำหรับครูผู้สอน
-                  </button>
-                </div>
-              </div>
-
             </form>
           ) : (
             /* Register Form */
