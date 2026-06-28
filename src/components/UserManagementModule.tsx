@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, User } from 'lucide-react';
+import { ShieldCheck, User, Users, CheckCircle, X, Check } from 'lucide-react';
 import { Teacher, LessonRecord } from '../types';
 
 interface UserManagementModuleProps {
@@ -7,6 +7,7 @@ interface UserManagementModuleProps {
   records: LessonRecord[];
   currentTeacher: Teacher;
   onDeleteTeacher: (teacherId: string) => Promise<void>;
+  onUpdateTeacher?: (teacherId: string, updates: Partial<Teacher>) => Promise<void>;
 }
 
 export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
@@ -14,8 +15,12 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
   records,
   currentTeacher,
   onDeleteTeacher,
+  onUpdateTeacher
 }) => {
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
+  const [editHomeroomClass, setEditHomeroomClass] = useState('');
+  const [editCoHomeroomClass, setEditCoHomeroomClass] = useState('');
 
   if (currentTeacher.role !== 'admin') {
     return (
@@ -180,17 +185,89 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                       </div>
                     </div>
 
-                    {/* Stat indicators */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-center">
-                      <div className="p-2 bg-slate-50 rounded-xl leading-none">
-                        <span className="text-[8px] text-slate-400 font-black block uppercase">สารบัญสะสม</span>
-                        <span className="text-xs font-extrabold text-slate-850 mt-1 block">{teacherRecords.length} แผน</span>
-                      </div>
-                      <div className="p-2 bg-slate-50 rounded-xl leading-none">
-                        <span className="text-[8px] text-slate-400 font-black block uppercase">ลงนามแล้ว</span>
-                        <span className="text-xs font-extrabold text-emerald-600 mt-1 block">
-                          {teacherRecords.filter(r => r.teacherSigned).length} แผน
-                        </span>
+                    {/* Homeroom info & Stat indicators */}
+                    <div className="pt-2 border-t border-slate-100">
+                      {editingTeacherId === teacher.id ? (
+                        <div className="space-y-2 p-2 bg-slate-50 rounded-xl">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600">ครูประจำชั้น (เช่น ป.1/1)</label>
+                            <input 
+                              type="text" 
+                              value={editHomeroomClass} 
+                              onChange={e => setEditHomeroomClass(e.target.value)}
+                              className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                              placeholder="ไม่ระบุ"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-600">ครูคู่ชั้น (เช่น ป.1/1)</label>
+                            <input 
+                              type="text" 
+                              value={editCoHomeroomClass} 
+                              onChange={e => setEditCoHomeroomClass(e.target.value)}
+                              className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                              placeholder="ไม่ระบุ"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end mt-2">
+                            <button 
+                              onClick={() => setEditingTeacherId(null)}
+                              className="px-2 py-1 text-[10px] bg-slate-200 text-slate-600 rounded font-bold"
+                            >
+                              ยกเลิก
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (onUpdateTeacher) {
+                                  onUpdateTeacher(teacher.id, {
+                                    homeroomClass: editHomeroomClass.trim() || '',
+                                    coHomeroomClass: editCoHomeroomClass.trim() || ''
+                                  });
+                                }
+                                setEditingTeacherId(null);
+                              }}
+                              className="px-2 py-1 text-[10px] bg-violet-600 text-white rounded font-bold flex items-center gap-1"
+                            >
+                              <Check className="h-3 w-3" /> บันทึก
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between items-center bg-violet-50/50 p-2 rounded-xl mb-2 border border-violet-100/50">
+                          <div className="text-[10px]">
+                            {teacher.homeroomClass || teacher.coHomeroomClass ? (
+                              <>
+                                {teacher.homeroomClass && <div className="text-violet-700 font-bold"><Users className="h-3 w-3 inline mr-1"/>ประจำชั้น: {teacher.homeroomClass}</div>}
+                                {teacher.coHomeroomClass && <div className="text-violet-600 font-semibold"><Users className="h-3 w-3 inline mr-1"/>คู่ชั้น: {teacher.coHomeroomClass}</div>}
+                              </>
+                            ) : (
+                              <div className="text-slate-400 font-medium italic">ไม่มีข้อมูลประจำชั้น</div>
+                            )}
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setEditHomeroomClass(teacher.homeroomClass || '');
+                              setEditCoHomeroomClass(teacher.coHomeroomClass || '');
+                              setEditingTeacherId(teacher.id);
+                            }}
+                            className="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded text-slate-600 hover:bg-slate-50 shadow-xs font-semibold"
+                          >
+                            แก้ไขชั้น
+                          </button>
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-2 mt-2 text-center">
+                        <div className="p-2 bg-slate-50 rounded-xl leading-none">
+                          <span className="text-[8px] text-slate-400 font-black block uppercase">สารบัญสะสม</span>
+                          <span className="text-xs font-extrabold text-slate-850 mt-1 block">{teacherRecords.length} แผน</span>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-xl leading-none">
+                          <span className="text-[8px] text-slate-400 font-black block uppercase">ลงนามแล้ว</span>
+                          <span className="text-xs font-extrabold text-emerald-600 mt-1 block">
+                            {teacherRecords.filter(r => r.teacherSigned).length} แผน
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -13,6 +13,9 @@ import { EvaluationModule } from "./components/EvaluationModule";
 import { UserManagementModule } from "./components/UserManagementModule";
 import { PrintTemplate, SchoolLogo } from "./components/PrintTemplate";
 import { LessonPlanPrintTemplate } from "./components/LessonPlanPrintTemplate";
+import { AdminMonitoringDashboard } from "./components/AdminMonitoringDashboard";
+import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
+import { AcademicModule } from "./components/AcademicModule";
 import {
   BookOpen,
   LogOut,
@@ -64,6 +67,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
 } from "firebase/firestore";
@@ -159,7 +163,7 @@ export default function App() {
   const [studentsCount, setStudentsCount] = useState<number>(0);
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
-    "home" | "teaching" | "classroom" | "analytics" | "admin"
+    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin"
   >("home");
   const [activeTab, setActiveTab] = useState<
     "form" | "dashboard" | "plan-form" | "plan-list"
@@ -282,6 +286,19 @@ export default function App() {
       }
     };
     window.addEventListener("app-safe-alert", handleSafeAlert);
+
+    const handleCustomToast = (event: Event) => {
+      const customEv = event as CustomEvent<{ message: string; type?: 'info' | 'success' | 'warning' | 'error'; title?: string }>;
+      if (customEv.detail && customEv.detail.message) {
+        addToast(customEv.detail.message, customEv.detail.type || "info", customEv.detail.title);
+      }
+    };
+    window.addEventListener("app-custom-toast", handleCustomToast);
+
+    return () => {
+      window.removeEventListener("app-safe-alert", handleSafeAlert);
+      window.removeEventListener("app-custom-toast", handleCustomToast);
+    }
 
     // Real-time dynamic subscription to shared school config doc (e.g., customLogo, systemAcademicYear, systemSemester)
     let unsubConfig = () => {};
@@ -490,10 +507,8 @@ export default function App() {
         const fetchedPlans: LessonPlan[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data() as LessonPlan;
-          if (data.gradeLevels && Array.isArray(data.gradeLevels)) {
-            data.gradeLevels = data.gradeLevels.map(grade => 
-              grade.replace(/\s*\(ป\..*\)/g, '')
-            );
+          if (data.gradeLevel) {
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
           }
           fetchedPlans.push(data);
         });
@@ -1023,6 +1038,30 @@ export default function App() {
     setTeacherToDelete(teacherId);
   };
 
+  const handleUpdateTeacher = async (teacherId: string, updates: Partial<Teacher>) => {
+    if (!currentTeacher) return;
+    if (currentTeacher.role !== "admin") {
+      alert("🔒 เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถแก้ไขบัญชีผู้ใช้ได้");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "teachers", teacherId), updates as any);
+      window.dispatchEvent(
+        new CustomEvent("app-custom-toast", {
+          detail: {
+            message: "อัปเดตข้อมูลผู้ใช้เรียบร้อยแล้ว",
+            type: "success",
+            title: "บันทึกสำเร็จ",
+          },
+        }),
+      );
+    } catch (err: any) {
+      console.error("Error updating teacher:", err);
+      alert(`อัปเดตข้อมูลผู้ใช้ไม่สำเร็จ: ${err.message}`);
+    }
+  };
+
   // Export records JSON backup
   const handleExportBackup = () => {
     const backupStr = JSON.stringify(records, null, 2);
@@ -1261,6 +1300,20 @@ export default function App() {
             <span>3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</span>
           </button>
 
+          {(currentTeacher.role === "admin" || currentTeacher.role === "academic") && (
+            <button
+              onClick={() => setActiveModule("academic")}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+                activeModule === "academic"
+                  ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              <BookOpen className="h-4.5 w-4.5" />
+              <span>4. การบริหารงานวิชาการ (LessonAcad)</span>
+            </button>
+          )}
+
           {currentTeacher.role === "admin" && (
             <button
               onClick={() => setActiveModule("admin" as any)}
@@ -1271,7 +1324,7 @@ export default function App() {
               }`}
             >
               <ShieldCheck className="h-4.5 w-4.5" />
-              <span>4. การจัดการระบบผู้ใช้งาน (Admin)</span>
+              <span>การจัดการระบบผู้ใช้งาน (Admin)</span>
             </button>
           )}
         </div>
@@ -1405,7 +1458,7 @@ export default function App() {
             </div>
 
             {/* Quick Actions / Modules Navigation */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <button
                 onClick={() => setActiveModule("teaching")}
                 className="bg-white p-8 rounded-2xl border border-violet-100 shadow-sm hover:shadow-md hover:border-violet-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
@@ -1427,8 +1480,9 @@ export default function App() {
 
               <button
                 onClick={() => setActiveModule("classroom")}
-                className="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm hover:shadow-md hover:border-pink-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group"
+                className="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm hover:shadow-md hover:border-pink-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
               >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-pink-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
                 <div className="h-16 w-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="h-8 w-8" />
                 </div>
@@ -1461,61 +1515,144 @@ export default function App() {
                   <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
                 </div>
               </button>
+
+              {(currentTeacher.role === "admin" || currentTeacher.role === "academic") && (
+                <button
+                  onClick={() => setActiveModule("academic")}
+                  className="bg-white p-8 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden cursor-pointer"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                  <div className="h-16 w-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-indigo-500">
+                    <BookOpen className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 mb-2">
+                    4. การบริหารงานวิชาการ (LessonAcad)
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    บันทึกตารางสอน ปฏิทินกิจกรรม และตั้งค่าวันเรียน
+                  </p>
+                  <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1">
+                    เปิดใช้งาน
+                  </div>
+                </button>
+              )}
+
+              {currentTeacher.role === "admin" && (
+                <button
+                  onClick={() => setActiveModule("admin" as any)}
+                  className="bg-white p-8 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <ShieldCheck className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 mb-2">
+                    การจัดการผู้ใช้งานและสิทธิ์ (Admin)
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และข้อมูลของโรงเรียน
+                  </p>
+                  <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">
+                    เปิดใช้งานเฉพาะ Admin
+                  </div>
+                </button>
+              )}
             </div>
 
-            {/* Recent Activity Mockup */}
+            {/* Recent Activity */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <h3 className="text-base font-black text-slate-800 mb-6 flex items-center gap-2">
                 <Bell className="h-5 w-5 text-amber-500" />
-                ความเคลื่อนไหวล่าสุด (จำลอง)
+                ความเคลื่อนไหวล่าสุด
               </h3>
               <div className="space-y-4">
-                {[
-                  {
-                    name: "คุณครูสมหญิง ใจดี",
-                    action: "บันทึกหลังสอน",
-                    subject: "วิชาภาษาไทย ม.2",
-                    time: "10 นาทีที่แล้ว",
-                    color: "bg-pink-400",
-                  },
-                  {
-                    name: "คุณครูสมชาย รักเรียน",
-                    action: "เช็คชื่อเข้าเรียน",
-                    subject: "วิชาคณิตศาสตร์ ม.1",
-                    time: "35 นาทีที่แล้ว",
-                    color: "bg-sky-400",
-                  },
-                  {
-                    name: "คุณครูวิภาดา ตั้งใจ",
-                    action: "เพิ่มแผนการสอนใหม่",
-                    subject: "วิชาวิทยาศาสตร์ ม.3",
-                    time: "1 ชั่วโมงที่แล้ว",
-                    color: "bg-emerald-400",
-                  },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-4 items-start pb-4 border-b border-slate-50 last:border-0 last:pb-0"
-                  >
-                    <div
-                      className={`h-2.5 w-2.5 rounded-full ${item.color} mt-1.5 shadow-sm`}
-                    ></div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-700">
-                        {item.name}{" "}
-                        <span className="font-normal text-slate-500">
-                          ได้ทำการ
-                        </span>{" "}
-                        {item.action}
+                {(() => {
+                  // Combine plans and records
+                  const activities: Array<{
+                    id: string;
+                    teacherId: string;
+                    action: string;
+                    subject: string;
+                    timestamp: number;
+                    color: string;
+                  }> = [];
+
+                  records.forEach(r => {
+                    activities.push({
+                      id: `r-${r.id}`,
+                      teacherId: r.teacherId,
+                      action: "เพิ่ม/แก้ไขบันทึกหลังสอน",
+                      subject: `${r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject} ${r.gradeLevel}`,
+                      timestamp: new Date(r.updatedAt || r.createdAt).getTime(),
+                      color: "bg-pink-400"
+                    });
+                  });
+
+                  plans.forEach(p => {
+                    activities.push({
+                      id: `p-${p.id}`,
+                      teacherId: p.teacherId,
+                      action: "เพิ่ม/แก้ไขแผนการสอน",
+                      subject: `${p.subject === 'อื่นๆ' && p.customSubject ? p.customSubject : p.subject} ${p.gradeLevel}`,
+                      timestamp: new Date(p.updatedAt || p.createdAt).getTime(),
+                      color: "bg-emerald-400"
+                    });
+                  });
+
+                  // Sort by timestamp desc and take top 5
+                  activities.sort((a, b) => b.timestamp - a.timestamp);
+                  const topActivities = activities.slice(0, 5);
+                  
+                  if (topActivities.length === 0) {
+                     return <div className="text-sm text-slate-500 text-center py-4">ยังไม่มีความเคลื่อนไหว</div>;
+                  }
+
+                  const formatTimeAgo = (timestamp: number) => {
+                    const diffInSeconds = Math.floor((Date.now() - timestamp) / 1000);
+                    if (diffInSeconds < 60) return "เมื่อสักครู่";
+                    const diffInMinutes = Math.floor(diffInSeconds / 60);
+                    if (diffInMinutes < 60) return `${diffInMinutes} นาทีที่แล้ว`;
+                    const diffInHours = Math.floor(diffInMinutes / 60);
+                    if (diffInHours < 24) return `${diffInHours} ชั่วโมงที่แล้ว`;
+                    const diffInDays = Math.floor(diffInHours / 24);
+                    if (diffInDays < 30) return `${diffInDays} วันที่แล้ว`;
+                    return new Date(timestamp).toLocaleDateString('th-TH');
+                  };
+
+                  return topActivities.map((item, i) => {
+                    const teacher = teachers.find(t => t.id === item.teacherId);
+                    const teacherName = teacher ? teacher.thaiName : "ไม่ทราบชื่อ";
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex gap-4 items-start pb-4 border-b border-slate-50 last:border-0 last:pb-0"
+                      >
+                        <div
+                          className={`h-2.5 w-2.5 rounded-full ${item.color} mt-1.5 shadow-sm`}
+                        ></div>
+                        <div>
+                          <div className="text-sm font-bold text-slate-700">
+                            {teacherName}{" "}
+                            <span className="font-normal text-slate-500">
+                              ได้ทำการ
+                            </span>{" "}
+                            {item.action}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {item.subject} • {formatTimeAgo(item.timestamp)}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        {item.subject} • {item.time}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  });
+                })()}
               </div>
             </div>
+
+            {/* Admin Monitoring Dashboard */}
+            {(currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy") && (
+              <AdminMonitoringDashboard records={records} plans={plans} teachers={teachers} />
+            )}
           </div>
         ) : activeModule === "teaching" ? (
           <div className="space-y-6 animate-in fade-in duration-300 relative">
@@ -1595,12 +1732,14 @@ export default function App() {
               {/* Content area */}
               {activeTab === "form" && (
                 <LessonLogForm
-                  currentTeacher={currentTeacher}
+                  teacherId={currentTeacher.id}
                   onSave={handleSaveRecord}
-                  initialData={editingRecord || undefined}
-                  onCancelEdit={
+                  initialRecord={editingRecord}
+                  onCancel={
                     editingRecord ? () => setEditingRecord(null) : undefined
                   }
+                  systemAcademicYear={systemAcademicYear}
+                  systemSemester={systemSemester}
                 />
               )}
 
@@ -1626,12 +1765,15 @@ export default function App() {
 
               {activeTab === "plan-form" && (
                 <LessonPlanForm
-                  currentTeacher={currentTeacher}
+                  teacherId={currentTeacher.id}
                   onSave={handleSavePlan}
-                  initialData={editingPlan || undefined}
-                  onCancelEdit={
+                  initialPlan={editingPlan}
+                  onCancel={
                     editingPlan ? () => setEditingPlan(null) : undefined
                   }
+                  currentUserRole={currentTeacher.role}
+                  systemAcademicYear={systemAcademicYear}
+                  systemSemester={systemSemester}
                 />
               )}
 
@@ -1662,33 +1804,62 @@ export default function App() {
             systemAcademicYear={systemAcademicYear}
             systemSemester={systemSemester}
           />
-        ) : activeModule === "analytics" ? (
-          <div className="space-y-6 animate-in fade-in duration-300 relative">
-            {/* Maintenance Overlay */}
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
-              <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                  <Wrench className="h-8 w-8" />
+        ) : activeModule === "academic" ? (
+          <div className="relative animate-in fade-in duration-300">
+            {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">
+                    โมดูลการบริหารงานวิชาการกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                  </p>
+                  <button
+                    onClick={() => setActiveModule("home")}
+                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                  >
+                    กลับสู่หน้าหลัก
+                  </button>
                 </div>
-                <h3 className="text-lg font-black text-slate-800">
-                  ปิดปรับปรุงชั่วคราว
-                </h3>
-                <p className="text-slate-500 mt-2 text-sm font-medium">
-                  โมดูลการวัดและประเมินผลผู้เรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ
-                  ขออภัยในความไม่สะดวก
-                </p>
-                <button
-                  onClick={() => setActiveModule("home")}
-                  className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                >
-                  กลับสู่หน้าหลัก
-                </button>
               </div>
-            </div>
-
-            <div className="opacity-40 pointer-events-none space-y-6">
-              <EvaluationModule />
-            </div>
+            )}
+            <AcademicModule
+              currentTeacher={currentTeacher}
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+            />
+          </div>
+        ) : activeModule === "analytics" ? (
+          <div className="relative animate-in fade-in duration-300">
+            {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">
+                    โมดูลการวัดและประเมินผลผู้เรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                  </p>
+                  <button
+                    onClick={() => setActiveModule("home")}
+                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                  >
+                    กลับสู่หน้าหลัก
+                  </button>
+                </div>
+              </div>
+            )}
+            <EvaluationModule 
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+            />
           </div>
         ) : activeModule === "admin" ? (
           <UserManagementModule
@@ -1696,6 +1867,7 @@ export default function App() {
             records={records}
             currentTeacher={currentTeacher}
             onDeleteTeacher={handleDeleteTeacher}
+            onUpdateTeacher={handleUpdateTeacher}
           />
         ) : null}
       </main>

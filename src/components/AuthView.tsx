@@ -94,6 +94,9 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       if (err.code === 'auth/operation-not-allowed') {
         thaiError = 'ยังไม่ได้เปิดใช้งานผู้ให้บริการล็อกอินด้วย Email/Password ใน Firebase Console ของฝั่งผู้เริ่มโครงการ';
       }
+      if (err.code === 'auth/network-request-failed') {
+        thaiError = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ตรวจสอบสิทธิ์ได้ (เครือข่ายมีปัญหา) กรุณาลองใช้ "บัญชีสาธิต" ในการทดสอบแทน';
+      }
       setErrorMsg(`${thaiError} (${err.message || err})`);
     } finally {
       setIsLoading(false);
@@ -200,6 +203,9 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       if (err.code === 'auth/operation-not-allowed') {
         thaiError = 'ยังไม่ได้เปิดใช้งานผู้ให้บริการล็อกอินด้วย Email/Password ใน Firebase Console ของฝั่งผู้เริ่มโครงการ';
       }
+      if (err.code === 'auth/network-request-failed') {
+        thaiError = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ตรวจสอบสิทธิ์ได้ (เครือข่ายมีปัญหา) กรุณาลองใช้ "บัญชีสาธิต" ในการทดสอบแทน';
+      }
       setErrorMsg(`${thaiError} (${err.message || err})`);
     } finally {
       setIsLoading(false);
@@ -207,14 +213,12 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
   };
 
   // Helper function to sign in or auto-create testing system accounts (seamless Red-Team integration testing)
-  const handleUseDemoAccount = async (role: 'teacher' | 'academic') => {
+  const handleUseDemoAccount = async () => {
     setErrorMsg('');
     setSuccessMsg('');
     setIsLoading(true);
     
-    const demoEmail = role === 'academic' 
-      ? 'academic_demo@lessonlog.com' 
-      : 'teacher_demo@lessonlog.com';
+    const demoEmail = 'teacher_demo@lessonlog.com';
     const demoPassword = 'Password123';
 
     try {
@@ -225,7 +229,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
 
       if (docSnap.exists()) {
         const teacherData = docSnap.data() as Teacher;
-        setSuccessMsg(`สลับใช้บัญชีสาธิตสำหรับ ${role === 'academic' ? 'ฝ่ายวิชาการ' : 'ครูผู้สอน'} เรียบร้อย!`);
+        setSuccessMsg(`สลับใช้บัญชีสาธิตสำหรับครูผู้สอน เรียบร้อย!`);
         setTimeout(() => {
           onLogin(teacherData);
         }, 800);
@@ -247,17 +251,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
             }
           }
           const uid = credential.user.uid;
-          const demoTeacher: Teacher = role === 'academic' ? {
-            id: uid,
-            email: demoEmail,
-            thaiName: 'หัวหน้าวิชาการ วิชาดี',
-            englishName: 'Academic Supervisor Vichadee',
-            employeeId: 'AC-10022',
-            phoneNumber: '02-123-4567',
-            affiliation: 'ฝ่ายวิชาการ',
-            displayName: 'ฝ่ายวิชาการ (Academic Supervisor)',
-            role: 'academic'
-          } : {
+          const demoTeacher: Teacher = {
             id: uid,
             email: demoEmail,
             thaiName: 'ครูปิยรัตน์ ธรรมคุณ',
@@ -269,7 +263,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
             role: 'teacher'
           };
           await setDoc(doc(db, 'teachers', uid), demoTeacher);
-          setSuccessMsg(`จัดเตรียมและเข้าใช้บัญชีคัดเลือก (${role === 'academic' ? 'ฝ่ายวิชาการ' : 'ครูผู้สอน'}) สําเร็จ`);
+          setSuccessMsg(`จัดเตรียมและเข้าใช้บัญชีคัดเลือก (ครูผู้สอน) สําเร็จ`);
           setTimeout(() => {
             onLogin(demoTeacher);
           }, 800);
@@ -277,6 +271,25 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
           console.error("Failed setting up automatic demo user profile:", innerError);
           setErrorMsg(`ไม่สามารถเริ่มบัญชีจำลองได้: ${innerError.message || innerError}`);
         }
+      } else if (err.code === 'auth/network-request-failed') {
+        console.warn("Network request failed, using local offline fallback for demo account.");
+        const uid = 'offline-teacher-123';
+        const demoTeacher: Teacher = {
+          id: uid,
+          email: demoEmail,
+          thaiName: 'ครูปิยรัตน์ ธรรมคุณ',
+          englishName: 'Piyarat Thammakun',
+          employeeId: 'ED-84521',
+          phoneNumber: '089-765-4321',
+          affiliation: 'กลุ่มสาระวิทยาศาสตร์และเทคโนโลยี',
+          displayName: 'ครูปิยรัตน์ (Teacher Piyarat)',
+          role: 'teacher',
+          hasSeeded: true
+        };
+        setSuccessMsg(`เข้าสู่ระบบบัญชีสาธิต (โหมดออฟไลน์/ไม่มีเครือข่าย) สำหรับครูผู้สอน เรียบร้อย!`);
+        setTimeout(() => {
+          onLogin(demoTeacher);
+        }, 800);
       } else {
         console.error("General login error:", err);
         setErrorMsg(`ปัญหาการตรวจสอบสิทธิ์: ${err.message || err}`);
@@ -426,7 +439,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                 />
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col gap-3">
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -435,12 +448,27 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                   {isLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>กำลังดำเนินการครู...</span>
+                      <span>กำลังดำเนินการ...</span>
                     </>
                   ) : (
-                    <span>เข้าสู่ระบบ</span>
+                    <span>เข้าสู่ระบบด้วยอีเมลรหัสผ่าน</span>
                   )}
                 </button>
+              </div>
+
+              {/* Demo Login Buttons */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <p className="text-xs text-center text-slate-500 mb-3">หรือเข้าสู่ระบบด้วยบัญชีสาธิตเพื่อทดสอบระบบ</p>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUseDemoAccount()}
+                    disabled={isLoading}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg transition-colors border border-indigo-100 disabled:opacity-50"
+                  >
+                    <User className="h-3.5 w-3.5" /> บัญชีสาธิตสำหรับครูผู้สอน
+                  </button>
+                </div>
               </div>
 
             </form>
@@ -636,7 +664,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                 />
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col gap-3">
                 <button
                   type="submit"
                   disabled={isLoading}

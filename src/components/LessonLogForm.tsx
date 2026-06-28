@@ -104,6 +104,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       subject,
       customSubject: '', // We now save the actual subject directly into the `subject` field
       gradeLevel: selectedGrades.join(', '),
+      academicYear: systemAcademicYear,
       semester,
       date,
       content: content.trim(),

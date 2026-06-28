@@ -46,6 +46,7 @@ export function LessonLogList({
   const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
   const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
   const [selectedMonth, setSelectedMonth] = useState<string>("ทั้งหมด");
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedApproval, setSelectedApproval] = useState<string>("ทั้งหมด");
   const [expandedHistory, setExpandedHistory] = useState<
@@ -88,6 +89,10 @@ export function LessonLogList({
     const recordMonth = record.date ? record.date.substring(0, 7) : "";
     const monthMatch =
       selectedMonth === "ทั้งหมด" || recordMonth === selectedMonth;
+      
+    // Academic Year filter
+    const yearMatch =
+      selectedAcademicYear === "ทั้งหมด" || record.academicYear === selectedAcademicYear;
 
     // 4. Teacher filter
     const teacherMatch =
@@ -106,7 +111,7 @@ export function LessonLogList({
     }
 
     return (
-      textMatch && subjMatch && gradeMatch && monthMatch && teacherMatch && approvalMatch
+      textMatch && subjMatch && gradeMatch && monthMatch && yearMatch && teacherMatch && approvalMatch
     );
   });
 
@@ -278,6 +283,20 @@ export function LessonLogList({
                 ✕
               </button>
             )}
+          </div>
+
+          {/* Academic Year Filter */}
+          <div className="flex items-center gap-1.5 min-w-[180px]">
+            <select
+              value={selectedAcademicYear}
+              onChange={(e) => setSelectedAcademicYear(e.target.value)}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
+            >
+              <option value="ทั้งหมด">ปีการศึกษา: ทั้งหมด</option>
+              <option value="2567">2567</option>
+              <option value="2568">2568</option>
+              <option value="2569">2569</option>
+            </select>
           </div>
 
           {/* Approval Filter */}

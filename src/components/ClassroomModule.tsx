@@ -13,12 +13,16 @@ import {
   Trash2,
   History,
   Clock,
+  GraduationCap,
+  CalendarCheck,
+  Wrench,
 } from "lucide-react";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
 import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";
 import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
 import { ImportStudentData } from "./ImportStudentData";
 import { StudentModal } from "./StudentModal";
+import { BatchPromotionModal } from "./BatchPromotionModal";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import {
   collection,
@@ -31,6 +35,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { AssessmentModal } from "./AssessmentModal";
+import { AttendanceTracking } from "./AttendanceTracking";
 
 interface ClassroomModuleProps {
   currentTeacher: Teacher | null;
@@ -43,12 +48,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemAcademicYear = "2567",
   systemSemester = "1",
 }) => {
-  const [activeTab, setActiveTab] = useState<"students" | "assessments">(
+  const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments">(
     "students",
   );
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [students, setStudents] = useState<Student[]>([]);
   const [showImport, setShowImport] = useState(false);
+  const [showBatchPromotion, setShowBatchPromotion] = useState(false);
   const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">(
     "all",
   );
@@ -162,14 +168,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   useEffect(() => {
     const currentMonthAssessments: Record<string, StudentAssessment> = {};
     allAssessments.forEach((assessment) => {
-      // If assessment has no month, we default to showing it or mapping it to the selected month?
-      // Better to map it by its stored month. If no month, treat as 'no-month'
-      if ((assessment.month || "") === selectedMonth) {
+      // Filter by month, academic year, and semester
+      // Fallback for older data that might not have academicYear or semester
+      const matchMonth = (assessment.month || "") === selectedMonth;
+      const matchYear = !assessment.academicYear || assessment.academicYear === systemAcademicYear;
+      const matchSemester = !assessment.semester || assessment.semester === systemSemester;
+      
+      if (matchMonth && matchYear && matchSemester) {
         currentMonthAssessments[assessment.studentId] = assessment;
       }
     });
     setAssessments(currentMonthAssessments);
-  }, [allAssessments, selectedMonth]);
+  }, [allAssessments, selectedMonth, systemAcademicYear, systemSemester]);
 
   const filteredStudents = students.filter((student) => {
     if (genderFilter === "all") return true;
@@ -229,6 +239,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       } else {
         const newDocRef = doc(collection(db, "students"));
         await setDoc(newDocRef, {
+          academicYear: systemAcademicYear,
           ...studentData,
           id: newDocRef.id,
         });
@@ -272,7 +283,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       // We can rely on assessments state to check if it's an update.
       const safeGradeLevel = assessment.gradeLevel.replace(/\//g, "-");
       const targetMonth = assessment.month || selectedMonth;
-      const docId = `${safeGradeLevel}_${assessment.studentId}_${targetMonth}`;
+      const targetYear = assessment.academicYear || systemAcademicYear;
+      const targetSemester = assessment.semester || systemSemester;
+      const docId = `${safeGradeLevel}_${assessment.studentId}_${targetYear}_${targetSemester}_${targetMonth}`;
       
       // existing assessment for this specific month
       const existing = assessments[assessment.studentId];
@@ -367,41 +380,52 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         </div>
 
         {/* Tabs and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 max-w-2xl">
-          <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 flex-1">
+        <div className="flex flex-col xl:flex-row gap-4 w-full xl:items-center xl:justify-between">
+          <div className="flex flex-wrap sm:flex-nowrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto flex-1">
             <button
               onClick={() => setActiveTab("students")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "students"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              <UserPlus className="h-4 w-4" /> ฐานข้อมูลนักเรียน
+              <UserPlus className="h-4 w-4 shrink-0" /> 
+              <span className="truncate">ฐานข้อมูลนักเรียน</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("attendance")}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "attendance"
+                  ? "bg-pink-100 text-pink-700"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <CalendarCheck className="h-4 w-4 shrink-0" /> 
+              <span className="truncate">เช็คชื่อเข้าเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab("assessments")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "assessments"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              <CheckCircle className="h-4 w-4" /> ประเมินพัฒนาการ
+              <CheckCircle className="h-4 w-4 shrink-0" /> 
+              <span className="truncate">ประเมินพัฒนาการ</span>
             </button>
           </div>
           
-          {activeTab === "assessments" && (
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0">
-              <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer"
-              />
-            </div>
-          )}
+          <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full xl:w-auto transition-opacity duration-200 ${activeTab === 'assessments' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer w-full"
+            />
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -450,6 +474,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
                     (Excel/CSV)
                   </button>
+                  {currentTeacher?.role === 'admin' && (
+                    <button
+                      onClick={() => setShowBatchPromotion(true)}
+                      className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                    >
+                      <GraduationCap className="h-4 w-4" /> เลื่อนชั้นแบบกลุ่ม
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setEditingStudent(null);
@@ -544,6 +576,32 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {activeTab === "attendance" && currentTeacher && (
+            <div className="p-6 relative animate-in fade-in duration-300">
+              {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center min-h-[50vh]">
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
+                    ฟังก์ชันเช็คชื่อนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                  </p>
+                </div>
+              ) : (
+                <AttendanceTracking 
+                  students={students}
+                  gradeLevel={selectedGrade}
+                  teacherId={currentTeacher.id}
+                  semester={systemSemester}
+                  academicYear={systemAcademicYear}
+                />
+              )}
             </div>
           )}
 
@@ -733,6 +791,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             }
             onClose={() => setEvaluatingStudent(null)}
             onSave={handleSaveAssessment}
+          />
+        )}
+
+        {/* Batch Promotion Modal */}
+        {showBatchPromotion && (
+          <BatchPromotionModal
+            students={students}
+            currentGrade={selectedGrade}
+            systemAcademicYear={systemAcademicYear}
+            onClose={() => setShowBatchPromotion(false)}
+            onSuccess={() => setShowBatchPromotion(false)}
           />
         )}
 

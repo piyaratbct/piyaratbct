@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench } from 'lucide-react';
+import { BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays } from 'lucide-react';
 import { Student, GRADE_LEVELS, SUBJECTS } from '../types';
+import { AttendanceSummary } from './AttendanceSummary';
 
-export const EvaluationModule: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'grades'>('overview');
+interface EvaluationModuleProps {
+  systemAcademicYear?: string;
+  systemSemester?: string;
+}
+
+export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'attendance'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
 
@@ -27,43 +33,39 @@ export const EvaluationModule: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabs and Content (Wrapped with Maintenance Overlay) */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-2xl">
-            <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-              <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                <Wrench className="h-8 w-8" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800">ปิดปรับปรุงชั่วคราว</h3>
-              <p className="text-slate-500 mt-2 text-sm font-medium">โมดูลการวัดและประเมินผลผู้เรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ จะเปิดให้บริการอย่างเต็มรูปแบบในเร็วๆ นี้</p>
-            </div>
+        {/* Tabs and Content */}
+        <div className="space-y-6">
+          {/* Tabs */}
+          <div className="flex flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-2xl">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <TrendingUp className="h-4 w-4" /> ภาพรวมผลสัมฤทธิ์
+            </button>
+            <button
+              onClick={() => setActiveTab('grades')}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'grades' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <Award className="h-4 w-4" /> บันทึกคะแนน
+            </button>
+            <button
+              onClick={() => setActiveTab('attendance')}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'attendance' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4" /> สรุปการเช็คชื่อ
+            </button>
           </div>
 
-          <div className="opacity-40 pointer-events-none space-y-6">
-            {/* Tabs */}
-            <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-md">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
-                  activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <TrendingUp className="h-4 w-4" /> ภาพรวมผลสัมฤทธิ์
-              </button>
-              <button
-                onClick={() => setActiveTab('grades')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
-                  activeTab === 'grades' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Award className="h-4 w-4" /> บันทึกคะแนน
-              </button>
-            </div>
-
-            {/* Tab Content */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-
-          
+          {/* Tab Content */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            
           {activeTab === 'overview' && (
             <div className="p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -199,8 +201,14 @@ export const EvaluationModule: React.FC = () => {
             </div>
           )}
 
-        </div>
-        </div>
+          {activeTab === 'attendance' && (
+            <AttendanceSummary 
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+            />
+          )}
+
+          </div>
         </div>
       </div>
     </div>

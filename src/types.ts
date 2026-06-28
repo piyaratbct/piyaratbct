@@ -10,6 +10,8 @@ export interface Teacher {
   password?: string;
   role?: 'teacher' | 'academic' | 'deputy' | 'admin';
   hasSeeded?: boolean;
+  homeroomClass?: string;
+  coHomeroomClass?: string;
 }
 
 export interface Attachment {
@@ -25,6 +27,7 @@ export interface LessonRecord {
   subject: string;
   customSubject?: string;
   gradeLevel: string;
+  academicYear?: string;
   date: string;
   content: string;      // สาระการจัดการเรียนรู้
   activities: string;   // กิจกรรมการเรียนการสอน
@@ -99,9 +102,23 @@ export interface Student {
   lastName: string;
   nickname?: string;
   gradeLevel: string;
+  academicYear?: string;
   gender: 'male' | 'female';
   number: number;
   status: 'active' | 'inactive';
+}
+
+export interface AttendanceSession {
+  id: string;
+  gradeLevel: string;
+  date: string;
+  period: string;
+  teacherId: string;
+  semester: string;
+  academicYear: string;
+  attendanceData: Record<string, 'present' | 'leave' | 'sick' | 'absent'>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StudentAssessment {
