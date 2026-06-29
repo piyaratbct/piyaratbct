@@ -295,11 +295,6 @@ export default function App() {
     };
     window.addEventListener("app-custom-toast", handleCustomToast);
 
-    return () => {
-      window.removeEventListener("app-safe-alert", handleSafeAlert);
-      window.removeEventListener("app-custom-toast", handleCustomToast);
-    }
-
     // Real-time dynamic subscription to shared school config doc (e.g., customLogo, systemAcademicYear, systemSemester)
     let unsubConfig = () => {};
     if (db) {
@@ -341,6 +336,7 @@ export default function App() {
       unsubAuth();
       unsubConfig();
       window.removeEventListener("app-safe-alert", handleSafeAlert);
+      window.removeEventListener("app-custom-toast", handleCustomToast);
     };
   }, []);
 
