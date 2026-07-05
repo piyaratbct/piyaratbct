@@ -6,9 +6,11 @@ import {
   Settings, 
   Users, 
   GraduationCap,
-  ShieldCheck
+  ShieldCheck,
+  CalendarDays
 } from "lucide-react";
 import { SchoolEventCalendar } from "./SchoolEventCalendar";
+import { ScheduleManager } from "./ScheduleManager";
 import { Teacher } from "../types";
 
 interface AcademicModuleProps {
@@ -22,7 +24,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   systemAcademicYear,
   systemSemester,
 }) => {
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule">("calendar");
 
   if (currentTeacher.role !== 'admin' && currentTeacher.role !== 'academic') {
     return (
@@ -50,7 +52,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 overflow-x-auto">
+      <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setActiveTab("calendar")}
           className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
@@ -59,7 +61,17 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <CalendarIcon className="h-4 w-4" /> ปฏิทินและตารางสอน
+          <CalendarIcon className="h-4 w-4" /> ปฏิทินวิชาการ
+        </button>
+        <button
+          onClick={() => setActiveTab("schedule")}
+          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            activeTab === "schedule"
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <CalendarDays className="h-4 w-4" /> จัดการตารางสอน
         </button>
         <button
           onClick={() => setActiveTab("settings")}
@@ -69,7 +81,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <Settings className="h-4 w-4" /> ตั้งค่าปี/ภาคเรียนและวันเรียน
+          <Settings className="h-4 w-4" /> ตั้งค่าปี/ภาคเรียน
         </button>
         <button
           onClick={() => setActiveTab("staff")}
@@ -86,6 +98,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       {/* Tab Contents */}
       {activeTab === "calendar" && (
         <SchoolEventCalendar currentTeacher={currentTeacher} />
+      )}
+
+      {activeTab === "schedule" && (
+        <ScheduleManager systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
       )}
 
       {activeTab === "settings" && (

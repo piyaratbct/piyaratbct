@@ -1,19 +1,24 @@
-import { LessonRecord, SUBJECTS, Teacher } from '../types';
-import { BookOpen, GraduationCap, Calendar, Clock, BarChart3, Presentation, Bell } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, getDocs, where } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { LessonRecord, SUBJECTS, Teacher, TeacherSchedule } from '../types';
+import { BookOpen, GraduationCap, Calendar, Clock, BarChart3, Presentation, Bell, CalendarDays } from 'lucide-react';
 
 interface DashboardStatsProps {
   records: LessonRecord[];
   currentTeacher?: Teacher | null;
   teachers?: Teacher[];
+  systemSemester?: string;
+  systemAcademicYear?: string;
 }
 
-export function DashboardStats({ records, currentTeacher, teachers }: DashboardStatsProps) {
-  const totalLogs = records.length;
+export function DashboardStats({ records, currentTeacher, teachers, systemSemester = 'ภาคเรียนที่ 1/2567', systemAcademicYear = '2567' }: DashboardStatsProps) {
+  const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
 
-  // Calculate unique grade levels
+  const totalLogs = records.length;
   const uniqueGrades = new Set(records.map(r => r.gradeLevel)).size;
 
-  // Find most frequent subject
   const subjectCounts: Record<string, number> = {};
   records.forEach(r => {
     const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
@@ -29,12 +34,10 @@ export function DashboardStats({ records, currentTeacher, teachers }: DashboardS
     }
   });
 
-  // Last log date
   const lastLogDate = records.length > 0
     ? [...records].sort((a,b) => b.date.localeCompare(a.date))[0].date
     : null;
 
-  // Format date helper th
   const formatThaiDate = (dateString: string | null) => {
     if (!dateString) return 'ไม่มีข้อมูล';
     const months = [
@@ -43,7 +46,7 @@ export function DashboardStats({ records, currentTeacher, teachers }: DashboardS
     ];
     const parts = dateString.split('-');
     if (parts.length === 3) {
-      const year = parseInt(parts[0]) + 543; // Buddhist Era
+      const year = parseInt(parts[0]) + 543;
       const month = months[parseInt(parts[1]) - 1];
       const day = parseInt(parts[2]);
       return `${day} ${month} ${year}`;
@@ -51,7 +54,6 @@ export function DashboardStats({ records, currentTeacher, teachers }: DashboardS
     return dateString;
   };
 
-  // Prepare subject distribution stats
   const subjectDistribution = SUBJECTS.map(subj => {
     const logs = records.filter(p => p.subject === subj);
     return {
@@ -61,7 +63,6 @@ export function DashboardStats({ records, currentTeacher, teachers }: DashboardS
     };
   }).filter(item => item.count > 0 || item.name === 'ภาษาไทย' || item.name === 'คณิตศาสตร์' || item.name === 'วิทยาศาสตร์และเทคโนโลยี');
 
-  // Calculate records waiting for academic approval
   const pendingApprovals = records.filter(r => r.teacherSigned && !r.deptHeadApproved);
   const pendingCount = pendingApprovals.length;
   const isAcademic = currentTeacher?.role && currentTeacher.role !== 'teacher';
@@ -74,8 +75,78 @@ export function DashboardStats({ records, currentTeacher, teachers }: DashboardS
     )
   );
 
+  useEffect(() => {
+    if (currentTeacher?.id) {
+      fetchSchedules();
+    }
+  }, [currentTeacher?.id, systemSemester, systemAcademicYear]);
+
+  const fetchSchedules = async () => {
+    setIsLoadingSchedules(true);
+    try {
+      const q = query(
+        collection(db, 'schedules'), 
+        where('teacherId', '==', currentTeacher?.id),
+        where('semester', '==', systemSemester),
+        where('academicYear', '==', systemAcademicYear)
+      );
+      const snapshot = await getDocs(q);
+      const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
+      setSchedules(scheduleList);
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+    } finally {
+      setIsLoadingSchedules(false);
+    }
+  };
+
+  const todayIndex = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const todaySchedules = schedules.filter(s => s.dayOfWeek === todayIndex);
+  
+  // Sort by period roughly
+  const periodsOrder = ['กิจกรรมโฮมรูม', 'คาบ 1', 'คาบ 2', 'คาบ 3', 'คาบ 4', 'คาบพักกลางวัน', 'คาบ 5', 'คาบ 6', 'คาบ 7', 'คาบ 8', 'กิจกรรมหลังเลิกเรียน'];
+  todaySchedules.sort((a, b) => periodsOrder.indexOf(a.period) - periodsOrder.indexOf(b.period));
+
   return (
     <div className="space-y-6">
+      {/* Today's Schedule */}
+      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-sm text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+            <CalendarDays className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black tracking-tight">ตารางสอนวันนี้ของคุณ</h3>
+            <p className="text-indigo-100 text-xs font-medium opacity-90">ตรวจสอบรายวิชาที่ต้องสอนและจัดการชั้นเรียนได้ทันที</p>
+          </div>
+        </div>
+
+        {isLoadingSchedules ? (
+          <div className="animate-pulse flex space-x-4">
+            <div className="flex-1 space-y-3 py-1">
+              <div className="h-8 bg-white/20 rounded w-full"></div>
+              <div className="h-8 bg-white/20 rounded w-full"></div>
+            </div>
+          </div>
+        ) : todaySchedules.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {todaySchedules.map(schedule => (
+              <div key={schedule.id} className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded text-white">{schedule.period}</span>
+                  <span className="text-xs font-bold text-indigo-100">{schedule.gradeLevel}</span>
+                </div>
+                <h4 className="font-bold text-base line-clamp-1">{schedule.subject}</h4>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 text-center">
+            <p className="text-sm font-medium">คุณไม่มีตารางสอนในวันนี้ หรือยังไม่ได้จัดตารางสอน</p>
+          </div>
+        )}
+      </div>
+
       {isAcademic && pendingCount > 0 && (
         <div id="academic-pending-alert" className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-3xs animate-pulse-once">
           <div className="flex items-start space-x-3.5">

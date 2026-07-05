@@ -6,9 +6,10 @@ import { AttendanceSummary } from './AttendanceSummary';
 interface EvaluationModuleProps {
   systemAcademicYear?: string;
   systemSemester?: string;
+  students: Student[];
 }
 
-export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester }) => {
+export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'attendance'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
@@ -148,7 +149,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-center w-16">เลขที่</th>
-                      <th className="px-4 py-3 w-48">ชื่อ-นามสกุล</th>
+                      <th className="px-4 py-3 w-48 whitespace-nowrap">ชื่อ-นามสกุล</th>
                       <th className="px-4 py-3 text-center border-l border-slate-200">เก็บระหว่างเรียน<br/><span className="text-xs font-normal text-slate-400">(60)</span></th>
                       <th className="px-4 py-3 text-center">กลางภาค<br/><span className="text-xs font-normal text-slate-400">(20)</span></th>
                       <th className="px-4 py-3 text-center">ปลายภาค<br/><span className="text-xs font-normal text-slate-400">(20)</span></th>
@@ -157,37 +158,33 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Mock Table Rows */}
-                    <tr className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 text-center font-medium">1</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">สมชาย รักดี</td>
-                      <td className="px-4 py-3 text-center border-l border-slate-100">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={52} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={15} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={18} />
-                      </td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-800 border-l border-slate-100">85</td>
-                      <td className="px-4 py-3 text-center font-black text-emerald-600">4</td>
-                    </tr>
-                    <tr className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 text-center font-medium">2</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">สมหญิง ใจเย็น</td>
-                      <td className="px-4 py-3 text-center border-l border-slate-100">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={48} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={12} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" defaultValue={16} />
-                      </td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-800 border-l border-slate-100">76</td>
-                      <td className="px-4 py-3 text-center font-black text-emerald-600">3.5</td>
-                    </tr>
+                    {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
+                      students.filter(s => s.gradeLevel === selectedGrade)
+                        .sort((a, b) => (parseInt(a.number || '0') - parseInt(b.number || '0')))
+                        .map((student) => (
+                          <tr key={student.id} className="border-b border-slate-100 hover:bg-slate-50">
+                            <td className="px-4 py-3 text-center font-medium">{student.number}</td>
+                            <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{student.firstName} {student.lastName}</td>
+                            <td className="px-4 py-3 text-center border-l border-slate-100">
+                              <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" placeholder="0" />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" placeholder="0" />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input type="number" className="w-16 text-center border border-slate-200 rounded p-1" placeholder="0" />
+                            </td>
+                            <td className="px-4 py-3 text-center font-bold text-slate-800 border-l border-slate-100">-</td>
+                            <td className="px-4 py-3 text-center font-black text-emerald-600">-</td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                          ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS } from '../types';
-import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText } from 'lucide-react';
+import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2 } from 'lucide-react';
+import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
 
 interface AttendanceSummaryProps {
   systemAcademicYear?: string;
@@ -14,8 +15,11 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'daily' | 'cumulative'>('daily');
 
   useEffect(() => {
+    if (viewMode === 'cumulative') return;
+
     const fetchAttendance = async () => {
       setIsLoading(true);
       try {
@@ -50,21 +54,52 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
     };
 
     fetchAttendance();
-  }, [selectedGrade, selectedDate, systemAcademicYear, systemSemester]);
+  }, [selectedGrade, selectedDate, systemAcademicYear, systemSemester, viewMode]);
 
   // Compute daily totals across all sessions for the selected grade and date
   const totalStudents = sessions.length > 0 ? Object.keys(sessions[0].attendanceData || {}).length : 0;
   
   return (
     <div className="p-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-slate-100 pb-6">
         <div>
           <h3 className="text-lg font-black text-slate-800">สรุปการเช็คชื่อนักเรียน (Attendance Summary)</h3>
-          <p className="text-sm text-slate-500">รายงานสรุปการเข้าเรียนประจำวันและรายคาบเรียน</p>
+          <p className="text-sm text-slate-500">รายงานสรุปการเข้าเรียนประจำวันและรายคาบเรียน รวมถึงสถิติสะสม</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-1 rounded-xl border border-slate-100">
+          <button
+            onClick={() => setViewMode('daily')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+              viewMode === 'daily' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <CalendarDays className="h-4 w-4" /> สรุปรายวัน
+          </button>
+          <button
+            onClick={() => setViewMode('cumulative')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+              viewMode === 'cumulative' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Users className="h-4 w-4" /> สรุปสะสมรายบุคคล
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <select 
+          value={selectedGrade}
+          onChange={(e) => setSelectedGrade(e.target.value)}
+          className="border border-slate-200 rounded-lg px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
+        >
+          {GRADE_LEVELS.map(g => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
+
+        {viewMode === 'daily' && (
+          <div className="relative shadow-sm">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input 
               type="date"
@@ -73,18 +108,17 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
               className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
-          <select 
-            value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
-          >
-            {GRADE_LEVELS.map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-        </div>
+        )}
       </div>
 
+      {viewMode === 'cumulative' ? (
+        <AttendanceStudentCumulative 
+          gradeLevel={selectedGrade}
+          systemAcademicYear={systemAcademicYear}
+          systemSemester={systemSemester}
+        />
+      ) : (
+        <>
       {isLoading ? (
         <div className="py-12 flex flex-col items-center justify-center text-slate-400">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
@@ -168,8 +202,10 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
               return (
                 <div key={session.id} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start mb-3">
-                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <div className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
                       <Clock className="h-4 w-4 text-indigo-500" /> {session.period}
+                      {session.subject && <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-xs ml-1">{session.subject}</span>}
+                      {session.teacherName && <span className="text-slate-500 text-xs font-normal">({session.teacherName})</span>}
                     </div>
                     <div className="text-xs font-bold px-2 py-1 bg-indigo-50 text-indigo-600 rounded-full">
                       {total} คน
@@ -197,6 +233,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
             })}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

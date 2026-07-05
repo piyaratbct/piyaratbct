@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Student, AttendanceSession } from '../types';
+import { Student, AttendanceSession, TeacherSchedule } from '../types';
 import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
 
 interface AttendanceTrackingProps {
   students: Student[];
   gradeLevel: string;
   teacherId: string;
+  teacherName?: string;
   semester: string;
   academicYear: string;
 }
 
-export function AttendanceTracking({ students, gradeLevel, teacherId, semester, academicYear }: AttendanceTrackingProps) {
+export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear }: AttendanceTrackingProps) {
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [period, setPeriod] = useState<string>('คาบ 1');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,30 +21,63 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
   const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+
+  // Fetch teacher schedules
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      try {
+        const q = query(collection(db, 'schedules'));
+        const snapshot = await getDocs(q);
+        const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
+        
+        // Filter by gradeLevel, semester, academicYear in memory to avoid needing a composite index
+        const filteredSchedules = scheduleList.filter(s => 
+          s.gradeLevel === gradeLevel
+        );
+        setSchedules(filteredSchedules);
+      } catch (error) {
+        console.error("Error fetching schedules:", error);
+      }
+    };
+    fetchSchedules();
+  }, [semester, academicYear, gradeLevel]);
 
   // Initialize all students as 'present' if no data exists
   useEffect(() => {
     fetchSession();
   }, [date, period, gradeLevel, students]);
 
+  // Automatically select a matching period if one exists for the current date's day of week
+  useEffect(() => {
+    if (schedules.length > 0 && date) {
+      const parts = date.split('-');
+      const dayOfWeek = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).getDay();
+      const matchingSchedule = schedules.find(s => s.dayOfWeek === dayOfWeek);
+      if (matchingSchedule) {
+        setPeriod(matchingSchedule.period);
+      }
+    }
+  }, [schedules, date]);
+
   const fetchSession = async () => {
     setIsLoading(true);
     setSaveStatus(null);
     try {
+      // Query only by date to reduce payload, then filter the rest in memory to avoid index errors
       const q = query(
         collection(db, 'attendanceSessions'),
-        where('gradeLevel', '==', gradeLevel),
-        where('date', '==', date),
-        where('period', '==', period)
+        where('date', '==', date)
       );
       
       const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
+      const allDocs = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() as AttendanceSession }));
+      const match = allDocs.find(d => d.gradeLevel === gradeLevel && d.period === period);
+      
+      if (match) {
         // Load existing
-        const docSnap = querySnapshot.docs[0];
-        setCurrentSessionId(docSnap.id);
-        const data = docSnap.data() as AttendanceSession;
-        setAttendanceData(data.attendanceData || {});
+        setCurrentSessionId(match.id);
+        setAttendanceData(match.attendanceData || {});
       } else {
         // Initialize new
         setCurrentSessionId(null);
@@ -60,7 +94,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
     }
   };
 
-  const handleStatusChange = (studentId: string, status: 'present' | 'leave' | 'sick' | 'absent') => {
+  const handleStatusChange = (studentId: string, status: 'present' | 'leave' | 'sick' | 'absent' | 'late') => {
     setAttendanceData(prev => ({
       ...prev,
       [studentId]: status
@@ -68,7 +102,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
   };
 
   const handleMarkAllPresent = () => {
-    const updatedData: Record<string, 'present' | 'leave' | 'sick' | 'absent'> = {};
+    const updatedData: Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'> = {};
     students.forEach(s => {
       updatedData[s.id] = 'present';
     });
@@ -84,7 +118,20 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
     setSaveStatus(null);
     try {
       const now = new Date().toISOString();
-      const sessionData = {
+      
+      // Determine subject from schedules if it matches a valid schedule
+      const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;
+      let matchingSchedule = schedules.find(s => s.dayOfWeek === selectedDayOfWeek && s.period === period);
+      
+      // Fallback: If no schedule matches this exact day, but there are schedules for this period on other days, use the first one
+      if (!matchingSchedule) {
+        matchingSchedule = schedules.find(s => s.period === period);
+      }
+      
+      const subject = matchingSchedule ? matchingSchedule.subject : undefined;
+      const classTeacherName = (matchingSchedule && matchingSchedule.teacherName) ? matchingSchedule.teacherName : teacherName;
+
+      const sessionData: any = {
         gradeLevel,
         date,
         period,
@@ -94,6 +141,9 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
         attendanceData,
         updatedAt: now
       };
+      
+      if (subject) sessionData.subject = subject;
+      if (classTeacherName) sessionData.teacherName = classTeacherName;
 
       if (currentSessionId) {
         // Update
@@ -138,8 +188,14 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
     late: Object.values(attendanceData).filter(s => s === 'late').length,
   };
 
+  const standardPeriods = ['กิจกรรมโฮมรูม', 'คาบ 1', 'คาบ 2', 'คาบ 3', 'คาบ 4', 'คาบพักกลางวัน', 'คาบ 5', 'คาบ 6', 'คาบ 7', 'คาบ 8', 'กิจกรรมหลังเลิกเรียน'];
+  
+  // Suggest periods based on teacher's schedule for this day and grade
+  const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;
+  const suggestedSchedules = schedules.filter(s => s.dayOfWeek === selectedDayOfWeek);
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
       {/* Header Controls */}
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-end">
         <div className="flex flex-wrap gap-4 items-end">
@@ -156,25 +212,23 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">คาบเรียน (ตามตารางสอน)</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1">คาบเรียน (เชื่อมโยงตารางสอน)</label>
             <div className="relative">
               <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-48 appearance-none"
+                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-56 appearance-none"
               >
-                <option value="กิจกรรมโฮมรูม">กิจกรรมโฮมรูม</option>
-                <option value="คาบ 1">คาบ 1</option>
-                <option value="คาบ 2">คาบ 2</option>
-                <option value="คาบ 3">คาบ 3</option>
-                <option value="คาบ 4">คาบ 4</option>
-                <option value="คาบพักกลางวัน">คาบพักกลางวัน</option>
-                <option value="คาบ 5">คาบ 5</option>
-                <option value="คาบ 6">คาบ 6</option>
-                <option value="คาบ 7">คาบ 7</option>
-                <option value="คาบ 8">คาบ 8</option>
-                <option value="กิจกรรมหลังเลิกเรียน">กิจกรรมหลังเลิกเรียน</option>
+                <optgroup label={`คาบเรียน (${gradeLevel})`}>
+                  {standardPeriods.map(p => {
+                    const match = suggestedSchedules.find(s => s.period === p);
+                    if (match) {
+                      return <option key={p} value={p}>{p} - {match.subject}</option>;
+                    }
+                    return <option key={p} value={p}>{p}</option>;
+                  })}
+                </optgroup>
               </select>
             </div>
           </div>
@@ -254,6 +308,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                   <th className="px-6 py-4 font-bold border-b border-slate-100 w-16 text-center">เลขที่</th>
+                  <th className="px-6 py-4 font-bold border-b border-slate-100 w-24 text-center">ชั้น</th>
                   <th className="px-6 py-4 font-bold border-b border-slate-100 w-24 text-center">รหัสนักเรียน</th>
                   <th className="px-6 py-4 font-bold border-b border-slate-100">ชื่อ - นามสกุล</th>
                   <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">สถานะการเข้าเรียน</th>
@@ -264,6 +319,9 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, semester, 
                   <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-3 text-center text-slate-500 font-medium">
                       {student.number}
+                    </td>
+                    <td className="px-6 py-3 text-center text-slate-500 font-bold">
+                      {student.gradeLevel || '-'}
                     </td>
                     <td className="px-6 py-3 text-center text-slate-400 text-sm">
                       {student.studentId}

@@ -113,10 +113,12 @@ export interface AttendanceSession {
   gradeLevel: string;
   date: string;
   period: string;
+  subject?: string;
   teacherId: string;
+  teacherName?: string;
   semester: string;
   academicYear: string;
-  attendanceData: Record<string, 'present' | 'leave' | 'sick' | 'absent'>;
+  attendanceData: Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'>;
   createdAt: string;
   updatedAt: string;
 }
@@ -175,6 +177,19 @@ export interface StudentAssessment {
   updatedAt: string;
 }
 
+export interface TeacherSchedule {
+  id: string;
+  teacherId: string;
+  teacherName?: string;
+  dayOfWeek: number;
+  period: string;
+  subject: string;
+  gradeLevel: string;
+  semester: string;
+  academicYear: string;
+  createdAt?: string;
+}
+
 export type SubjectType = string;
 
 export const SEMESTERS = [
@@ -192,6 +207,7 @@ export const SUBJECTS: string[] = [
   'ภาษาไทย',
   'คณิตศาสตร์',
   'วิทยาศาสตร์และเทคโนโลยี',
+  'คอมพิวเตอร์',
   'สังคมศึกษา ศาสนา และวัฒนธรรม',
   'สุขศึกษาและพลศึกษา',
   'ศิลปะ',

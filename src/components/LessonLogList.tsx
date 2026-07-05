@@ -200,9 +200,9 @@ export function LessonLogList({
     <div className="space-y-4">
       {/* Search and Filters Header */}
       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row gap-3">
+        <div className="flex flex-wrap gap-3">
           {/* Main search Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[280px]">
             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
             <input
               type="text"

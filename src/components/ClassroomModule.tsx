@@ -58,6 +58,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">(
     "all",
   );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Assessments state
   const [selectedMonth, setSelectedMonth] = useState<string>(
@@ -124,8 +125,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
             }
             return { id: doc.id, ...data };
-          })
-          .filter(student => student.gradeLevel === selectedGrade);
+          });
 
         // Sort by number
         fetchedStudents.sort((a, b) => a.number - b.number);
@@ -148,9 +148,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           if (data.gradeLevel) {
             data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
           }
-          if (data.gradeLevel === selectedGrade) {
-            fetchedAssessments.push(data);
-          }
+          fetchedAssessments.push(data);
         });
         setAllAssessments(fetchedAssessments);
       },
@@ -181,14 +179,38 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     setAssessments(currentMonthAssessments);
   }, [allAssessments, selectedMonth, systemAcademicYear, systemSemester]);
 
-  const filteredStudents = students.filter((student) => {
-    if (genderFilter === "all") return true;
-    return student.gender === genderFilter;
+  const displayedStudents = students.filter((student) => {
+    // If searching, ignore grade level filter
+    if (searchQuery !== "") {
+      const matchesGender = genderFilter === "all" || student.gender === genderFilter;
+      const matchesSearch = `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (student.nickname && student.nickname.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        student.studentId.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesGender && matchesSearch;
+    }
+    
+    // If not searching, filter by grade and gender
+    if (student.gradeLevel !== selectedGrade) return false;
+    if (genderFilter !== "all" && student.gender !== genderFilter) return false;
+    
+    return true;
   });
 
-  const totalCount = students.length;
-  const maleCount = students.filter((s) => s.gender === "male").length;
-  const femaleCount = students.filter((s) => s.gender === "female").length;
+  // Sort displayed students by grade level (optional but nice), then number
+  displayedStudents.sort((a, b) => {
+    if (a.gradeLevel !== b.gradeLevel) {
+      return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th');
+    }
+    return (a.number || 0) - (b.number || 0);
+  });
+
+  // Calculate counts based on displayed students (or just grade level students if not searching)
+  const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+  const countSource = searchQuery !== "" ? displayedStudents : studentsInGrade;
+  
+  const totalCount = countSource.length;
+  const maleCount = countSource.filter((s) => s.gender === "male").length;
+  const femaleCount = countSource.filter((s) => s.gender === "female").length;
 
   // Initialize empty assessment if not exist
   const getInitialAssessment = (studentId: string): StudentAssessment => {
@@ -323,7 +345,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   const printBatchReport = () => {
     // Print all students in the current grade who have been assessed
-    const assessedStudents = filteredStudents.filter((s) => assessments[s.id]);
+    const assessedStudents = displayedStudents.filter((s) => assessments[s.id]);
     if (assessedStudents.length === 0) {
       alert("ยังไม่มีข้อมูลการประเมินในระดับชั้นนี้");
       return;
@@ -381,7 +403,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
         {/* Tabs and Filters */}
         <div className="flex flex-col xl:flex-row gap-4 w-full xl:items-center xl:justify-between">
-          <div className="flex flex-wrap sm:flex-nowrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto flex-1">
+          <div className="flex flex-wrap sm:flex-nowrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto xl:shrink-0 overflow-x-auto custom-scrollbar">
             <button
               onClick={() => setActiveTab("students")}
               className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
@@ -391,7 +413,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }`}
             >
               <UserPlus className="h-4 w-4 shrink-0" /> 
-              <span className="truncate">ฐานข้อมูลนักเรียน</span>
+              <span className="whitespace-nowrap">ฐานข้อมูลนักเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab("attendance")}
@@ -402,7 +424,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }`}
             >
               <CalendarCheck className="h-4 w-4 shrink-0" /> 
-              <span className="truncate">เช็คชื่อเข้าเรียน</span>
+              <span className="whitespace-nowrap">เช็คชื่อเข้าเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab("assessments")}
@@ -413,7 +435,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }`}
             >
               <CheckCircle className="h-4 w-4 shrink-0" /> 
-              <span className="truncate">ประเมินพัฒนาการ</span>
+              <span className="whitespace-nowrap">ประเมินพัฒนาการ</span>
             </button>
           </div>
           
@@ -426,6 +448,19 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer w-full"
             />
           </div>
+          
+          <div className="relative w-full xl:w-64 flex-1 xl:flex-none shrink-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="ค้นหานักเรียน (ทั้งหมด)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 bg-white w-full transition-all"
+            />
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -434,8 +469,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800">
-                    รายชื่อนักเรียน {selectedGrade}
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    {searchQuery ? (
+                      <>ผลการค้นหา: <span className="text-pink-600">"{searchQuery}"</span></>
+                    ) : (
+                      <>รายชื่อนักเรียน {selectedGrade}</>
+                    )}
                   </h3>
                   <div className="flex gap-3 mt-2 text-sm font-medium">
                     <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
@@ -454,6 +493,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
+
                   <select
                     value={genderFilter}
                     onChange={(e) =>
@@ -499,6 +539,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-center">เลขที่</th>
+                      <th className="px-4 py-3 text-center">ระดับชั้น</th>
                       <th className="px-4 py-3">รหัสนักเรียน</th>
                       <th className="px-4 py-3">ชื่อ-นามสกุล</th>
                       <th className="px-4 py-3 text-center">เพศ</th>
@@ -507,23 +548,26 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.length === 0 ? (
+                    {displayedStudents.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={7}
                           className="text-center py-8 text-slate-500"
                         >
                           ไม่พบข้อมูลนักเรียนในระดับชั้นนี้
                         </td>
                       </tr>
                     ) : (
-                      filteredStudents.map((student) => (
+                      displayedStudents.map((student) => (
                         <tr
                           key={student.id}
                           className="border-b border-slate-100 hover:bg-slate-50"
                         >
                           <td className="px-4 py-3 text-center font-medium">
                             {student.number}
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-slate-700 whitespace-nowrap">
+                            {student.gradeLevel || '-'}
                           </td>
                           <td className="px-4 py-3 font-mono text-slate-500">
                             {student.studentId}
@@ -595,9 +639,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 </div>
               ) : (
                 <AttendanceTracking 
-                  students={students}
+                  students={displayedStudents}
                   gradeLevel={selectedGrade}
                   teacherId={currentTeacher.id}
+                  teacherName={currentTeacher.thaiName || currentTeacher.displayName || 'Unknown Teacher'}
                   semester={systemSemester}
                   academicYear={systemAcademicYear}
                 />
@@ -609,8 +654,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             <div className="p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                     ประเมินพัฒนาการนักเรียน
+                    {searchQuery && (
+                       <span className="text-sm font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full ml-2">
+                         ค้นหา: "{searchQuery}"
+                       </span>
+                    )}
                   </h3>
                   <div className="flex gap-3 mt-2 text-sm font-medium">
                     <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
@@ -629,6 +679,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
+
                   <select
                     value={genderFilter}
                     onChange={(e) =>
@@ -658,7 +709,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStudents.map((student) => {
+                {displayedStudents.map((student) => {
                   const hasAssessed = !!assessments[student.id];
                   const assessment = assessments[student.id];
                   return (
@@ -668,8 +719,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <div className="text-xs font-bold text-pink-500 mb-1">
-                            เลขที่ {student.number}
+                          <div className="text-xs font-bold text-pink-500 mb-1 flex items-center gap-2">
+                            <span>เลขที่ {student.number}</span>
+                            <span className="bg-pink-100 text-pink-700 px-2 rounded-full">{student.gradeLevel || '-'}</span>
                           </div>
                           <div className="font-bold text-slate-800">
                             {student.firstName} {student.lastName}
@@ -771,7 +823,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </div>
                   );
                 })}
-                {filteredStudents.length === 0 && (
+                {displayedStudents.length === 0 && (
                   <div className="col-span-full text-center py-8 text-slate-500">
                     ไม่พบข้อมูลนักเรียนในระดับชั้นนี้
                   </div>
@@ -797,7 +849,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         {/* Batch Promotion Modal */}
         {showBatchPromotion && (
           <BatchPromotionModal
-            students={students}
+            students={studentsInGrade}
             currentGrade={selectedGrade}
             systemAcademicYear={systemAcademicYear}
             onClose={() => setShowBatchPromotion(false)}

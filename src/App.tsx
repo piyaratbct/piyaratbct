@@ -4,6 +4,7 @@ import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
 import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
 import { StudentStatsModal } from "./components/StudentStatsModal";
+import { TeacherListModal } from "./components/TeacherListModal";
 import { LessonLogForm } from "./components/LessonLogForm";
 import { LessonLogList } from "./components/LessonLogList";
 import { LessonPlanForm } from "./components/LessonPlanForm";
@@ -162,6 +163,7 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsCount, setStudentsCount] = useState<number>(0);
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
+  const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
     "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin"
   >("home");
@@ -1396,6 +1398,8 @@ export default function App() {
               </p>
             </div>
 
+            <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
+
             {/* Quick Stats Cards (Mockup) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
@@ -1438,7 +1442,10 @@ export default function App() {
                   <div className="text-2xl font-black text-slate-800">95%</div>
                 </div>
               </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+              <button 
+                onClick={() => setShowTeacherListModal(true)}
+                className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md hover:border-amber-200 transition-all text-left text-inherit cursor-pointer"
+              >
                 <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
                   <School className="h-6 w-6" />
                 </div>
@@ -1450,7 +1457,7 @@ export default function App() {
                     {teachers.length || 0}
                   </div>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Quick Actions / Modules Navigation */}
@@ -1488,7 +1495,7 @@ export default function App() {
                 <p className="text-sm text-slate-500">
                   จัดการข้อมูลนักเรียน เช็คชื่อ และบันทึกพฤติกรรม
                 </p>
-                <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                   เปิดใช้งาน
                 </div>
               </button>
@@ -1527,7 +1534,7 @@ export default function App() {
                   <p className="text-sm text-slate-500">
                     บันทึกตารางสอน ปฏิทินกิจกรรม และตั้งค่าวันเรียน
                   </p>
-                  <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1">
+                  <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full flex items-center gap-1">
                     เปิดใช้งาน
                   </div>
                 </button>
@@ -1548,7 +1555,7 @@ export default function App() {
                   <p className="text-sm text-slate-500">
                     จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และข้อมูลของโรงเรียน
                   </p>
-                  <div className="mt-4 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full">
+                  <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                     เปิดใช้งานเฉพาะ Admin
                   </div>
                 </button>
@@ -1679,13 +1686,13 @@ export default function App() {
             <div className={currentTeacher.role !== "admin" ? "opacity-40 pointer-events-none space-y-6" : "space-y-6"}>
               {/* Header and Tabs */}
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
-                <div className="flex bg-slate-100 p-1 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar">
+                <div className="flex flex-wrap bg-slate-50 p-1.5 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar gap-1 border border-slate-100">
                   <button
                     onClick={() => setActiveTab("form")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       activeTab === "form"
-                        ? "bg-white text-slate-800 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
                     <PenLine className="h-4 w-4" />
@@ -1695,8 +1702,8 @@ export default function App() {
                     onClick={() => setActiveTab("dashboard")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       activeTab === "dashboard"
-                        ? "bg-white text-slate-800 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
                     <List className="h-4 w-4" />
@@ -1706,8 +1713,8 @@ export default function App() {
                     onClick={() => setActiveTab("plan-form")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       activeTab === "plan-form"
-                        ? "bg-white text-slate-800 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
                     <FileText className="h-4 w-4" />
@@ -1717,8 +1724,8 @@ export default function App() {
                     onClick={() => setActiveTab("plan-list")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       activeTab === "plan-list"
-                        ? "bg-white text-slate-800 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
                     <History className="h-4 w-4" />
@@ -1857,6 +1864,7 @@ export default function App() {
             <EvaluationModule 
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
+              students={students}
             />
           </div>
         ) : activeModule === "admin" ? (
@@ -2461,6 +2469,11 @@ export default function App() {
         isOpen={showStudentStatsModal}
         onClose={() => setShowStudentStatsModal(false)}
         students={students}
+      />
+      <TeacherListModal
+        isOpen={showTeacherListModal}
+        onClose={() => setShowTeacherListModal(false)}
+        teachers={teachers}
       />
     </div>
   );

@@ -19,8 +19,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
 }) => {
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
-  const [editHomeroomClass, setEditHomeroomClass] = useState('');
-  const [editCoHomeroomClass, setEditCoHomeroomClass] = useState('');
+  const [editData, setEditData] = useState<Partial<Teacher>>({});
 
   if (currentTeacher.role !== 'admin') {
     return (
@@ -189,25 +188,80 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                     <div className="pt-2 border-t border-slate-100">
                       {editingTeacherId === teacher.id ? (
                         <div className="space-y-2 p-2 bg-slate-50 rounded-xl">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-600">ครูประจำชั้น (เช่น ป.1/1)</label>
-                            <input 
-                              type="text" 
-                              value={editHomeroomClass} 
-                              onChange={e => setEditHomeroomClass(e.target.value)}
-                              className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
-                              placeholder="ไม่ระบุ"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-600">ครูคู่ชั้น (เช่น ป.1/1)</label>
-                            <input 
-                              type="text" 
-                              value={editCoHomeroomClass} 
-                              onChange={e => setEditCoHomeroomClass(e.target.value)}
-                              className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
-                              placeholder="ไม่ระบุ"
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="col-span-2">
+                              <label className="text-[10px] font-bold text-slate-600">รหัสพนักงาน</label>
+                              <input 
+                                type="text" 
+                                value={editData.employeeId || ''} 
+                                onChange={e => setEditData({...editData, employeeId: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="รหัสพนักงาน"
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className="text-[10px] font-bold text-slate-600">ชื่อภาษาไทย</label>
+                              <input 
+                                type="text" 
+                                value={editData.thaiName || ''} 
+                                onChange={e => setEditData({...editData, thaiName: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="ชื่อภาษาไทย"
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className="text-[10px] font-bold text-slate-600">ชื่อภาษาอังกฤษ</label>
+                              <input 
+                                type="text" 
+                                value={editData.englishName || ''} 
+                                onChange={e => setEditData({...editData, englishName: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="ชื่อภาษาอังกฤษ"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-[10px] font-bold text-slate-600">สิทธิ์ผู้ใช้งาน</label>
+                              <select 
+                                value={editData.role || 'teacher'} 
+                                onChange={e => setEditData({...editData, role: e.target.value as any})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                              >
+                                <option value="teacher">คุณครูผู้สอนปกติ</option>
+                                <option value="academic">ฝ่ายวิชาการ (ตรวจแผนฯ / บันทึกหลังสอน)</option>
+                                <option value="deputy">รองผู้อำนวยการ (อนุมัติ)</option>
+                                <option value="admin">ผู้ดูแลระบบสูงสุด (System Administrator)</option>
+                              </select>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-[10px] font-bold text-slate-600">กลุ่มสาระฯ</label>
+                              <input 
+                                type="text" 
+                                value={editData.affiliation || ''} 
+                                onChange={e => setEditData({...editData, affiliation: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="กลุ่มสาระ"
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className="text-[10px] font-bold text-slate-600">ครูประจำชั้น</label>
+                              <input 
+                                type="text" 
+                                value={editData.homeroomClass || ''} 
+                                onChange={e => setEditData({...editData, homeroomClass: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="เช่น ป.1/1"
+                              />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className="text-[10px] font-bold text-slate-600">ครูคู่ชั้น</label>
+                              <input 
+                                type="text" 
+                                value={editData.coHomeroomClass || ''} 
+                                onChange={e => setEditData({...editData, coHomeroomClass: e.target.value})}
+                                className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
+                                placeholder="เช่น ป.1/1"
+                              />
+                            </div>
                           </div>
                           <div className="flex gap-2 justify-end mt-2">
                             <button 
@@ -219,10 +273,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                             <button 
                               onClick={() => {
                                 if (onUpdateTeacher) {
-                                  onUpdateTeacher(teacher.id, {
-                                    homeroomClass: editHomeroomClass.trim() || '',
-                                    coHomeroomClass: editCoHomeroomClass.trim() || ''
-                                  });
+                                  onUpdateTeacher(teacher.id, editData);
                                 }
                                 setEditingTeacherId(null);
                               }}
@@ -246,13 +297,20 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                           </div>
                           <button 
                             onClick={() => {
-                              setEditHomeroomClass(teacher.homeroomClass || '');
-                              setEditCoHomeroomClass(teacher.coHomeroomClass || '');
+                              setEditData({
+                                thaiName: teacher.thaiName || '',
+                                englishName: teacher.englishName || '',
+                                employeeId: teacher.employeeId || '',
+                                affiliation: teacher.affiliation || '',
+                                role: teacher.role || 'teacher',
+                                homeroomClass: teacher.homeroomClass || '',
+                                coHomeroomClass: teacher.coHomeroomClass || '',
+                              });
                               setEditingTeacherId(teacher.id);
                             }}
                             className="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded text-slate-600 hover:bg-slate-50 shadow-xs font-semibold"
                           >
-                            แก้ไขชั้น
+                            แก้ไขข้อมูล
                           </button>
                         </div>
                       )}
