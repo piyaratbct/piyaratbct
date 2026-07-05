@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Student, AttendanceSession, TeacherSchedule } from '../types';
+import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
 import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
 
 interface AttendanceTrackingProps {
@@ -15,7 +15,7 @@ interface AttendanceTrackingProps {
 
 export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear }: AttendanceTrackingProps) {
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [period, setPeriod] = useState<string>('คาบ 1');
+  const [period, setPeriod] = useState<string>(PERIODS[1]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'>>({});
@@ -188,7 +188,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     late: Object.values(attendanceData).filter(s => s === 'late').length,
   };
 
-  const standardPeriods = ['กิจกรรมโฮมรูม', 'คาบ 1', 'คาบ 2', 'คาบ 3', 'คาบ 4', 'คาบพักกลางวัน', 'คาบ 5', 'คาบ 6', 'คาบ 7', 'คาบ 8', 'กิจกรรมหลังเลิกเรียน'];
+  const standardPeriods = PERIODS;
   
   // Suggest periods based on teacher's schedule for this day and grade
   const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;

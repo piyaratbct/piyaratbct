@@ -16,6 +16,7 @@ import { PrintTemplate, SchoolLogo } from "./components/PrintTemplate";
 import { LessonPlanPrintTemplate } from "./components/LessonPlanPrintTemplate";
 import { AdminMonitoringDashboard } from "./components/AdminMonitoringDashboard";
 import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
+import { OverviewCalendar } from "./components/OverviewCalendar";
 import { AcademicModule } from "./components/AcademicModule";
 import {
   BookOpen,
@@ -1317,7 +1318,7 @@ export default function App() {
               onClick={() => setActiveModule("admin" as any)}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
                 activeModule === ("admin" as any)
-                  ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
@@ -1341,7 +1342,7 @@ export default function App() {
               {currentTeacher.displayName}
             </h2>
             <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">
-              ยินดีต้อนรับสู่ระบบบันทึกผลการสอน สังกัดของคุณครูคือ{" "}
+              ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน สถานะของคุณครูคือ{" "}
               <b className="text-sky-700">{currentTeacher.affiliation}</b>
             </p>
           </div>
@@ -1399,6 +1400,9 @@ export default function App() {
             </div>
 
             <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
+            
+            {/* School Event Calendar in Overview */}
+            <OverviewCalendar currentTeacher={currentTeacher} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} onNavigateToCalendar={() => setActiveModule("academic")} />
 
             {/* Quick Stats Cards (Mockup) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1625,6 +1629,9 @@ export default function App() {
                   return topActivities.map((item, i) => {
                     const teacher = teachers.find(t => t.id === item.teacherId);
                     const teacherName = teacher ? teacher.thaiName : "ไม่ทราบชื่อ";
+                    const isMe = currentTeacher?.id === item.teacherId;
+                    const displayName = isMe ? "คุณ" : teacherName;
+                    
                     return (
                       <div
                         key={item.id}
@@ -1635,7 +1642,7 @@ export default function App() {
                         ></div>
                         <div>
                           <div className="text-sm font-bold text-slate-700">
-                            {teacherName}{" "}
+                            {displayName}{" "}
                             <span className="font-normal text-slate-500">
                               ได้ทำการ
                             </span>{" "}
@@ -1684,6 +1691,26 @@ export default function App() {
             )}
 
             <div className={currentTeacher.role !== "admin" ? "opacity-40 pointer-events-none space-y-6" : "space-y-6"}>
+              {/* Module Header with attractive display */}
+              <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden print:hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-violet-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
+                
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner border border-white/30">
+                    <Presentation className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
+                      1. การจัดการผู้สอน (LessonTeach)
+                    </h2>
+                    <p className="text-violet-100 font-medium mt-1">
+                      บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Header and Tabs */}
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
                 <div className="flex flex-wrap bg-slate-50 p-1.5 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar gap-1 border border-slate-100">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays } from 'lucide-react';
 import { Student, GRADE_LEVELS, SUBJECTS } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
+import { LessonAchieve } from './LessonAchieve';
 
 interface EvaluationModuleProps {
   systemAcademicYear?: string;
@@ -69,48 +70,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             
           {activeTab === 'overview' && (
             <div className="p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-800">ภาพรวมผลสัมฤทธิ์ (จำลอง)</h3>
-                  <p className="text-sm text-slate-500">รายงานสถิติผลการเรียนของนักเรียนระดับชั้นประถมศึกษา</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-center gap-4">
-                  <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-                    <TrendingUp className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-500">เกรดเฉลี่ยรวม</div>
-                    <div className="text-2xl font-black text-slate-800">3.45</div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-center gap-4">
-                  <div className="h-12 w-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center shrink-0">
-                    <Award className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-500">นักเรียนผลการเรียนดีเยี่ยม</div>
-                    <div className="text-2xl font-black text-slate-800">45%</div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-center gap-4">
-                  <div className="h-12 w-12 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center shrink-0">
-                    <BookOpen className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-500">วิชาที่ทำคะแนนเฉลี่ยสูงสุด</div>
-                    <div className="text-2xl font-black text-slate-800">ภาษาไทย</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl">
-                <BarChart3 className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <h4 className="font-bold text-slate-600 mb-2">พื้นที่สำหรับแสดงกราฟสรุปสถิติ</h4>
-                <p className="text-sm text-slate-400">แผนภูมิเปรียบเทียบผลการเรียนจะแสดงที่นี่ในอนาคต</p>
-              </div>
+              <LessonAchieve />
             </div>
           )}
 

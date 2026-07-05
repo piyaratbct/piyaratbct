@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { LessonRecord, SUBJECTS, Teacher, TeacherSchedule } from '../types';
+import { LessonRecord, SUBJECTS, Teacher, TeacherSchedule, PERIODS } from '../types';
 import { BookOpen, GraduationCap, Calendar, Clock, BarChart3, Presentation, Bell, CalendarDays } from 'lucide-react';
 
 interface DashboardStatsProps {
@@ -64,6 +64,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   }).filter(item => item.count > 0 || item.name === 'ภาษาไทย' || item.name === 'คณิตศาสตร์' || item.name === 'วิทยาศาสตร์และเทคโนโลยี');
 
   const pendingApprovals = records.filter(r => r.teacherSigned && !r.deptHeadApproved);
+  
   const pendingCount = pendingApprovals.length;
   const isAcademic = currentTeacher?.role && currentTeacher.role !== 'teacher';
 
@@ -104,48 +105,11 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const todaySchedules = schedules.filter(s => s.dayOfWeek === todayIndex);
   
   // Sort by period roughly
-  const periodsOrder = ['กิจกรรมโฮมรูม', 'คาบ 1', 'คาบ 2', 'คาบ 3', 'คาบ 4', 'คาบพักกลางวัน', 'คาบ 5', 'คาบ 6', 'คาบ 7', 'คาบ 8', 'กิจกรรมหลังเลิกเรียน'];
+  const periodsOrder = PERIODS;
   todaySchedules.sort((a, b) => periodsOrder.indexOf(a.period) - periodsOrder.indexOf(b.period));
 
   return (
     <div className="space-y-6">
-      {/* Today's Schedule */}
-      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-sm text-white">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-            <CalendarDays className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black tracking-tight">ตารางสอนวันนี้ของคุณ</h3>
-            <p className="text-indigo-100 text-xs font-medium opacity-90">ตรวจสอบรายวิชาที่ต้องสอนและจัดการชั้นเรียนได้ทันที</p>
-          </div>
-        </div>
-
-        {isLoadingSchedules ? (
-          <div className="animate-pulse flex space-x-4">
-            <div className="flex-1 space-y-3 py-1">
-              <div className="h-8 bg-white/20 rounded w-full"></div>
-              <div className="h-8 bg-white/20 rounded w-full"></div>
-            </div>
-          </div>
-        ) : todaySchedules.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {todaySchedules.map(schedule => (
-              <div key={schedule.id} className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded text-white">{schedule.period}</span>
-                  <span className="text-xs font-bold text-indigo-100">{schedule.gradeLevel}</span>
-                </div>
-                <h4 className="font-bold text-base line-clamp-1">{schedule.subject}</h4>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 text-center">
-            <p className="text-sm font-medium">คุณไม่มีตารางสอนในวันนี้ หรือยังไม่ได้จัดตารางสอน</p>
-          </div>
-        )}
-      </div>
 
       {isAcademic && pendingCount > 0 && (
         <div id="academic-pending-alert" className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-3xs animate-pulse-once">
@@ -234,7 +198,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
             เขียนบันทึกวิชาแรกของคุณเพื่อดูสถิติได้ที่นี่
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-3xl space-y-4">
             <div className="space-y-3.5">
               {subjectDistribution.map((item, index) => {
                 const colors = [
@@ -262,26 +226,6 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
                   </div>
                 );
               })}
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-4 flex flex-col justify-center border border-slate-100">
-              <h4 className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-blue-500" /> 
-                บันทึกการสอนดียังไง?
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                การบันทึกหลังสอนเป็นประจำช่วยให้เห็นพัฒนาการของเด็กๆ และจดจำปัญหาเพื่อนำมาปรับปรุงคาบเรียนถัดไปได้อย่างรวดเร็ว
-              </p>
-              <div className="mt-4 flex gap-4 text-center">
-                <div className="flex-1 bg-white p-2.5 rounded-xl border border-slate-100">
-                  <span className="block text-xl font-bold text-blue-600">{totalLogs}</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">บันทึกแล้ว</span>
-                </div>
-                <div className="flex-1 bg-white p-2.5 rounded-xl border border-slate-100">
-                  <span className="block text-xl font-bold text-emerald-600">100%</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">ข้อมูลปลอดภัย</span>
-                </div>
-              </div>
             </div>
           </div>
         )}

@@ -1,35 +1,72 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, orderBy, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, SEMESTERS } from '../types';
+import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, SEMESTERS, PERIODS } from '../types';
 import { Loader2, Save, Trash2, Plus, Calendar, Clock, User, BookOpen } from 'lucide-react';
+
+import { MapPin } from 'lucide-react';
 
 interface ScheduleManagerProps {
   systemSemester: string;
   systemAcademicYear: string;
+  currentTeacher: Teacher;
 }
 
-export function ScheduleManager({ systemSemester, systemAcademicYear }: ScheduleManagerProps) {
+export function ScheduleManager({ systemSemester, systemAcademicYear, currentTeacher }: ScheduleManagerProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<'today' | 'manage'>('manage');
+  const [myTodaySchedules, setMyTodaySchedules] = useState<TeacherSchedule[]>([]);
   
   const daysOfWeek = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-  const periods = ['กิจกรรมโฮมรูม', 'คาบ 1', 'คาบ 2', 'คาบ 3', 'คาบ 4', 'คาบพักกลางวัน', 'คาบ 5', 'คาบ 6', 'คาบ 7', 'คาบ 8', 'กิจกรรมหลังเลิกเรียน'];
+  const periods = PERIODS;
 
   useEffect(() => {
     fetchTeachers();
   }, []);
 
   useEffect(() => {
-    if (selectedTeacherId) {
+    if (selectedTeacherId && viewMode === 'manage') {
       fetchSchedules(selectedTeacherId);
     } else {
       setSchedules([]);
     }
-  }, [selectedTeacherId, systemSemester, systemAcademicYear]);
+  }, [selectedTeacherId, systemSemester, systemAcademicYear, viewMode]);
+
+  // Fetch today's schedule for the current user
+  useEffect(() => {
+    if (viewMode === 'today' && currentTeacher) {
+      const fetchMyTodaySchedules = async () => {
+        setIsLoading(true);
+        try {
+          const q = query(
+            collection(db, 'schedules'), 
+            where('teacherId', '==', currentTeacher.id),
+            where('semester', '==', systemSemester),
+            where('academicYear', '==', systemAcademicYear)
+          );
+          const snapshot = await getDocs(q);
+          const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
+          
+          const today = new Date().getDay();
+          const todayList = scheduleList.filter(s => s.dayOfWeek === today);
+          
+          // Sort by period
+          todayList.sort((a, b) => periods.indexOf(a.period) - periods.indexOf(b.period));
+          
+          setMyTodaySchedules(todayList);
+        } catch (error) {
+          console.error("Error fetching my today schedules:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchMyTodaySchedules();
+    }
+  }, [viewMode, currentTeacher, systemSemester, systemAcademicYear]);
 
   const fetchTeachers = async () => {
     setIsLoading(true);

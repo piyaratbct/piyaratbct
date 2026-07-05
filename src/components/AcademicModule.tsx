@@ -38,16 +38,22 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-bl-full -z-10"></div>
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-indigo-500" />
-            การบริหารงานวิชาการ (LessonAcad)
-          </h2>
-          <p className="text-slate-500 mt-1 font-medium">
-            ปีการศึกษา {systemAcademicYear} ภาคเรียนที่ {systemSemester}
-          </p>
+      <div className="bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
+        
+        <div className="flex items-center gap-5 relative z-10">
+          <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner border border-white/30">
+            <BookOpen className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
+              4. การบริหารงานวิชาการ (LessonAcad)
+            </h2>
+            <p className="text-indigo-100 font-medium mt-1">
+              ปีการศึกษา {systemAcademicYear} ภาคเรียนที่ {systemSemester}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -101,7 +107,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       )}
 
       {activeTab === "schedule" && (
-        <ScheduleManager systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
+        <ScheduleManager systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} currentTeacher={currentTeacher} />
       )}
 
       {activeTab === "settings" && (

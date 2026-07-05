@@ -1,190 +1,170 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, Plus, Trash2 } from 'lucide-react';
+import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher } from '../types';
 
-const WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-// Mock teaching schedule for the day
-const MOCK_SCHEDULE = [
-  { id: 1, time: '08:30 - 09:30', subject: 'คณิตศาสตร์พื้นฐาน', grade: 'ป.4/1', room: 'ห้อง 401', period: 'คาบ 1' },
-  { id: 2, time: '09:30 - 10:30', subject: 'วิทยาศาสตร์', grade: 'ป.4/1', room: 'ห้อง 401', period: 'คาบ 2' },
-  { id: 3, time: '10:30 - 11:30', subject: 'ภาษาไทย', grade: 'ป.5/2', room: 'ห้อง 502', period: 'คาบ 3' },
-  { id: 4, time: '13:00 - 14:00', subject: 'ลูกเสือ-เนตรนารี', grade: 'ป.4-6', room: 'ลานอเนกประสงค์', period: 'คาบ 5' },
-];
-
-// Mock school events
-const MOCK_EVENTS = [
-  { id: 1, date: new Date(Date.now() + 86400000 * 2), title: 'ประชุมผู้ปกครองภาคเรียนที่ 1', type: 'meeting', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  { id: 2, date: new Date(Date.now() + 86400000 * 5), title: 'กิจกรรมวันไหว้ครู', type: 'activity', color: 'bg-pink-50 text-pink-700 border-pink-200' },
-  { id: 3, date: new Date(Date.now() + 86400000 * 12), title: 'สอบกลางภาคเรียนที่ 1', type: 'exam', color: 'bg-rose-50 text-rose-700 border-rose-200' },
-];
+interface SchoolEvent {
+  id: string;
+  date: string;
+  title: string;
+  type: string;
+  timeRange: string;
+}
 
 interface SchoolEventCalendarProps {
   currentTeacher?: Teacher;
 }
 
 export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [events, setEvents] = useState<SchoolEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newEvent, setNewEvent] = useState({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity' });
+  const canManageEvents = currentTeacher?.role === 'admin' || currentTeacher?.role === 'academic';
 
-  const getDayName = (date: Date) => WEEKDAYS[date.getDay()];
-  const getMonthName = (date: Date) => MONTHS[date.getMonth()];
-  
-  const formattedDate = `${getDayName(currentDate)}ที่ ${currentDate.getDate()} ${getMonthName(currentDate)} ${(currentDate.getFullYear() + 543)}`;
-
-  const notifiedPeriods = useRef<Set<number>>(new Set());
+  const fetchEvents = async () => {
+    setIsLoading(true);
+    try {
+      const q = query(collection(db, 'schoolEvents'), orderBy('date', 'asc'));
+      const snapshot = await getDocs(q);
+      const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SchoolEvent));
+      setEvents(fetched);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    if (!currentTeacher) return;
+    fetchEvents();
+  }, []);
 
-    const checkAttendance = async () => {
-      const now = new Date();
-      
-      for (const session of MOCK_SCHEDULE) {
-        if (notifiedPeriods.current.has(session.id)) continue;
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEvent.date || !newEvent.title) return;
+    try {
+      await addDoc(collection(db, 'schoolEvents'), newEvent);
+      setNewEvent({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity' });
+      setIsAdding(false);
+      fetchEvents();
+      window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เพิ่มกิจกรรมเรียบร้อยแล้ว', type: 'success' }}));
+    } catch (error) {
+      console.error('Error adding event:', error);
+    }
+  };
 
-        // Parse end time (e.g. "09:30")
-        const [, endTimeStr] = session.time.split(' - ');
-        if (!endTimeStr) continue;
+  const handleDelete = async (id: string) => {
+    if (!confirm('ยืนยันการลบกิจกรรมนี้?')) return;
+    try {
+      await deleteDoc(doc(db, 'schoolEvents', id));
+      fetchEvents();
+      window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบกิจกรรมเรียบร้อยแล้ว', type: 'success' }}));
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
+  };
 
-        const [endHour, endMinute] = endTimeStr.split(':').map(Number);
-        const endTime = new Date(now);
-        endTime.setHours(endHour, endMinute, 0, 0);
-
-        // If current time is past the end time of the period
-        if (now > endTime) {
-          try {
-            // Check if attendance was taken today for this gradeLevel and period
-            const todayStr = now.toISOString().split('T')[0];
-            const q = query(
-              collection(db, 'attendanceSessions'),
-              where('gradeLevel', '==', session.grade),
-              where('date', '==', todayStr),
-              where('period', '==', session.period)
-            );
-            
-            const querySnapshot = await getDocs(q);
-            
-            if (querySnapshot.empty) {
-              // Not checked! Fire toast
-              window.dispatchEvent(new CustomEvent('app-custom-toast', {
-                detail: {
-                  message: `คุณครูยังไม่ได้เช็คชื่อวิชา ${session.subject} (${session.period}) ที่หมดเวลาเรียนแล้ว!`,
-                  type: 'warning',
-                  title: 'แจ้งเตือนการเช็คชื่อ'
-                }
-              }));
-            }
-            
-            // Mark as notified so we don't spam
-            notifiedPeriods.current.add(session.id);
-          } catch (err) {
-            console.error('Error checking attendance reminder:', err);
-          }
-        }
-      }
-    };
-
-    // Check immediately, then every 1 minute
-    checkAttendance();
-    const interval = setInterval(checkAttendance, 60 * 1000);
-    return () => clearInterval(interval);
-  }, [currentTeacher]);
+  const getColorByType = (type: string) => {
+    switch (type) {
+      case 'meeting': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+      case 'exam': return 'bg-rose-50 text-rose-700 border-rose-200';
+      default: return 'bg-pink-50 text-pink-700 border-pink-200';
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Teaching Schedule */}
-      <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black text-slate-800">ตารางสอนวันนี้</h3>
-              <p className="text-sm font-medium text-slate-500">{formattedDate}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold">
-              วันนี้
-            </button>
-            <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-        
-        <div className="p-6 flex-1">
-          <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 pb-4">
-            {MOCK_SCHEDULE.map((session) => (
-              <div key={session.id} className="relative pl-6">
-                <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-4 border-white bg-indigo-500 shadow-sm"></div>
-                <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                    <span className="text-indigo-600 font-bold text-sm bg-indigo-50 px-2 py-1 rounded-md w-fit">
-                      {session.time}
-                    </span>
-                    <span className="text-slate-500 font-semibold text-sm flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" /> {session.room}
-                    </span>
-                  </div>
-                  <h4 className="font-black text-slate-800 text-lg mb-1 group-hover:text-indigo-600 transition-colors">{session.subject}</h4>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                    <BookOpen className="h-4 w-4 text-slate-400" />
-                    ชั้น {session.grade}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Upcoming Events */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-100 bg-pink-50/50 flex items-center gap-3">
-          <div className="h-10 w-10 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+      <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
             <CalendarIcon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-black text-slate-800">กิจกรรมสำคัญ</h3>
-            <p className="text-sm font-medium text-slate-500">ในเดือนนี้</p>
+            <h3 className="text-lg font-black text-slate-800">ปฏิทินวิชาการโรงเรียน</h3>
+            <p className="text-sm font-medium text-slate-500">จัดการและติดตามกิจกรรมสำคัญตลอดปีการศึกษา</p>
           </div>
         </div>
-        
-        <div className="p-6 flex-1">
-          <div className="space-y-4">
-            {MOCK_EVENTS.map(event => {
-              const d = event.date;
+        {canManageEvents && !isAdding && (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> เพิ่มกิจกรรม
+          </button>
+        )}
+      </div>
+      
+      <div className="p-6">
+        {isAdding && (
+          <form onSubmit={handleAddEvent} className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+            <h4 className="font-bold text-slate-700">เพิ่มกิจกรรมใหม่</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">วันที่</label>
+                <input required type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">ชื่อกิจกรรม</label>
+                <input required type="text" placeholder="เช่น สอบกลางภาค" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">เวลา (เช่น 08:00 - 16:00)</label>
+                <input required type="text" value={newEvent.timeRange} onChange={e => setNewEvent({...newEvent, timeRange: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">ประเภท</label>
+                <select value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg">
+                  <option value="activity">กิจกรรมทั่วไป</option>
+                  <option value="meeting">ประชุม</option>
+                  <option value="exam">สอบวัดผล</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50">ยกเลิก</button>
+              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700">บันทึก</button>
+            </div>
+          </form>
+        )}
+
+        {isLoading ? (
+          <div className="py-12 text-center text-slate-500 text-sm">กำลังโหลดข้อมูล...</div>
+        ) : events.length === 0 ? (
+          <div className="py-12 text-center text-slate-500 text-sm">ยังไม่มีข้อมูลกิจกรรมวิชาการในขณะนี้</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {events.map(event => {
+              const d = new Date(event.date);
               return (
-                <div key={event.id} className={`p-4 rounded-xl border ${event.color} transition-all hover:scale-[1.02] cursor-pointer`}>
-                  <div className="flex gap-4 items-center">
-                    <div className="flex flex-col items-center justify-center bg-white/60 rounded-lg p-2 min-w-[3.5rem] backdrop-blur-sm">
-                      <span className="text-xs font-bold uppercase opacity-80">{MONTHS[d.getMonth()].substring(0, 3)}</span>
-                      <span className="text-2xl font-black">{d.getDate()}</span>
+                <div key={event.id} className={`p-5 rounded-2xl border ${getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-default flex flex-col justify-between`}>
+                  <div className="flex gap-4 items-start">
+                    <div className="flex flex-col items-center justify-center bg-white/80 rounded-xl p-3 min-w-[4rem] backdrop-blur-sm shadow-sm">
+                      <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
+                      <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-base leading-tight mb-1">{event.title}</h4>
-                      <p className="text-sm font-medium opacity-80 flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" /> 08:00 - 16:00 น.
+                    <div className="flex-1">
+                      <h4 className="font-bold text-base leading-tight mb-2">{event.title}</h4>
+                      <p className="text-sm font-medium opacity-80 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" /> {event.timeRange} น.
                       </p>
                     </div>
                   </div>
+                  {canManageEvents && (
+                    <div className="mt-4 pt-4 border-t border-black/5 flex justify-end">
+                      <button onClick={() => handleDelete(event.id)} className="text-xs font-bold flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-red-700 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" /> ลบ
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-          
-          <button className="w-full mt-6 py-3 border border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:bg-slate-50 hover:text-indigo-600 transition-colors text-sm">
-            + ดูปฏิทินทั้งหมด
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
