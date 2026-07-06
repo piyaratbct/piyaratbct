@@ -1176,9 +1176,9 @@ export default function App() {
                 )}
               </div>
               <div className="leading-tight">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-slate-800 tracking-tight font-sans">
-                    LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-sm sm:text-base font-black text-slate-800 tracking-tight font-sans">
+                    LessonLog <span className="hidden sm:inline">- ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
                   </span>
                   <span className="text-[8px] bg-pink-50 text-pink-600 px-1 py-0.5 rounded font-black border border-pink-100 font-mono scale-90">
                     SMBS
@@ -1250,10 +1250,10 @@ export default function App() {
       {/* 2. Main Page Layout Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-1 space-y-6 print:m-0 print:p-0">
         {/* Module Selector */}
-        <div className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 overflow-x-auto print:hidden">
+        <div className="grid grid-cols-2 lg:flex lg:flex-wrap bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 print:hidden gap-1.5">
           <button
             onClick={() => setActiveModule("home")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
               activeModule === "home"
                 ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -1265,7 +1265,7 @@ export default function App() {
 
           <button
             onClick={() => setActiveModule("teaching")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
               activeModule === "teaching"
                 ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -1277,7 +1277,7 @@ export default function App() {
 
           <button
             onClick={() => setActiveModule("classroom")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
               activeModule === "classroom"
                 ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -1289,7 +1289,7 @@ export default function App() {
 
           <button
             onClick={() => setActiveModule("analytics")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
               activeModule === "analytics"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -1302,28 +1302,28 @@ export default function App() {
           {(currentTeacher.role === "admin" || currentTeacher.role === "academic") && (
             <button
               onClick={() => setActiveModule("academic")}
-              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
                 activeModule === "academic"
                   ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
               <BookOpen className="h-4.5 w-4.5" />
-              <span>4. การบริหารงานวิชาการ (LessonAcad)</span>
+              <span>4. การบริหาร<br />งานวิชาการ (LessonAcad)</span>
             </button>
           )}
 
           {currentTeacher.role === "admin" && (
             <button
               onClick={() => setActiveModule("admin" as any)}
-              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all min-w-[200px] ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
                 activeModule === ("admin" as any)
                   ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
               <ShieldCheck className="h-4.5 w-4.5" />
-              <span>การจัดการระบบผู้ใช้งาน (Admin)</span>
+              <span>การจัดการระบบ<br />ผู้ใช้งาน (Admin)</span>
             </button>
           )}
         </div>
@@ -1331,10 +1331,10 @@ export default function App() {
         {/* Welcome Card & Info */}
         <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs">
-              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-              <span className="text-sm sm:text-base font-black tracking-wide text-indigo-950 font-sans">
-                LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs max-w-full overflow-hidden">
+              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
+              <span className="text-xs sm:text-base font-black tracking-wide text-indigo-950 font-sans truncate">
+                LessonLog <span className="hidden sm:inline">- ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
               </span>
             </div>
             <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
@@ -1465,7 +1465,7 @@ export default function App() {
             </div>
 
             {/* Quick Actions / Modules Navigation */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 onClick={() => setActiveModule("teaching")}
                 className="bg-white p-8 rounded-2xl border border-violet-100 shadow-sm hover:shadow-md hover:border-violet-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
@@ -1497,7 +1497,7 @@ export default function App() {
                   2. การจัดการชั้นเรียน (LessonClass)
                 </h3>
                 <p className="text-sm text-slate-500">
-                  จัดการข้อมูลนักเรียน เช็คชื่อ และบันทึกพฤติกรรม
+                  จัดการข้อมูลนักเรียน เช็กชื่อ และบันทึกพฤติกรรม
                 </p>
                 <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                   เปิดใช้งาน
@@ -1533,7 +1533,7 @@ export default function App() {
                     <BookOpen className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-black text-slate-800 mb-2">
-                    4. การบริหารงานวิชาการ (LessonAcad)
+                    4. การบริหาร<br />งานวิชาการ (LessonAcad)
                   </h3>
                   <p className="text-sm text-slate-500">
                     บันทึกตารางสอน ปฏิทินกิจกรรม และตั้งค่าวันเรียน
@@ -1554,7 +1554,7 @@ export default function App() {
                     <ShieldCheck className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-black text-slate-800 mb-2">
-                    การจัดการผู้ใช้งานและสิทธิ์ (Admin)
+                    การจัดการระบบ<br />ผู้ใช้งาน (Admin)
                   </h3>
                   <p className="text-sm text-slate-500">
                     จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และข้อมูลของโรงเรียน

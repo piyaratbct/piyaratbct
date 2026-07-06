@@ -58,7 +58,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-white rounded-xl p-1 shadow-sm border border-slate-100 overflow-x-auto custom-scrollbar">
+      <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 custom-scrollbar gap-1">
         <button
           onClick={() => setActiveTab("calendar")}
           className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${

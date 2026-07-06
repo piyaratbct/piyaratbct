@@ -38,7 +38,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         {/* Tabs and Content */}
         <div className="space-y-6">
           {/* Tabs */}
-          <div className="flex flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-2xl">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-2xl gap-1">
             <button
               onClick={() => setActiveTab('overview')}
               className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -61,7 +61,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 activeTab === 'attendance' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <CalendarDays className="h-4 w-4" /> สรุปการเช็คชื่อ
+              <CalendarDays className="h-4 w-4" /> สรุปการเช็กชื่อ
             </button>
           </div>
 

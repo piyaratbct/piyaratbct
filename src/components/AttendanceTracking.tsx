@@ -162,7 +162,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
       // Also fire a global toast for clearer visibility
       window.dispatchEvent(new CustomEvent('app-custom-toast', {
         detail: {
-          message: `บันทึกการเช็คชื่อชั้น ${gradeLevel} (คาบ ${period}) วันที่ ${date} สำเร็จและจัดเก็บเข้าคลาวด์เรียบร้อยแล้ว ✅`,
+          message: `บันทึกการเช็กชื่อชั้น ${gradeLevel} (คาบ ${period}) วันที่ ${date} สำเร็จและจัดเก็บเข้าคลาวด์เรียบร้อยแล้ว ✅`,
           type: 'success',
           title: 'บันทึกการเข้าเรียนสำเร็จ'
         }
@@ -306,32 +306,30 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 w-16 text-center">เลขที่</th>
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 w-24 text-center">ชั้น</th>
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 w-24 text-center">รหัสนักเรียน</th>
+                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">เลขที่ / รหัสนักเรียน</th>
+                  <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">ชั้น</th>
                   <th className="px-6 py-4 font-bold border-b border-slate-100">ชื่อ - นามสกุล</th>
                   <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">สถานะการเข้าเรียน</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {sortedStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-3 text-center text-slate-500 font-medium">
-                      {student.number}
+                  <tr key={student.id} className="hover:bg-slate-100/80 transition-colors whitespace-nowrap even:bg-slate-50/50">
+                    <td className="px-6 py-3 text-center">
+                      <span className="text-slate-500 font-medium">{student.number}</span>
+                      <span className="text-slate-300 mx-2">|</span>
+                      <span className="text-slate-400 text-sm">{student.studentId}</span>
                     </td>
                     <td className="px-6 py-3 text-center text-slate-500 font-bold">
                       {student.gradeLevel || '-'}
-                    </td>
-                    <td className="px-6 py-3 text-center text-slate-400 text-sm">
-                      {student.studentId}
                     </td>
                     <td className="px-6 py-3">
                       <div className="font-bold text-slate-700">
                         {student.firstName} {student.lastName}
                       </div>
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-6 py-3 text-center">
                       <div className="flex justify-center gap-1.5 sm:gap-2">
                         <button
                           onClick={() => handleStatusChange(student.id, 'present')}

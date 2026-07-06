@@ -74,6 +74,20 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         const numberRaw = row['เลขที่'] || row['number'];
         const number = parseInt(numberRaw, 10) || 0;
 
+        const dob = String(row['วันเกิด'] || row['dob'] || '').trim();
+        const parentName = String(row['ชื่อผู้ปกครอง'] || row['parentName'] || '').trim();
+        const parentPhone = String(row['เบอร์โทรผู้ปกครอง'] || row['parentPhone'] || '').trim();
+        const fatherName = String(row['ชื่อบิดา'] || row['fatherName'] || '').trim();
+        const fatherPhone = String(row['เบอร์โทรบิดา'] || row['fatherPhone'] || '').trim();
+        const motherName = String(row['ชื่อมารดา'] || row['motherName'] || '').trim();
+        const motherPhone = String(row['เบอร์โทรมารดา'] || row['motherPhone'] || '').trim();
+        const familyStatus = String(row['สถานภาพครอบครัว'] || row['familyStatus'] || 'สมรส').trim();
+        const address = String(row['ที่อยู่'] || row['address'] || '').trim();
+        const medicalInfo = String(row['ข้อมูลสุขภาพ'] || row['medicalInfo'] || '').trim();
+        const allergicMedicine = String(row['การแพ้ยา'] || row['allergicMedicine'] || '').trim();
+        const allergicFood = String(row['การแพ้อาหาร'] || row['allergicFood'] || '').trim();
+        const congenitalDisease = String(row['โรคประจำตัว'] || row['congenitalDisease'] || '').trim();
+
         // Skip rows without minimum required data
         if (!studentId || !firstName) continue;
 
@@ -89,7 +103,20 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
           gradeLevel: selectedGrade,
           gender,
           number,
-          status: 'active'
+          status: 'active',
+          dob,
+          parentName,
+          parentPhone,
+          fatherName,
+          fatherPhone,
+          motherName,
+          motherPhone,
+          familyStatus,
+          address,
+          medicalInfo,
+          allergicMedicine,
+          allergicFood,
+          congenitalDisease
         };
 
         batch.set(newDocRef, studentData);
@@ -145,7 +172,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
             <p className="font-bold mb-1">คำแนะนำรูปแบบไฟล์ (.xlsx หรือ .csv)</p>
             <p className="mb-2">หัวคอลัมน์ (Row 1) ต้องประกอบด้วยชื่อคอลัมน์ดังนี้ (อย่างน้อย "รหัสนักเรียน" และ "ชื่อ"):</p>
             <div className="flex flex-wrap gap-2">
-              {['เลขที่', 'รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'เพศ'].map(col => (
+              {['เลขที่', 'รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'เพศ', 'วันเกิด', 'ชื่อบิดา', 'เบอร์โทรบิดา', 'ชื่อมารดา', 'เบอร์โทรมารดา', 'สถานภาพครอบครัว', 'ชื่อผู้ปกครอง', 'เบอร์โทรผู้ปกครอง', 'ที่อยู่', 'การแพ้ยา', 'การแพ้อาหาร', 'โรคประจำตัว', 'ข้อมูลสุขภาพ'].map(col => (
                 <span key={col} className="bg-white px-2 py-1 rounded border border-sky-200 text-xs font-bold font-mono">{col}</span>
               ))}
             </div>

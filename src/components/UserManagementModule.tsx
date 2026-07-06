@@ -84,7 +84,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
           <div>
             <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wide flex items-center gap-2">
               <User className="h-4.5 w-4.5 text-violet-600" />
-              บัญชีชื่อข้าราชการและบุคลากรทางการศึกษา
+              บัญชีครูและบุคลากร
             </h4>
             <p className="text-[11px] text-slate-400 mt-0.5 font-semibold">ค้นหาหรือลบบัญชีคุณครูเพื่อจัดระบบ (บันทึกหลังสอนในระบบคลาวด์ทั้งหมดของผู้ถูกลบจะถูกล้างออกด้วยเพื่อสุขอนามัยข้อมูล)</p>
           </div>

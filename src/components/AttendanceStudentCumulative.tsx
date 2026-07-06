@@ -78,7 +78,7 @@ export function AttendanceStudentCumulative({ gradeLevel, systemAcademicYear, sy
 
       {totalPeriods === 0 ? (
         <div className="bg-slate-50 text-center p-8 rounded-xl border border-slate-200">
-          <p className="text-slate-500 font-medium">ยังไม่มีข้อมูลการสอนหรือการเช็คชื่อในรายวิชานี้ สำหรับ {gradeLevel}</p>
+          <p className="text-slate-500 font-medium">ยังไม่มีข้อมูลการสอนหรือการเช็กชื่อในรายวิชานี้ สำหรับ {gradeLevel}</p>
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">

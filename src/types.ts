@@ -106,6 +106,19 @@ export interface Student {
   gender: 'male' | 'female';
   number: number;
   status: 'active' | 'inactive';
+  dob?: string;
+  parentName?: string;
+  parentPhone?: string;
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
+  familyStatus?: string;
+  address?: string;
+  medicalInfo?: string;
+  allergicMedicine?: string;
+  allergicFood?: string;
+  congenitalDisease?: string;
 }
 
 export interface AttendanceSession {

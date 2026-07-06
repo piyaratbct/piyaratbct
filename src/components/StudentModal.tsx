@@ -18,7 +18,20 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     gender: 'male' as 'male' | 'female',
     number: 1,
     status: 'active' as 'active' | 'inactive',
-    gradeLevel: selectedGrade
+    gradeLevel: selectedGrade,
+    dob: '',
+    parentName: '',
+    parentPhone: '',
+    fatherName: '',
+    fatherPhone: '',
+    motherName: '',
+    motherPhone: '',
+    familyStatus: 'สมรส',
+    address: '',
+    medicalInfo: '',
+    allergicMedicine: '',
+    allergicFood: '',
+    congenitalDisease: ''
   });
 
   useEffect(() => {
@@ -31,7 +44,20 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         gender: student.gender,
         number: student.number,
         status: student.status,
-        gradeLevel: student.gradeLevel
+        gradeLevel: student.gradeLevel,
+        dob: student.dob || '',
+        parentName: student.parentName || '',
+        parentPhone: student.parentPhone || '',
+        fatherName: student.fatherName || '',
+        fatherPhone: student.fatherPhone || '',
+        motherName: student.motherName || '',
+        motherPhone: student.motherPhone || '',
+        familyStatus: student.familyStatus || 'สมรส',
+        address: student.address || '',
+        medicalInfo: student.medicalInfo || '',
+        allergicMedicine: student.allergicMedicine || '',
+        allergicFood: student.allergicFood || '',
+        congenitalDisease: student.congenitalDisease || ''
       });
     } else {
       setFormData(prev => ({ ...prev, gradeLevel: selectedGrade }));
@@ -56,7 +82,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         </div>
         
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">รหัสนักเรียน</label>
               <input
@@ -81,7 +107,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อจริง</label>
               <input
@@ -104,7 +130,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อเล่น</label>
               <input
@@ -127,7 +153,159 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">วันเกิด</label>
+            <input
+              type="date"
+              value={formData.dob}
+              onChange={e => setFormData({ ...formData, dob: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+            />
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+            <h4 className="font-bold text-slate-800 text-sm border-b border-slate-200 pb-2">ข้อมูลครอบครัว</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุลบิดา</label>
+                <input
+                  type="text"
+                  value={formData.fatherName}
+                  onChange={e => setFormData({ ...formData, fatherName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์บิดา</label>
+                <input
+                  type="tel"
+                  value={formData.fatherPhone}
+                  onChange={e => setFormData({ ...formData, fatherPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุลมารดา</label>
+                <input
+                  type="text"
+                  value={formData.motherName}
+                  onChange={e => setFormData({ ...formData, motherName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์มารดา</label>
+                <input
+                  type="tel"
+                  value={formData.motherPhone}
+                  onChange={e => setFormData({ ...formData, motherPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">สถานภาพครอบครัว</label>
+              <select
+                value={formData.familyStatus}
+                onChange={e => setFormData({ ...formData, familyStatus: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+              >
+                <option value="สมรส">สมรส</option>
+                <option value="หย่าร้าง">หย่าร้าง</option>
+                <option value="แยกกันอยู่">แยกกันอยู่</option>
+                <option value="บิดาเสียชีวิต">บิดาเสียชีวิต</option>
+                <option value="มารดาเสียชีวิต">มารดาเสียชีวิต</option>
+                <option value="บิดาและมารดาเสียชีวิต">บิดาและมารดาเสียชีวิต</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุลผู้ปกครอง (ถ้าไม่ใช่บิดา/มารดา)</label>
+                <input
+                  type="text"
+                  value={formData.parentName}
+                  onChange={e => setFormData({ ...formData, parentName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์ผู้ปกครอง</label>
+                <input
+                  type="tel"
+                  value={formData.parentPhone}
+                  onChange={e => setFormData({ ...formData, parentPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">ที่อยู่ปัจจุบัน</label>
+            <textarea
+              rows={2}
+              value={formData.address}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none"
+            ></textarea>
+          </div>
+
+          <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 space-y-4">
+            <h4 className="font-bold text-rose-800 text-sm border-b border-rose-200 pb-2">ข้อมูลสุขภาพ</h4>
+            
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">การแพ้ยา</label>
+              <input
+                type="text"
+                value={formData.allergicMedicine}
+                onChange={e => setFormData({ ...formData, allergicMedicine: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none placeholder-rose-300"
+                placeholder="เช่น Amoxicillin (ถ้าไม่มีให้เว้นว่าง)"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">การแพ้อาหาร</label>
+              <input
+                type="text"
+                value={formData.allergicFood}
+                onChange={e => setFormData({ ...formData, allergicFood: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none placeholder-rose-300"
+                placeholder="เช่น อาหารทะเล, ถั่วลิสง (ถ้าไม่มีให้เว้นว่าง)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">โรคประจำตัว</label>
+              <input
+                type="text"
+                value={formData.congenitalDisease}
+                onChange={e => setFormData({ ...formData, congenitalDisease: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none placeholder-rose-300"
+                placeholder="เช่น หอบหืด, ภูมิแพ้ (ถ้าไม่มีให้เว้นว่าง)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">ข้อมูลสุขภาพอื่นๆ</label>
+              <textarea
+                rows={2}
+                value={formData.medicalInfo}
+                onChange={e => setFormData({ ...formData, medicalInfo: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none resize-none placeholder-rose-300"
+                placeholder="รายละเอียดเพิ่มเติม"
+              ></textarea>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">ชั้นเรียน</label>
               <select

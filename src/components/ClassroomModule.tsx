@@ -16,7 +16,9 @@ import {
   GraduationCap,
   CalendarCheck,
   Wrench,
+  AlertTriangle,
 } from "lucide-react";
+import { StudentDetailModal } from "./StudentDetailModal";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
 import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";
 import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
@@ -78,6 +80,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   // Student Form state
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   // Delete confirmation state
@@ -403,7 +406,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
         {/* Tabs and Filters */}
         <div className="flex flex-col xl:flex-row gap-4 w-full xl:items-center xl:justify-between">
-          <div className="flex flex-wrap sm:flex-nowrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto xl:shrink-0 overflow-x-auto custom-scrollbar">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto xl:shrink-0 custom-scrollbar gap-1">
             <button
               onClick={() => setActiveTab("students")}
               className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
@@ -424,7 +427,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }`}
             >
               <CalendarCheck className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">เช็คชื่อเข้าเรียน</span>
+              <span className="whitespace-nowrap">เช็กชื่อเข้าเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab("assessments")}
@@ -536,11 +539,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 whitespace-nowrap">
                     <tr>
-                      <th className="px-4 py-3 text-center">เลขที่</th>
+                      <th className="px-4 py-3 text-center">เลขที่ / รหัส</th>
                       <th className="px-4 py-3 text-center">ระดับชั้น</th>
-                      <th className="px-4 py-3">รหัสนักเรียน</th>
                       <th className="px-4 py-3">ชื่อ-นามสกุล</th>
                       <th className="px-4 py-3 text-center">เพศ</th>
                       <th className="px-4 py-3 text-center">สถานะ</th>
@@ -561,16 +563,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       displayedStudents.map((student) => (
                         <tr
                           key={student.id}
-                          className="border-b border-slate-100 hover:bg-slate-50"
+                          className="border-b border-slate-100 hover:bg-slate-100/80 whitespace-nowrap even:bg-slate-50/50"
                         >
-                          <td className="px-4 py-3 text-center font-medium">
-                            {student.number}
+                          <td className="px-4 py-3 text-center">
+                            <span className="font-medium">{student.number}</span>
+                            <span className="text-slate-300 mx-2">|</span>
+                            <span className="font-mono text-slate-500">{student.studentId}</span>
                           </td>
-                          <td className="px-4 py-3 text-center font-bold text-slate-700 whitespace-nowrap">
+                          <td className="px-4 py-3 text-center font-bold text-slate-700">
                             {student.gradeLevel || '-'}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-slate-500">
-                            {student.studentId}
                           </td>
                           <td className="px-4 py-3 font-medium text-slate-800">
                             {student.firstName} {student.lastName}{" "}
@@ -580,16 +581,38 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                             {student.gender === "male" ? "ชาย" : "หญิง"}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
-                            >
-                              {student.status === "active"
-                                ? "ปกติ"
-                                : "ย้าย/ออก"}
-                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
+                              >
+                                {student.status === "active"
+                                  ? "ปกติ"
+                                  : "ย้าย/ออก"}
+                              </span>
+                              {(student.medicalInfo || student.allergicMedicine || student.allergicFood || student.congenitalDisease) && (
+                                <span 
+                                  className="flex items-center gap-1 bg-rose-100 text-rose-600 px-2 py-1 rounded-full text-[10px] font-bold"
+                                  title={[
+                                    student.allergicMedicine ? `แพ้ยา: ${student.allergicMedicine}` : '',
+                                    student.allergicFood ? `แพ้อาหาร: ${student.allergicFood}` : '',
+                                    student.congenitalDisease ? `โรคประจำตัว: ${student.congenitalDisease}` : '',
+                                    student.medicalInfo ? `อื่นๆ: ${student.medicalInfo}` : ''
+                                  ].filter(Boolean).join(' | ')}
+                                >
+                                  <AlertTriangle className="h-3 w-3" /> แจ้งเตือน
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => setViewingStudent(student)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="ดูข้อมูลนักเรียน"
+                              >
+                                <Search className="h-4 w-4" />
+                              </button>
                               <button
                                 onClick={() => {
                                   setEditingStudent(student);
@@ -634,7 +657,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     ปิดปรับปรุงชั่วคราว
                   </h3>
                   <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
-                    ฟังก์ชันเช็คชื่อนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                    ฟังก์ชันเช็กชื่อนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
                   </p>
                 </div>
               ) : (
@@ -876,6 +899,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             selectedGrade={selectedGrade}
             onClose={() => setShowStudentModal(false)}
             onSave={handleSaveStudent}
+          />
+        )}
+        
+        {/* Student Detail Modal */}
+        {viewingStudent && (
+          <StudentDetailModal
+            student={viewingStudent}
+            onClose={() => setViewingStudent(null)}
           />
         )}
         {/* Delete Confirmation Modal */}

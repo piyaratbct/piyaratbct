@@ -63,7 +63,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
     <div className="p-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-slate-100 pb-6">
         <div>
-          <h3 className="text-lg font-black text-slate-800">สรุปการเช็คชื่อนักเรียน (Attendance Summary)</h3>
+          <h3 className="text-lg font-black text-slate-800">สรุปการเช็กชื่อนักเรียน (Attendance Summary)</h3>
           <p className="text-sm text-slate-500">รายงานสรุปการเข้าเรียนประจำวันและรายคาบเรียน รวมถึงสถิติสะสม</p>
         </div>
         
@@ -127,8 +127,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
       ) : sessions.length === 0 ? (
         <div className="py-12 flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
           <FileText className="h-12 w-12 mb-3 text-slate-300" />
-          <h4 className="text-lg font-black text-slate-500">ไม่พบข้อมูลการเช็คชื่อ</h4>
-          <p className="text-sm mt-1">ยังไม่มีการบันทึกการเช็คชื่อสำหรับชั้น {selectedGrade} ในวันที่เลือก</p>
+          <h4 className="text-lg font-black text-slate-500">ไม่พบข้อมูลการเช็กชื่อ</h4>
+          <p className="text-sm mt-1">ยังไม่มีการบันทึกการเช็กชื่อสำหรับชั้น {selectedGrade} ในวันที่เลือก</p>
         </div>
       ) : (
         <div className="space-y-6">
