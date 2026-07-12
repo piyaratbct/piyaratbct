@@ -260,3 +260,26 @@ export const PERIODS = [
   'คาบ 6 (14.00-14.50 น.)',
   'กิจกรรมหลังเลิกเรียน (14.50-15.00 น.)'
 ];
+
+export interface DisciplineIncident {
+  id: string;
+  studentIds: string[];
+  studentNames: string[]; // For easy display without joining
+  description: string;
+  type: 'fight' | 'bullying' | 'disruption' | 'accident' | 'illness' | 'vandalism' | 'other' | string;
+  otherTypeDetail?: string;
+  accidentDetail?: string;
+  illnessDetail?: string;
+  fightDetail?: string;
+  time?: string;
+  severity?: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  actionTaken?: 'none' | 'first_aid' | 'hospital' | 'other' | string;
+  actionTakenDetail?: string;
+  teacherId: string;
+  teacherName: string;
+  date: string;
+  semester: string;
+  academicYear: string;
+  createdAt: string;
+  updatedAt: string;
+}

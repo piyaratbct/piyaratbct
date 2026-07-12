@@ -18,6 +18,7 @@ import { AdminMonitoringDashboard } from "./components/AdminMonitoringDashboard"
 import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
 import { OverviewCalendar } from "./components/OverviewCalendar";
 import { AcademicModule } from "./components/AcademicModule";
+import { DisciplineModule } from "./components/DisciplineModule";
 import {
   BookOpen,
   LogOut,
@@ -166,7 +167,7 @@ export default function App() {
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
-    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin"
+    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline"
   >("home");
   const [activeTab, setActiveTab] = useState<
     "form" | "dashboard" | "plan-form" | "plan-list"
@@ -1313,6 +1314,18 @@ export default function App() {
             </button>
           )}
 
+          <button
+            onClick={() => setActiveModule("discipline")}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+              activeModule === "discipline"
+                ? "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <ShieldAlert className="h-4.5 w-4.5" />
+            <span>5. การบริหารงาน<br />ปกครอง (Discipline)</span>
+          </button>
+          
           {currentTeacher.role === "admin" && (
             <button
               onClick={() => setActiveModule("admin" as any)}
@@ -1544,6 +1557,24 @@ export default function App() {
                 </button>
               )}
 
+              <button
+                onClick={() => setActiveModule("discipline")}
+                className="bg-white p-8 rounded-2xl border border-rose-100 shadow-sm hover:shadow-md hover:border-rose-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <ShieldAlert className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">
+                  5. การบริหารงานปกครอง (LessonDiscipline)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
+                </p>
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+                  เปิดใช้งาน
+                </div>
+              </button>
               {currentTeacher.role === "admin" && (
                 <button
                   onClick={() => setActiveModule("admin" as any)}
@@ -1901,6 +1932,13 @@ export default function App() {
             currentTeacher={currentTeacher}
             onDeleteTeacher={handleDeleteTeacher}
             onUpdateTeacher={handleUpdateTeacher}
+          />
+        ) : activeModule === "discipline" ? (
+          <DisciplineModule
+            currentTeacher={currentTeacher}
+            systemSemester={systemSemester}
+            systemAcademicYear={systemAcademicYear}
+            students={students}
           />
         ) : null}
       </main>
