@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import {
   Users,
   FileText,
@@ -16,7 +17,7 @@ import {
   GraduationCap,
   CalendarCheck,
   Wrench,
-  AlertTriangle,
+  AlertTriangle, HeartPulse,
 } from "lucide-react";
 import { StudentDetailModal } from "./StudentDetailModal";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
@@ -52,7 +53,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemSemester = "1",
   teachers = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments">(
+  const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments" | "special-care">(
     "students",
   );
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
@@ -216,6 +217,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const totalCount = countSource.length;
   const maleCount = countSource.filter((s) => s.gender === "male").length;
   const femaleCount = countSource.filter((s) => s.gender === "female").length;
+  
+  const allergicFoodStudents = countSource.filter((s) => s.allergicFood);
+  const congenitalDiseaseStudents = countSource.filter((s) => s.congenitalDisease);
 
   const homeroomTeachers = teachers.filter(
     (t) => t.homeroomClass === selectedGrade || t.coHomeroomClass === selectedGrade
@@ -366,6 +370,50 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     setShowFeedbackPrint(true);
   };
 
+  const exportToCSV = () => {
+    const headers = [
+      "เลขที่",
+      "รหัสนักเรียน",
+      "ชื่อ-สกุล",
+      "ชื่อเล่น",
+      "ระดับชั้น",
+      "เพศ",
+      "สถานะ",
+      "แพ้อาหาร",
+      "โรคประจำตัว",
+      "แพ้ยา",
+      "ข้อมูลอื่นๆ"
+    ];
+    
+    const csvContent = [
+      headers.join(","),
+      ...displayedStudents.map((student) => {
+        return [
+          student.number || "",
+          student.studentId || "",
+          `"${student.firstName || ""} ${student.lastName || ""}"`,
+          `"${student.nickname || ""}"`,
+          `"${student.gradeLevel || ""}"`,
+          student.gender === "male" ? "ชาย" : "หญิง",
+          student.status === "active" ? "ปกติ" : "ย้าย/ออก",
+          student.allergicFood ? `"${student.allergicFood}"` : "",
+          student.congenitalDisease ? `"${student.congenitalDisease}"` : "",
+          student.allergicMedicine ? `"${student.allergicMedicine}"` : "",
+          student.medicalInfo ? `"${student.medicalInfo}"` : ""
+        ].join(",");
+      })
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ข้อมูลนักเรียน_${selectedGrade}_${systemSemester}-${systemAcademicYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="print:hidden space-y-6">
@@ -445,6 +493,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             >
               <CheckCircle className="h-4 w-4 shrink-0" /> 
               <span className="whitespace-nowrap">ประเมินพัฒนาการ</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("special-care")}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "special-care"
+                  ? "bg-pink-100 text-pink-700"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <HeartPulse className="h-4 w-4 shrink-0" /> 
+              <span className="whitespace-nowrap">ข้อมูลสุขภาพ</span>
             </button>
           </div>
           
@@ -540,6 +599,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     <option value="female">เพศ: หญิง</option>
                   </select>
                   <button
+                    onClick={exportToCSV}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200"
+                  >
+                    <Download className="h-4 w-4" /> ส่งออก CSV
+                  </button>
+                  <button
                     onClick={() => setShowImport(true)}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                   >
@@ -610,27 +675,38 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                             {student.gender === "male" ? "ชาย" : "หญิง"}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
-                              >
-                                {student.status === "active"
-                                  ? "ปกติ"
-                                  : "ย้าย/ออก"}
-                              </span>
-                              {(student.medicalInfo || student.allergicMedicine || student.allergicFood || student.congenitalDisease) && (
-                                <span 
-                                  className="flex items-center gap-1 bg-rose-100 text-rose-600 px-2 py-1 rounded-full text-[10px] font-bold"
-                                  title={[
-                                    student.allergicMedicine ? `แพ้ยา: ${student.allergicMedicine}` : '',
-                                    student.allergicFood ? `แพ้อาหาร: ${student.allergicFood}` : '',
-                                    student.congenitalDisease ? `โรคประจำตัว: ${student.congenitalDisease}` : '',
-                                    student.medicalInfo ? `อื่นๆ: ${student.medicalInfo}` : ''
-                                  ].filter(Boolean).join(' | ')}
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
                                 >
-                                  <AlertTriangle className="h-3 w-3" /> แจ้งเตือน
+                                  {student.status === "active"
+                                    ? "ปกติ"
+                                    : "ย้าย/ออก"}
                                 </span>
-                              )}
+                              </div>
+                              <div className="flex flex-wrap items-center justify-center gap-1 max-w-[150px]">
+                                {student.allergicFood && (
+                                  <span className="flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={`แพ้อาหาร: ${student.allergicFood}`}>
+                                    <AlertTriangle className="h-3 w-3" /> แพ้อาหาร
+                                  </span>
+                                )}
+                                {student.congenitalDisease && (
+                                  <span className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={`โรคประจำตัว: ${student.congenitalDisease}`}>
+                                    <AlertTriangle className="h-3 w-3" /> โรคประจำตัว
+                                  </span>
+                                )}
+                                {student.allergicMedicine && (
+                                  <span className="flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={`แพ้ยา: ${student.allergicMedicine}`}>
+                                    <AlertTriangle className="h-3 w-3" /> แพ้ยา
+                                  </span>
+                                )}
+                                {student.medicalInfo && (
+                                  <span className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={`อื่นๆ: ${student.medicalInfo}`}>
+                                    <AlertTriangle className="h-3 w-3" /> อื่นๆ
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -906,6 +982,211 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               </div>
             </div>
           )}
+
+          {activeTab === "special-care" && (() => {
+            const allergicMedStudents = students.filter((s) => s.allergicMedicine);
+            const otherMedicalStudents = students.filter((s) => s.medicalInfo);
+            const allAllergicFoodStudents = students.filter((s) => s.allergicFood);
+            const allCongenitalDiseaseStudents = students.filter((s) => s.congenitalDisease);
+            
+            const specialCareData = [
+              { name: 'แพ้อาหาร', value: allAllergicFoodStudents.length, fill: '#f97316' },
+              { name: 'โรคประจำตัว', value: allCongenitalDiseaseStudents.length, fill: '#a855f7' },
+              { name: 'แพ้ยา', value: allergicMedStudents.length, fill: '#e11d48' },
+              { name: 'อื่นๆ', value: otherMedicalStudents.length, fill: '#d97706' },
+            ].filter(item => item.value > 0);
+
+            const diseaseCount: Record<string, number> = {};
+            allCongenitalDiseaseStudents.forEach(s => {
+              if (s.congenitalDisease) {
+                const diseases = s.congenitalDisease.split(',').map(d => d.trim()).filter(Boolean);
+                diseases.forEach(d => {
+                  diseaseCount[d] = (diseaseCount[d] || 0) + 1;
+                });
+              }
+            });
+
+            const diseaseColors = ['#8b5cf6', '#d946ef', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6'];
+            const diseaseData = Object.entries(diseaseCount)
+              .map(([name, value], index) => ({
+                name,
+                value,
+                fill: diseaseColors[index % diseaseColors.length]
+              }))
+              .sort((a, b) => b.value - a.value);
+
+            const allSpecialCareStudents = students.filter(
+              s => s.allergicFood || s.congenitalDisease || s.allergicMedicine || s.medicalInfo
+            ).sort((a, b) => {
+              if (a.gradeLevel !== b.gradeLevel) {
+                return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th');
+              }
+              return (a.number || 0) - (b.number || 0);
+            });
+
+            return (
+            <div className="p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <HeartPulse className="h-5 w-5 text-rose-500" />
+                    ข้อมูลสุขภาพนักเรียน
+                  </h3>
+                  <p className="text-slate-500 text-sm mt-1">
+                    นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา หรือโรคประจำตัว
+                  </p>
+                </div>
+              </div>
+
+              {allSpecialCareStudents.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="bg-emerald-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
+                    <CheckCircle className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-700">ไม่มีข้อมูลสุขภาพที่ต้องดูแลเป็นพิเศษ</h3>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {/* Chart Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-bold text-slate-700 mb-4 text-center">สถิติข้อมูลสุขภาพ</h4>
+                      <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={specialCareData}
+                            margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} tickLine={false} />
+                            <YAxis 
+                              tickFormatter={(val) => `${((val / (students.length || 1)) * 100).toFixed(0)}%`} 
+                              tick={{ fontSize: 12, fill: '#64748b' }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              domain={[0, 'dataMax']}
+                            />
+                            <RechartsTooltip 
+                              formatter={(value) => [`${value} คน (${((Number(value) / (students.length || 1)) * 100).toFixed(1)}%)`, 'จำนวน']}
+                              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                              cursor={{ fill: '#f1f5f9' }}
+                            />
+                            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                              {specialCareData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-bold text-slate-700 mb-4 text-center">จำแนกตามโรคประจำตัว</h4>
+                      <div className="h-64 w-full">
+                        {diseaseData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={diseaseData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                                label={({ name, percent }) => percent < 0.1 ? '' : `${name} ${(percent * 100).toFixed(0)}%`}
+                                labelLine={false}
+                              >
+                                {diseaseData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                                ))}
+                              </Pie>
+                              <RechartsTooltip 
+                                formatter={(value) => [`${value} คน`, 'จำนวน']}
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                              />
+                              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400">
+                            ไม่มีข้อมูลโรคประจำตัว
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List Section */}
+                  <div>
+                    <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                            <tr>
+                              <th className="px-4 py-3 text-center w-24 whitespace-nowrap">ระดับชั้น</th>
+                              <th className="px-4 py-3 text-center w-16 whitespace-nowrap">เลขที่</th>
+                              <th className="px-4 py-3 whitespace-nowrap">ชื่อ-สกุล</th>
+                              <th className="px-4 py-3 text-center w-24 whitespace-nowrap">ชื่อเล่น</th>
+                              <th className="px-4 py-3 whitespace-nowrap">ข้อมูลสุขภาพที่ต้องระวัง</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allSpecialCareStudents.map((student) => (
+                              <tr key={student.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                <td className="px-4 py-3 text-center font-bold text-pink-600 whitespace-nowrap">
+                                  <span className="bg-pink-50 px-2 py-1 rounded-md">{student.gradeLevel || '-'}</span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-medium text-slate-500 whitespace-nowrap">{student.number}</td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="font-bold text-slate-800">{student.firstName} {student.lastName}</div>
+                                  <div className="text-xs text-slate-500">{student.studentId}</div>
+                                </td>
+                                <td className="px-4 py-3 text-center whitespace-nowrap">
+                                  {student.nickname ? (
+                                    <span className="bg-sky-50 text-sky-700 px-2 py-1 rounded-md text-xs font-bold border border-sky-100 whitespace-nowrap">
+                                      {student.nickname}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-wrap gap-2">
+                                    {student.allergicFood && (
+                                      <span className="bg-orange-50 text-orange-700 px-2.5 py-1 rounded-md text-xs font-bold border border-orange-100">
+                                        แพ้อาหาร: {student.allergicFood}
+                                      </span>
+                                    )}
+                                    {student.congenitalDisease && (
+                                      <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-md text-xs font-bold border border-purple-100">
+                                        โรคประจำตัว: {student.congenitalDisease}
+                                      </span>
+                                    )}
+                                    {student.allergicMedicine && (
+                                      <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-md text-xs font-bold border border-rose-100">
+                                        แพ้ยา: {student.allergicMedicine}
+                                      </span>
+                                    )}
+                                    {student.medicalInfo && (
+                                      <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold border border-amber-100">
+                                        อื่นๆ: {student.medicalInfo}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            );
+          })()}
         </div>
 
         {/* Assessment Modal/Form Overlay */}
