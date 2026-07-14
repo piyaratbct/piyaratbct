@@ -1893,6 +1893,7 @@ export default function App() {
             currentTeacher={currentTeacher}
             systemAcademicYear={systemAcademicYear}
             systemSemester={systemSemester}
+            teachers={teachers}
           />
         ) : activeModule === "academic" ? (
           <div className="relative animate-in fade-in duration-300">

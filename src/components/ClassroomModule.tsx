@@ -43,12 +43,14 @@ interface ClassroomModuleProps {
   currentTeacher: Teacher | null;
   systemAcademicYear?: string;
   systemSemester?: string;
+  teachers?: Teacher[];
 }
 
 export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   currentTeacher,
   systemAcademicYear = "2567",
   systemSemester = "1",
+  teachers = [],
 }) => {
   const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments">(
     "students",
@@ -214,6 +216,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const totalCount = countSource.length;
   const maleCount = countSource.filter((s) => s.gender === "male").length;
   const femaleCount = countSource.filter((s) => s.gender === "female").length;
+
+  const homeroomTeachers = teachers.filter(
+    (t) => t.homeroomClass === selectedGrade || t.coHomeroomClass === selectedGrade
+  );
 
   // Initialize empty assessment if not exist
   const getInitialAssessment = (studentId: string): StudentAssessment => {
@@ -494,6 +500,29 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       หญิง: <span className="font-bold">{femaleCount}</span> คน
                     </span>
                   </div>
+                  {homeroomTeachers.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                      <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5">
+                        <Users className="h-3 w-3 text-slate-400" />
+                        ครูประจำชั้น:
+                      </span>
+                      {homeroomTeachers.map((ht, idx) => (
+                        <div key={ht.id} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 shadow-sm flex items-center gap-1.5">
+                          <div className="h-4 w-4 bg-amber-100 rounded-full flex items-center justify-center">
+                            <span className="text-[9px]">{ht.thaiName.charAt(0)}</span>
+                          </div>
+                          <span>
+                            {ht.thaiName} 
+                            {ht.homeroomClass === selectedGrade && ht.coHomeroomClass === selectedGrade 
+                              ? ' (ประจำชั้น/คู่ชั้น)' 
+                              : ht.homeroomClass === selectedGrade 
+                                ? ' (ประจำชั้น)' 
+                                : ' (คู่ชั้น)'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
 
@@ -700,6 +729,29 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       หญิง: <span className="font-bold">{femaleCount}</span> คน
                     </span>
                   </div>
+                  {homeroomTeachers.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                      <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5">
+                        <Users className="h-3 w-3 text-slate-400" />
+                        ครูประจำชั้น:
+                      </span>
+                      {homeroomTeachers.map((ht, idx) => (
+                        <div key={ht.id} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 shadow-sm flex items-center gap-1.5">
+                          <div className="h-4 w-4 bg-amber-100 rounded-full flex items-center justify-center">
+                            <span className="text-[9px]">{ht.thaiName.charAt(0)}</span>
+                          </div>
+                          <span>
+                            {ht.thaiName} 
+                            {ht.homeroomClass === selectedGrade && ht.coHomeroomClass === selectedGrade 
+                              ? ' (ประจำชั้น/คู่ชั้น)' 
+                              : ht.homeroomClass === selectedGrade 
+                                ? ' (ประจำชั้น)' 
+                                : ' (คู่ชั้น)'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
 
