@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Teacher, Student, DisciplineIncident } from '../types';
-import { ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { db } from '../lib/firebase';
+
+const formatThaiDate = (dateString: string) => {
+  if (!dateString) return '';
+  try {
+    const [year, month, day] = dateString.split('-');
+    const months = [
+      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+    ];
+    return `${parseInt(day)} ${months[parseInt(month) - 1]} ${parseInt(year) + 543}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 
 
 interface DisciplineModuleProps {
@@ -22,6 +37,7 @@ export function DisciplineModule({
   const [incidents, setIncidents] = useState<DisciplineIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form State
@@ -78,7 +94,7 @@ export function DisciplineModule({
       const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
       const studentNames = selectedStudents.map(s => `${s.firstName} ${s.lastName} ${s.nickname ? `(${s.nickname})` : ''} - ${s.gradeLevel}`);
 
-      await addDoc(collection(db, 'disciplineIncidents'), {
+      const dataToSave = {
         studentIds: selectedStudentIds,
         studentNames,
         description,
@@ -86,7 +102,7 @@ export function DisciplineModule({
         otherTypeDetail: type === 'other' ? otherTypeDetail : '',
         accidentDetail: type === 'accident' ? (accidentDetail === 'other' ? otherAccidentDetail : accidentDetail) : '',
         illnessDetail: type === 'illness' ? (illnessDetail === 'other' ? otherIllnessDetail : illnessDetail) : '',
-        fightDetail: type === 'fight' ? (fightDetail === 'other' ? otherFightDetail : fightDetail) : '',
+        fightDetail: (type === 'fight' || type === 'assault') ? (fightDetail === 'other' ? otherFightDetail : fightDetail) : '',
         time,
         severity,
         actionTaken,
@@ -96,26 +112,20 @@ export function DisciplineModule({
         date,
         semester: systemSemester,
         academicYear: systemAcademicYear,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
 
-      // Reset form
-      setType('fight');
-      setOtherTypeDetail('');
-      setAccidentDetail('');
-      setOtherAccidentDetail('');
-      setIllnessDetail('');
-      setOtherIllnessDetail('');
-      setFightDetail('');
-      setOtherFightDetail('');
-      setDescription('');
-      setTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
-      setSeverity('none');
-      setActionTaken('none');
-      setActionTakenDetail('');
-      setSelectedStudentIds([]);
-      setShowForm(false);
+      if (editingId) {
+        await updateDoc(doc(db, 'disciplineIncidents', editingId), dataToSave);
+      } else {
+        await addDoc(collection(db, 'disciplineIncidents'), {
+          ...dataToSave,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+
+      resetForm();
     } catch (err) {
       console.error("Error adding incident:", err);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -124,6 +134,94 @@ export function DisciplineModule({
     }
   };
 
+
+  const resetForm = () => {
+    setType('fight');
+    setOtherTypeDetail('');
+    setAccidentDetail('');
+    setOtherAccidentDetail('');
+    setIllnessDetail('');
+    setOtherIllnessDetail('');
+    setFightDetail('');
+    setOtherFightDetail('');
+    setDescription('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setTime(new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+    setSeverity('none');
+    setActionTaken('none');
+    setActionTakenDetail('');
+    setSelectedStudentIds([]);
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleEdit = (incident: DisciplineIncident) => {
+    setEditingId(incident.id);
+    setType(incident.type as any);
+    
+    // Parse complex fields
+    if (incident.type === 'other') setOtherTypeDetail(incident.otherTypeDetail || '');
+    else setOtherTypeDetail('');
+    
+    if (incident.type === 'accident') {
+      const predefinedAccidents = ['หกล้ม / ลื่นล้ม', 'วิ่งชน / วิ่งปะทะ', 'อุบัติเหตุจากการทำกิจกรรม เช่น เล่นกีฬา', 'ถูกของมีคมบาด', 'ประตู/หน้าต่าง/โต๊ะหนีบ'];
+      if (incident.accidentDetail && !predefinedAccidents.includes(incident.accidentDetail)) {
+        setAccidentDetail('other');
+        setOtherAccidentDetail(incident.accidentDetail);
+      } else {
+        setAccidentDetail(incident.accidentDetail || '');
+        setOtherAccidentDetail('');
+      }
+    } else {
+      setAccidentDetail('');
+      setOtherAccidentDetail('');
+    }
+
+    if (incident.type === 'illness') {
+      const predefinedIllness = ['เลือดกำเดาไหล', 'ปวดท้อง', 'ปวดหัว', 'มีไข้ ตัวร้อน', 'อาการแพ้อาหาร'];
+      if (incident.illnessDetail && !predefinedIllness.includes(incident.illnessDetail)) {
+        setIllnessDetail('other');
+        setOtherIllnessDetail(incident.illnessDetail);
+      } else {
+        setIllnessDetail(incident.illnessDetail || '');
+        setOtherIllnessDetail('');
+      }
+    } else {
+      setIllnessDetail('');
+      setOtherIllnessDetail('');
+    }
+
+    if (incident.type === 'fight' || incident.type === 'assault') {
+      const predefinedFights = ['ทะเลาะวิวาทด้วยวาจา (ด่าทอ)', 'ชกต่อย / ตบตี', 'รุมทำร้าย', 'ใช้อาวุธ'];
+      if (incident.fightDetail && !predefinedFights.includes(incident.fightDetail)) {
+        setFightDetail('other');
+        setOtherFightDetail(incident.fightDetail);
+      } else {
+        setFightDetail(incident.fightDetail || '');
+        setOtherFightDetail('');
+      }
+    } else {
+      setFightDetail('');
+      setOtherFightDetail('');
+    }
+
+    setDescription(incident.description);
+    setDate(incident.date);
+    setTime(incident.time || '');
+    setSeverity(incident.severity || 'none');
+    
+    const predefinedActions = ['none', 'first_aid', 'hospital'];
+    if (incident.actionTaken && !predefinedActions.includes(incident.actionTaken)) {
+      setActionTaken('other');
+      setActionTakenDetail(incident.actionTakenDetail || '');
+    } else {
+      setActionTaken(incident.actionTaken as any || 'none');
+      setActionTakenDetail('');
+    }
+    
+    setSelectedStudentIds(incident.studentIds || []);
+    setShowForm(true);
+  };
   const handleDelete = async (id: string) => {
     if (window.confirm("คุณต้องการลบข้อมูลนี้ใช่หรือไม่?")) {
       try {
@@ -157,9 +255,12 @@ export function DisciplineModule({
 
   const getTypeLabel = (type: string, otherDetail?: string, accidentDetail?: string, illnessDetail?: string, fightDetail?: string) => {
     switch (type) {
-      case 'fight': return { label: `ทะเลาะวิวาท / ทำร้ายร่างกาย${fightDetail ? `: ${fightDetail}` : ''}`, color: 'bg-rose-100 text-rose-700 border-rose-200' };
-      case 'bullying': return { label: 'ความบาดหมาง / กลั่นแกล้ง', color: 'bg-orange-100 text-orange-700 border-orange-200' };
-      case 'disruption': return { label: 'ความเข้าใจผิด / ก่อความวุ่นวาย', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      case 'fight': return { label: `ทะเลาะวิวาท${fightDetail ? `: ${fightDetail}` : ''}`, color: 'bg-rose-100 text-rose-700 border-rose-200' };
+      case 'assault': return { label: `ทำร้ายร่างกาย${fightDetail ? `: ${fightDetail}` : ''}`, color: 'bg-red-100 text-red-700 border-red-200' };
+      case 'feud': return { label: 'ความบาดหมาง', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+      case 'bullying': return { label: 'กลั่นแกล้ง', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+      case 'misunderstanding': return { label: 'ความเข้าใจผิด', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      case 'disruption': return { label: 'ก่อความวุ่นวาย', color: 'bg-lime-100 text-lime-700 border-lime-200' };
       case 'accident': return { label: `อุบัติเหตุ${accidentDetail ? `: ${accidentDetail}` : ''}`, color: 'bg-blue-100 text-blue-700 border-blue-200' };
       case 'illness': return { label: `เจ็บป่วยกะทันหัน${illnessDetail ? `: ${illnessDetail}` : ''}`, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
       case 'vandalism': return { label: 'ทำลายทรัพย์สิน', color: 'bg-purple-100 text-purple-700 border-purple-200' };
@@ -175,8 +276,11 @@ export function DisciplineModule({
 
   const COLORS = {
     fight: '#f43f5e', // rose-500
-    bullying: '#f97316', // orange-500
-    disruption: '#f59e0b', // amber-500
+    assault: '#ef4444', // red-500
+    feud: '#f97316', // orange-500
+    bullying: '#eab308', // yellow-500
+    misunderstanding: '#f59e0b', // amber-500
+    disruption: '#84cc16', // lime-500
     accident: '#3b82f6', // blue-500
     illness: '#10b981', // emerald-500
     vandalism: '#a855f7', // purple-500
@@ -191,6 +295,40 @@ export function DisciplineModule({
       fullName: label,
       value: stats[type],
       fill: COLORS[type as keyof typeof COLORS] || COLORS.other
+    };
+  }).sort((a, b) => b.value - a.value);
+
+  const accidentStats = incidents.filter(i => i.type === 'accident').reduce((acc, curr) => {
+    const detail = curr.accidentDetail || 'ไม่ระบุ';
+    acc[detail] = (acc[detail] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const accidentChartData = Object.keys(accidentStats).map((detail, index) => {
+    const colors = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#2563eb', '#1d4ed8'];
+    return {
+      name: detail,
+      value: accidentStats[detail],
+      fill: colors[index % colors.length]
+    };
+  }).sort((a, b) => b.value - a.value);
+
+  const accidentGradeLevelStats = incidents.filter(i => i.type === 'accident').reduce((acc, curr) => {
+    curr.studentIds?.forEach(studentId => {
+      const student = students.find(s => s.id === studentId);
+      if (student && student.gradeLevel) {
+        acc[student.gradeLevel] = (acc[student.gradeLevel] || 0) + 1;
+      }
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  const accidentGradeLevelChartData = Object.keys(accidentGradeLevelStats).map((gradeLevel, index) => {
+    const colors = ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#d97706', '#b45309'];
+    return {
+      name: gradeLevel,
+      value: accidentGradeLevelStats[gradeLevel],
+      fill: colors[index % colors.length]
     };
   }).sort((a, b) => b.value - a.value);
 
@@ -230,12 +368,12 @@ export function DisciplineModule({
       </div>
 
       {!loading && incidents.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h3 className="font-bold text-slate-800 mb-6">สถิติประเภทเหตุการณ์ (Bar Chart)</h3>
+            <h3 className="font-bold text-slate-800 mb-6">สถิติลักษณะอุบัติเหตุ (Bar Chart)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <BarChart data={accidentChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
@@ -244,7 +382,7 @@ export function DisciplineModule({
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {chartData.map((entry, index) => (
+                    {accidentChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
@@ -280,6 +418,27 @@ export function DisciplineModule({
                     wrapperStyle={{ fontSize: '12px', paddingLeft: '20px' }}
                   />
                 </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h3 className="font-bold text-slate-800 mb-6">สถิติอุบัติเหตุแยกตามระดับชั้น</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={accidentGradeLevelChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
+                  <Tooltip 
+                    cursor={{ fill: '#f1f5f9' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {accidentGradeLevelChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -325,16 +484,21 @@ export function DisciplineModule({
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-lg whitespace-nowrap">
-                        {incident.date} {incident.time && `เวลา ${incident.time} น.`}
-                      </span>
-                      {(currentTeacher.id === incident.teacherId || currentTeacher.role === 'admin') && (
-                        <button 
-                          onClick={() => handleDelete(incident.id)}
-                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      {(currentTeacher.id === incident.teacherId || currentTeacher.role === 'admin' || currentTeacher.role === 'discipline') && (
+                        <>
+                          <button 
+                            onClick={() => handleEdit(incident)}
+                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-500 transition-all"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(incident.id)}
+                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -356,7 +520,7 @@ export function DisciplineModule({
                       <AlertTriangle className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                       <div>
                         <p className="text-xs font-bold text-slate-500 mb-1">รายละเอียดเหตุการณ์:</p>
-                        <p className="text-sm text-slate-600 line-clamp-3">{incident.description}</p>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap">{incident.description}</p>
                       </div>
                     </div>
                     
@@ -365,16 +529,32 @@ export function DisciplineModule({
                         <ShieldAlert className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
                         <div>
                           <p className="text-xs font-bold text-slate-500 mb-1">การปฐมพยาบาล/การแก้ปัญหา:</p>
-                          <p className="text-sm text-slate-600 line-clamp-2">{getActionTakenLabel(incident.actionTaken, incident.actionTakenDetail)}</p>
+                          <p className="text-sm text-slate-600 whitespace-pre-wrap">{getActionTakenLabel(incident.actionTaken, incident.actionTakenDetail)}</p>
                         </div>
                       </div>
                     )}
                   </div>
                   
-                  <div className="pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3.5 w-3.5" />
-                      <span>บันทึกโดย: {incident.teacherName}</span>
+                  <div className="pt-3 border-t border-slate-50 flex flex-col gap-1.5 text-xs text-slate-500">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3.5 w-3.5" />
+                        <span>บันทึกโดย: {incident.teacherName}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-400 mt-0.5">
+                      {incident.date && (
+                        <div className="flex items-center gap-1 text-slate-400">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>{formatThaiDate(incident.date)}</span>
+                        </div>
+                      )}
+                      {incident.time && (
+                        <div className="flex items-center gap-1 text-slate-400">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>เวลา {incident.time} น.</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -390,9 +570,9 @@ export function DisciplineModule({
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
               <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-rose-500" />
-                บันทึกเหตุการณ์ใหม่
+                {editingId ? 'แก้ไขเหตุการณ์' : 'บันทึกเหตุการณ์ใหม่'}
               </h3>
-              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+              <button onClick={resetForm} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -429,9 +609,12 @@ export function DisciplineModule({
                     onChange={(e: any) => setType(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                   >
-                    <option value="fight">ทะเลาะวิวาท / ทำร้ายร่างกาย</option>
-                    <option value="bullying">ความบาดหมาง / กลั่นแกล้ง</option>
-                    <option value="disruption">ความเข้าใจผิด / ก่อความวุ่นวาย</option>
+                    <option value="fight">ทะเลาะวิวาท</option>
+                    <option value="assault">ทำร้ายร่างกาย</option>
+                    <option value="feud">ความบาดหมาง</option>
+                    <option value="bullying">กลั่นแกล้ง</option>
+                    <option value="misunderstanding">ความเข้าใจผิด</option>
+                    <option value="disruption">ก่อความวุ่นวาย</option>
                     <option value="accident">อุบัติเหตุ</option>
                     <option value="illness">เจ็บป่วยกะทันหัน</option>
                     <option value="vandalism">ทำลายทรัพย์สิน</option>
@@ -446,7 +629,7 @@ export function DisciplineModule({
                       className="w-full mt-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                     />
                   )}
-                  {type === 'fight' && (
+                  {(type === 'fight' || type === 'assault') && (
                     <div className="mt-2 space-y-2">
                       <select
                         value={fightDetail}
@@ -482,7 +665,7 @@ export function DisciplineModule({
                         <option value="หกล้ม / ลื่นล้ม">หกล้ม / ลื่นล้ม</option>
                         <option value="วิ่งชน / วิ่งปะทะ">วิ่งชน / วิ่งปะทะ</option>
                         <option value="อุบัติเหตุจากการทำกิจกรรม เช่น เล่นกีฬา">อุบัติเหตุจากการทำกิจกรรม เช่น เล่นกีฬา</option>
-                        <option value="เลือดกำเดาไหล">เลือดกำเดาไหล</option>
+
                         <option value="ถูกของมีคมบาด">ถูกของมีคมบาด</option>
                         <option value="ประตู/หน้าต่าง/โต๊ะหนีบ">ประตู/หน้าต่าง/โต๊ะหนีบ</option>
                         <option value="other">อื่นๆ (ระบุเอง)</option>
@@ -506,6 +689,7 @@ export function DisciplineModule({
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                       >
                         <option value="">-- เลือกลักษณะอาการเจ็บป่วย --</option>
+                        <option value="เลือดกำเดาไหล">เลือดกำเดาไหล</option>
                         <option value="ปวดท้อง">ปวดท้อง</option>
                         <option value="ปวดหัว">ปวดหัว</option>
                         <option value="มีไข้ ตัวร้อน">มีไข้ ตัวร้อน</option>
@@ -648,7 +832,7 @@ export function DisciplineModule({
             
             <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
               <button
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
                 disabled={isSubmitting}
               >
@@ -656,7 +840,7 @@ export function DisciplineModule({
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || selectedStudentIds.length === 0 || !description.trim() || (type === 'other' && !otherTypeDetail.trim()) || (type === 'accident' && (!accidentDetail.trim() || (accidentDetail === 'other' && !otherAccidentDetail.trim()))) || (type === 'illness' && (!illnessDetail.trim() || (illnessDetail === 'other' && !otherIllnessDetail.trim()))) || (type === 'fight' && (!fightDetail.trim() || (fightDetail === 'other' && !otherFightDetail.trim()))) || (actionTaken === 'other' && !actionTakenDetail.trim())}
+                disabled={isSubmitting || selectedStudentIds.length === 0 || !description.trim() || (type === 'other' && !otherTypeDetail.trim()) || (type === 'accident' && (!accidentDetail.trim() || (accidentDetail === 'other' && !otherAccidentDetail.trim()))) || (type === 'illness' && (!illnessDetail.trim() || (illnessDetail === 'other' && !otherIllnessDetail.trim()))) || ((type === 'fight' || type === 'assault') && (!fightDetail.trim() || (fightDetail === 'other' && !otherFightDetail.trim()))) || (actionTaken === 'other' && !actionTakenDetail.trim())}
                 className="px-6 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
               >
                 {isSubmitting ? 'กำลังบันทึก...' : (

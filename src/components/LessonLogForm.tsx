@@ -2,6 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS } from '../types';
 import { Save, RefreshCw, Sparkles, BookCheck, ClipboardList, AlertTriangle, MessageSquareCode, CalendarDays, Paperclip, Link2, FileImage, FileText, Video as VideoIcon, Plus, X, Globe, Eye } from 'lucide-react';
 import { AttachmentManager } from './AttachmentManager';
+import { Star } from 'lucide-react';
+
+const EVALUATION_CRITERIA = {
+  teacher: [
+    { id: 't1', label: 'เตรียมการจัดทำแผนการสอนตรงตามตัวชี้วัดและวัตถุประสงค์' },
+    { id: 't2', label: 'นำเข้าสู่บทเรียน กระตุ้นความสนใจของเด็กได้น่าสนใจและเชื่อมโยงเข้าสู่เนื้อหาได้ดี' },
+    { id: 't3', label: 'จัดกิจกรรมโดยใช้เทคนิคการสอนที่หลากหลายและเหมาะสมกับเนื้อหา' },
+    { id: 't4', label: 'ประเมินผลผู้เรียนด้วยวิธีที่หลากหลายและตรงตามสภาพจริง' },
+  ],
+  learner: [
+    { id: 'l1', label: 'การมีส่วนร่วมในกิจกรรม ผู้เรียนมีความกระตือรือร้น' },
+    { id: 'l2', label: 'ผู้เรียนมีความเข้าใจเนื้อหาและสามารถตอบคำถามหรือทำใบงานได้' },
+    { id: 'l3', label: 'ผู้เรียนมีการทำงานร่วมกัน แลกเปลี่ยนความคิดเห็น' },
+    { id: 'l4', label: 'ผู้เรียนปฏิบัติตามข้อตกลงในชั้นเรียนและมีความสุขในการเรียน' },
+    { id: 'l5', label: 'ผู้เรียนสามารถสะท้อนความรู้หรือสร้างสรรค์ผลงานจากสิ่งที่เรียนได้' },
+  ],
+  media: [
+    { id: 'm1', label: 'ความเหมาะสมถูกต้อง ปลอดภัย และเหมาะสมกับวัย' },
+    { id: 'm2', label: 'สีสัน ขนาด รูปแบบหรือเทคโนโลยีที่กระตุ้นความสนใจ' },
+    { id: 'm3', label: 'การจัดวางและใช้อุปกรณ์มีความคล่องตัว ไม่ติดขัดระหว่างสอน' },
+    { id: 'm4', label: 'ช่วยให้ผู้เรียนเข้าใจเนื้อหาที่เป็นนามธรรมได้ง่ายขึ้น' },
+    { id: 'm5', label: 'ผู้เรียนสามารถมองเห็น เข้าถึง หรือมีโอกาสจับต้องได้ทั่วถึง' },
+  ]
+};
+
+const DEFAULT_EVALUATIONS = {
+  teacher: { t1: 5, t2: 5, t3: 5, t4: 5 },
+  learner: { l1: 5, l2: 5, l3: 5, l4: 5, l5: 5 },
+  media: { m1: 5, m2: 5, m3: 5, m4: 5, m5: 5 }
+};
+
 
 interface LessonLogFormProps {
   initialRecord: LessonRecord | null;
@@ -32,6 +63,12 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
   const [activities, setActivities] = useState('');
   const [limitations, setLimitations] = useState('');
   const [suggestions, setSuggestions] = useState('');
+  const [strengths, setStrengths] = useState('');
+  const [evaluations, setEvaluations] = useState<{
+    teacher: Record<string, number>;
+    learner: Record<string, number>;
+    media: Record<string, number>;
+  }>(DEFAULT_EVALUATIONS);
 
   // Attachment states
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -59,7 +96,13 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       setActivities(initialRecord.activities);
       setLimitations(initialRecord.limitations);
       setSuggestions(initialRecord.suggestions);
+      setStrengths(initialRecord.strengths || '');
       setAttachments(initialRecord.attachments || []);
+      if (initialRecord.evaluations) {
+        setEvaluations(initialRecord.evaluations);
+      } else {
+        setEvaluations(DEFAULT_EVALUATIONS);
+      }
     } else {
       resetForm();
     }
@@ -74,6 +117,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
     setActivities('');
     setLimitations('');
     setSuggestions('');
+    setStrengths('');
+    setEvaluations(DEFAULT_EVALUATIONS);
     setAttachments([]);
     setErrorMsg('');
   };
@@ -92,8 +137,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       return;
     }
 
-    if (!content.trim() || !activities.trim() || !limitations.trim() || !suggestions.trim()) {
-      setErrorMsg('กรุณากรอกข้อมูลในหัวข้อ เนื้อหา/สาระ, กิจกรรม, ข้อจำกัด และความคิดเห็นของครูผู้สอน ให้ครบถ้วนสมบูรณ์');
+    if (!content.trim() || !activities.trim() || !limitations.trim() || !suggestions.trim() || !strengths.trim()) {
+      setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วนทุกหัวข้อ');
       return;
     }
 
@@ -111,6 +156,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       activities: activities.trim(),
       limitations: limitations.trim(),
       suggestions: suggestions.trim(),
+      strengths: strengths.trim(),
+      evaluations,
       attachments,
       createdAt: initialRecord?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -283,11 +330,13 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
           ></textarea>
         </div>
 
+
+
         {/* ข้อจำกัดในการจัดการเรียนการสอน */}
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
             <AlertTriangle className="h-4 w-4 text-rose-500" />
-            3. ข้อจำกัดและปัญหาที่พบ
+            3. ข้อจำกัดและอุปสรรคที่พบ
           </label>
           <p className="text-[10px] text-slate-400 mb-1">ระบุสิ่งที่ติดขัด เช่น อุปกรณ์ไม่พอ ปัญหาเรื่องเสียง หรือเด็กไม่เข้าใจ</p>
           <textarea
@@ -303,7 +352,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
             <MessageSquareCode className="h-4 w-4 text-emerald-500" />
-            4. ความคิดเห็นของครูผู้สอน
+            4. ข้อเสนอแนะและแนวทางการพัฒนา
           </label>
           <p className="text-[10px] text-slate-400 mb-1">ระบุแนวทางการพัฒนาหรือการปรับใช้เพื่อแก้ไขในคาบถัดไป</p>
           <textarea
@@ -315,7 +364,147 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
           ></textarea>
         </div>
 
-        {/* ๕. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
+        {/* จุดเด่นในการสอนครั้งนี้ */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+            <Star className="h-4 w-4 text-amber-500" />
+            5. จุดเด่นในการสอนครั้งนี้
+          </label>
+          <p className="text-[10px] text-slate-400 mb-1">ระบุจุดเด่นหรือความสำเร็จที่เกิดขึ้นในการสอนคาบนี้</p>
+          <textarea
+            rows={3}
+            placeholder="ระบุจุดเด่นในการสอนครั้งนี้..."
+            value={strengths}
+            onChange={(e) => setStrengths(e.target.value)}
+            className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400"
+          ></textarea>
+        </div>
+
+        {/* แบบประเมินการจัดการเรียนรู้ */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4 text-indigo-500" />
+            6. แบบประเมินการจัดการเรียนรู้
+          </label>
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-indigo-50/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-indigo-800">เกณฑ์การประเมิน</span>
+              <div className="flex gap-3 text-[10px] font-bold text-indigo-600">
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>5 = ดีเยี่ยม</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div>4 = ดีมาก</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>3 = ดี</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500"></div>2 = พอใช้</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500"></div>1 = ปรับปรุง</span>
+              </div>
+            </div>
+            
+            <div className="divide-y divide-slate-100">
+              {/* ด้านผู้สอน */}
+              <div className="p-4 bg-slate-50/30">
+                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+                  ด้านผู้สอน
+                </h4>
+                <div className="space-y-3">
+                  {EVALUATION_CRITERIA.teacher.map((item, index) => (
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
+                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
+                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
+                        {item.label}
+                      </span>
+                      <div className="flex gap-1.5 self-end sm:self-auto">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            type="button"
+                            key={score}
+                            onClick={() => setEvaluations(prev => ({ ...prev, teacher: { ...prev.teacher, [item.id]: score } }))}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
+                              evaluations.teacher[item.id] === score
+                                ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200 scale-110'
+                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* ด้านผู้เรียน */}
+              <div className="p-4 bg-slate-50/30">
+                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                  ด้านผู้เรียน
+                </h4>
+                <div className="space-y-3">
+                  {EVALUATION_CRITERIA.learner.map((item, index) => (
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
+                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
+                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
+                        {item.label}
+                      </span>
+                      <div className="flex gap-1.5 self-end sm:self-auto">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            type="button"
+                            key={score}
+                            onClick={() => setEvaluations(prev => ({ ...prev, learner: { ...prev.learner, [item.id]: score } }))}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
+                              evaluations.learner[item.id] === score
+                                ? 'bg-blue-500 text-white shadow-md shadow-blue-200 scale-110'
+                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ด้านสื่อและแหล่งเรียนรู้ */}
+              <div className="p-4 bg-slate-50/30">
+                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
+                  ด้านสื่อและแหล่งเรียนรู้
+                </h4>
+                <div className="space-y-3">
+                  {EVALUATION_CRITERIA.media.map((item, index) => (
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
+                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
+                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
+                        {item.label}
+                      </span>
+                      <div className="flex gap-1.5 self-end sm:self-auto">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            type="button"
+                            key={score}
+                            onClick={() => setEvaluations(prev => ({ ...prev, media: { ...prev.media, [item.id]: score } }))}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
+                              evaluations.media[item.id] === score
+                                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 scale-110'
+                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 7. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
         <AttachmentManager 
           attachments={attachments}
           onAddAttachment={(att) => setAttachments(prev => [...prev, att])}

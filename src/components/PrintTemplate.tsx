@@ -519,12 +519,13 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             </div>
           </div>
 
+
           {/* Paragraph 3 */}
           <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
-            <h4 className={`font-bold text-amber-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-              3. ข้อจำกัดและปัญหาที่พบ :
+            <h4 className={`font-bold text-rose-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+              3. ข้อจำกัดและอุปสรรคที่พบ :
             </h4>
-            <div className={`bg-amber-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-amber-100/80 border-l-4 border-l-amber-500 print:border print:bg-none whitespace-pre-line ${
+            <div className={`bg-rose-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-rose-100/80 border-l-4 border-l-rose-500 print:border print:bg-none whitespace-pre-line ${
               isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
             }`}>
               {record.limitations}
@@ -534,7 +535,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           {/* Paragraph 4 */}
           <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
             <h4 className={`font-bold text-emerald-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-              4. ความคิดเห็นของครูผู้สอน :
+              4. ข้อเสนอแนะและแนวทางการพัฒนา :
             </h4>
             <div className={`bg-emerald-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-emerald-100/80 border-l-4 border-l-emerald-500 print:border print:bg-none whitespace-pre-line ${
               isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
@@ -542,6 +543,60 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               {record.suggestions}
             </div>
           </div>
+
+          {/* Paragraph 5 */}
+          {record.strengths && (
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-amber-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+                5. จุดเด่นในการสอนครั้งนี้ :
+              </h4>
+              <div className={`bg-amber-50/20 print-bg-gray rounded-r-xl rounded-l-md text-slate-800 leading-relaxed border-y border-r border-amber-100/80 border-l-4 border-l-amber-500 print:border print:bg-none whitespace-pre-line ${
+                isCompact ? 'p-2 text-[11px]' : 'p-4 text-xs'
+              }`}>
+                {record.strengths}
+              </div>
+            </div>
+          )}
+
+          {/* Paragraph 6: แบบประเมิน */}
+          {record.evaluations && (
+            <div className={`break-inside-avoid ${isCompact ? 'space-y-0.5' : 'space-y-1.5'}`}>
+              <h4 className={`font-bold text-indigo-700 flex items-center gap-1.5 font-sans ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+                6. แบบประเมินการจัดการเรียนรู้ :
+              </h4>
+              <div className={`bg-slate-50/50 print:bg-transparent rounded-lg border border-slate-200 print:border p-3 flex flex-wrap gap-x-6 gap-y-3`}>
+                <div className="flex-1 min-w-[150px]">
+                  <h5 className="text-[10px] font-bold text-slate-700 border-b border-slate-200 pb-1 mb-1">ด้านผู้สอน</h5>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>1. เตรียมการจัดทำแผนฯ</span><span className="font-bold">{record.evaluations.teacher.t1}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>2. นำเข้าสู่บทเรียนฯ</span><span className="font-bold">{record.evaluations.teacher.t2}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>3. จัดกิจกรรมโดยใช้เทคนิคฯ</span><span className="font-bold">{record.evaluations.teacher.t3}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>4. ประเมินผลผู้เรียนฯ</span><span className="font-bold">{record.evaluations.teacher.t4}/5</span></div>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <h5 className="text-[10px] font-bold text-slate-700 border-b border-slate-200 pb-1 mb-1">ด้านผู้เรียน</h5>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>1. การมีส่วนร่วมฯ</span><span className="font-bold">{record.evaluations.learner.l1 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>2. ความเข้าใจเนื้อหาฯ</span><span className="font-bold">{record.evaluations.learner.l2 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>3. การทำงานร่วมกันฯ</span><span className="font-bold">{record.evaluations.learner.l3 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>4. ปฏิบัติตามข้อตกลงฯ</span><span className="font-bold">{record.evaluations.learner.l4 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>5. สะท้อนความรู้ฯ</span><span className="font-bold">{record.evaluations.learner.l5 || 0}/5</span></div>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <h5 className="text-[10px] font-bold text-slate-700 border-b border-slate-200 pb-1 mb-1">ด้านสื่อ/แหล่งเรียนรู้</h5>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>1. ความเหมาะสมปลอดภัยฯ</span><span className="font-bold">{record.evaluations.media.m1 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>2. กระตุ้นความสนใจฯ</span><span className="font-bold">{record.evaluations.media.m2 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>3. ความคล่องตัวในการใช้ฯ</span><span className="font-bold">{record.evaluations.media.m3 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>4. ช่วยให้เข้าใจง่ายขึ้นฯ</span><span className="font-bold">{record.evaluations.media.m4 || 0}/5</span></div>
+                    <div className="flex justify-between text-[9px] text-slate-600"><span>5. การเข้าถึงทั่วถึงฯ</span><span className="font-bold">{record.evaluations.media.m5 || 0}/5</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section 3: Official Witness Signatures */}

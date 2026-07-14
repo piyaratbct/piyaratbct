@@ -8,7 +8,7 @@ export interface Teacher {
   affiliation: string;
   displayName: string;
   password?: string;
-  role?: 'teacher' | 'academic' | 'deputy' | 'admin';
+  role?: 'teacher' | 'academic' | 'deputy' | 'admin' | 'discipline';
   hasSeeded?: boolean;
   homeroomClass?: string;
   coHomeroomClass?: string;
@@ -33,8 +33,14 @@ export interface LessonRecord {
   activities: string;   // กิจกรรมการเรียนการสอน
   limitations: string;  // ข้อจำกัดในการจัดการเรียนการสอน
   suggestions: string;  // ข้อเสนอแนะ/ความคิดเห็นของผู้สอน
+  strengths?: string;   // จุดเด่นในการสอนครั้งนี้
   attachments?: Attachment[];
   semester?: string;
+  evaluations?: {
+    teacher: Record<string, number>;
+    learner: Record<string, number>;
+    media: Record<string, number>;
+  };
   createdAt: string;
   updatedAt: string;
   
@@ -266,7 +272,7 @@ export interface DisciplineIncident {
   studentIds: string[];
   studentNames: string[]; // For easy display without joining
   description: string;
-  type: 'fight' | 'bullying' | 'disruption' | 'accident' | 'illness' | 'vandalism' | 'other' | string;
+  type: 'fight' | 'assault' | 'feud' | 'bullying' | 'misunderstanding' | 'disruption' | 'accident' | 'illness' | 'vandalism' | 'other' | string;
   otherTypeDetail?: string;
   accidentDetail?: string;
   illnessDetail?: string;

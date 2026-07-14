@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, updatePassword } from "firebase/auth";
 import {
   collection,
   query,
@@ -210,6 +210,7 @@ export default function App() {
   const [pPhoneNumber, setPPhoneNumber] = useState("");
   const [pAffiliation, setPAffiliation] = useState("");
   const [pDisplayName, setPDisplayName] = useState("");
+  const [pPassword, setPPassword] = useState("");
   const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
 
   // 1. Firebase Authentication state change listener
@@ -553,6 +554,7 @@ export default function App() {
     setPPhoneNumber(t.phoneNumber || "");
     setPAffiliation(t.affiliation || "");
     setPDisplayName(t.displayName || "");
+    setPPassword("");
   };
 
   // Camera Capture Control Effect
@@ -765,6 +767,34 @@ export default function App() {
     }
 
     try {
+      if (pPassword.trim().length > 0) {
+        if (pPassword.trim().length < 6) {
+          alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+          return;
+        }
+        if (auth.currentUser) {
+          try {
+            await updatePassword(auth.currentUser, pPassword.trim());
+            // Log successful password change
+            const logId = `pwd-change-${auth.currentUser.uid}-${Date.now()}`;
+            await setDoc(doc(db, "auditLogs", logId), {
+              userId: auth.currentUser.uid,
+              userEmail: currentTeacher.email,
+              action: "PASSWORD_CHANGE",
+              timestamp: new Date().toISOString()
+            });
+          } catch (error: any) {
+            console.error("Password update error:", error);
+            if (error.code === 'auth/requires-recent-login') {
+              alert("ไม่สามารถเปลี่ยนรหัสผ่านได้ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง ก่อนทำการเปลี่ยนรหัสผ่าน");
+            } else {
+              alert("เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน: " + error.message);
+            }
+            return;
+          }
+        }
+      }
+
       const updatedTeacher: Teacher = {
         ...currentTeacher,
         thaiName: pThaiName,
@@ -833,6 +863,7 @@ export default function App() {
           academic: "หัวหน้าฝ่ายวิชาการ",
           deputy: "รองผู้อำนวยการ",
           admin: "ผู้ดูแลระบบ",
+          discipline: "หัวหน้างานปกครอง",
         };
         const currentRoleStr = currentTeacher
           ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
@@ -1300,19 +1331,17 @@ export default function App() {
             <span>3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</span>
           </button>
 
-          {(currentTeacher.role === "admin" || currentTeacher.role === "academic") && (
-            <button
-              onClick={() => setActiveModule("academic")}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
-                activeModule === "academic"
-                  ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              }`}
-            >
-              <BookOpen className="h-4.5 w-4.5" />
-              <span>4. การบริหาร<br />งานวิชาการ (LessonAcad)</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveModule("academic")}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+              activeModule === "academic"
+                ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <BookOpen className="h-4.5 w-4.5" />
+            <span>4. การบริหาร<br />งานวิชาการ (LessonAcad)</span>
+          </button>
 
           <button
             onClick={() => setActiveModule("discipline")}
@@ -1536,26 +1565,24 @@ export default function App() {
                 </div>
               </button>
 
-              {(currentTeacher.role === "admin" || currentTeacher.role === "academic") && (
-                <button
-                  onClick={() => setActiveModule("academic")}
-                  className="bg-white p-8 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden cursor-pointer"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
-                  <div className="h-16 w-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-indigo-500">
-                    <BookOpen className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800 mb-2">
-                    4. การบริหาร<br />งานวิชาการ (LessonAcad)
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    บันทึกตารางสอน ปฏิทินกิจกรรม และตั้งค่าวันเรียน
-                  </p>
-                  <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full flex items-center gap-1">
-                    เปิดใช้งาน
-                  </div>
-                </button>
-              )}
+              <button
+                onClick={() => setActiveModule("academic")}
+                className="bg-white p-8 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden cursor-pointer"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="h-16 w-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-indigo-500">
+                  <BookOpen className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2">
+                  4. การบริหาร<br />งานวิชาการ (LessonAcad)
+                </h3>
+                <p className="text-sm text-slate-500">
+                  ดูตารางสอน ปฏิทินกิจกรรม และการตั้งค่าวิชาการ
+                </p>
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full flex items-center gap-1">
+                  เปิดใช้งาน
+                </div>
+              </button>
 
               <button
                 onClick={() => setActiveModule("discipline")}
@@ -1869,27 +1896,6 @@ export default function App() {
           />
         ) : activeModule === "academic" ? (
           <div className="relative animate-in fade-in duration-300">
-            {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
-                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                    <Wrench className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800">
-                    ปิดปรับปรุงชั่วคราว
-                  </h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">
-                    โมดูลการบริหารงานวิชาการกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
-                  </p>
-                  <button
-                    onClick={() => setActiveModule("home")}
-                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                  >
-                    กลับสู่หน้าหลัก
-                  </button>
-                </div>
-              </div>
-            )}
             <AcademicModule
               currentTeacher={currentTeacher}
               systemAcademicYear={systemAcademicYear}
@@ -1985,6 +1991,7 @@ export default function App() {
                 academic: "หัวหน้าฝ่ายวิชาการ",
                 deputy: "รองผู้อำนวยการ",
                 admin: "ผู้ดูแลระบบ",
+                discipline: "หัวหน้างานปกครอง",
               };
               const currentRoleStr = currentTeacher
                 ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
@@ -2158,6 +2165,19 @@ export default function App() {
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   />
                 </div>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200/65 p-3.5 rounded-xl">
+                <label className="block text-xs font-black text-rose-900 mb-1">
+                  รหัสผ่านใหม่ (หากไม่ต้องการเปลี่ยน ให้เว้นว่างไว้)
+                </label>
+                <input
+                  type="password"
+                  value={pPassword}
+                  onChange={(e) => setPPassword(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white"
+                  placeholder="รหัสผ่านใหม่ (ขั้นต่ำ 6 ตัวอักษร)"
+                />
               </div>
 
               {currentTeacher?.role === "teacher" && (

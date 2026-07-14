@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, orderBy, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, SEMESTERS, PERIODS } from '../types';
-import { Loader2, Save, Trash2, Plus, Calendar, Clock, User, BookOpen } from 'lucide-react';
+import { Loader2, Save, Trash2, Plus, Calendar, Clock, User, BookOpen, ShieldCheck } from 'lucide-react';
 
 import { MapPin } from 'lucide-react';
 
@@ -12,13 +12,34 @@ interface ScheduleManagerProps {
   currentTeacher: Teacher;
 }
 
+const formatPeriodHeader = (period: string) => {
+  const match = period.match(/(.*?)\s*\((.*?)\)/);
+  if (match) {
+    return (
+      <div className="flex flex-col items-center leading-tight">
+        <span>{match[1].replace('กิจกรรม', '')}</span>
+        <span className="text-[10px] text-slate-500 font-normal mt-0.5">{match[2].replace(' น.', '')}</span>
+      </div>
+    );
+  }
+  return period;
+};
+
+const formatShortGrade = (grade: string) => {
+  if (!grade) return '';
+  return grade
+    .replace('อนุบาลปีที่ ', 'อ.')
+    .replace('ประถมศึกษาปีที่ ', 'ป.')
+    .replace('มัธยมศึกษาปีที่ ', 'ม.');
+};
+
 export function ScheduleManager({ systemSemester, systemAcademicYear, currentTeacher }: ScheduleManagerProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<'today' | 'manage'>('manage');
+  const [viewMode, setViewMode] = useState<'manage' | 'overview'>('manage');
   const [myTodaySchedules, setMyTodaySchedules] = useState<TeacherSchedule[]>([]);
   
   const daysOfWeek = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -29,10 +50,14 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   }, []);
 
   useEffect(() => {
-    if (selectedTeacherId && viewMode === 'manage') {
-      fetchSchedules(selectedTeacherId);
-    } else {
-      setSchedules([]);
+    if (viewMode === 'manage') {
+      if (selectedTeacherId) {
+        fetchSchedules(selectedTeacherId);
+      } else {
+        setSchedules([]);
+      }
+    } else if (viewMode === 'overview') {
+      fetchAllSchedules();
     }
   }, [selectedTeacherId, systemSemester, systemAcademicYear, viewMode]);
 
@@ -76,6 +101,24 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
       setTeachers(teacherList);
     } catch (error) {
       console.error("Error fetching teachers:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAllSchedules = async () => {
+    setIsLoading(true);
+    try {
+      const q = query(
+        collection(db, 'schedules'),
+        where('semester', '==', systemSemester),
+        where('academicYear', '==', systemAcademicYear)
+      );
+      const snapshot = await getDocs(q);
+      const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
+      setSchedules(scheduleList);
+    } catch (error) {
+      console.error("Error fetching all schedules:", error);
     } finally {
       setIsLoading(false);
     }
@@ -154,15 +197,46 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     }
   };
 
+  if (currentTeacher.role !== 'admin' && currentTeacher.role !== 'academic' && currentTeacher.role !== 'discipline') {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center animate-in fade-in">
+        <div className="h-16 w-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Calendar className="h-8 w-8" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-2">จัดการตารางสอน</h3>
+        <p className="text-slate-500">ส่วนนี้ใช้สำหรับจัดโครงสร้างครูประจำชั้น และจัดสรรตารางสอนให้กับบุคลากร</p>
+        <p className="mt-4 text-sm text-rose-500 font-medium">คุณไม่มีสิทธิ์เข้าถึงการจัดการตารางสอน</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-indigo-600" /> จัดการตารางสอน
-        </h3>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-indigo-600" /> จัดการตารางสอน
+          </h3>
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('manage')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${viewMode === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              จัดตารางสอนรายบุคคล
+            </button>
+            <button
+              onClick={() => setViewMode('overview')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${viewMode === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              ภาพรวมตารางสอน
+            </button>
+          </div>
+        </div>
         
-        <div className="mb-6">
-          <label className="block text-sm font-bold text-slate-700 mb-2">เลือกคุณครู</label>
+        {viewMode === 'manage' && (
+          <>
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-slate-700 mb-2">เลือกคุณครู</label>
           <select 
             value={selectedTeacherId}
             onChange={(e) => setSelectedTeacherId(e.target.value)}
@@ -182,18 +256,22 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                 <div className="bg-slate-50 p-4 font-bold text-slate-800 flex justify-between items-center">
                   <span>วัน{daysOfWeek[day]}</span>
                   <div className="flex gap-2">
-                    <select id={`add-period-${day}`} className="p-1.5 text-xs bg-white border border-slate-200 rounded-lg">
-                      {periods.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    <button 
-                      onClick={() => {
-                        const sel = document.getElementById(`add-period-${day}`) as HTMLSelectElement;
-                        handleAddSchedule(day, sel.value);
-                      }}
-                      className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 flex items-center gap-1"
-                    >
-                      <Plus className="h-3 w-3" /> เพิ่มคาบ
-                    </button>
+                    {(currentTeacher.role === 'admin' || currentTeacher.role === 'academic' || currentTeacher.role === 'discipline') && (
+                      <>
+                        <select id={`add-period-${day}`} className="p-1.5 text-xs bg-white border border-slate-200 rounded-lg">
+                          {periods.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const sel = document.getElementById(`add-period-${day}`) as HTMLSelectElement;
+                            handleAddSchedule(day, sel.value);
+                          }}
+                          className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 flex items-center gap-1"
+                        >
+                          <Plus className="h-3 w-3" /> เพิ่มคาบ
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 
@@ -223,12 +301,14 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                       </div>
                       
                       <div className="w-full md:w-1/6 flex justify-end">
-                        <button 
-                          onClick={() => handleDeleteSchedule(schedule.id)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {(currentTeacher.role === 'admin' || currentTeacher.role === 'academic' || currentTeacher.role === 'discipline') && (
+                          <button 
+                            onClick={() => handleDeleteSchedule(schedule.id)}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -241,6 +321,69 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                 </div>
               </div>
             ))}
+          </div>
+        )}
+          </>
+        )}
+        
+        {viewMode === 'overview' && (
+          <div className="space-y-8">
+            <p className="text-slate-500 mb-4">ภาพรวมตารางสอนของครูทั้งหมดในระบบ สำหรับภาคเรียนที่ {systemSemester}/{systemAcademicYear}</p>
+            {isLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px] border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-y border-slate-200">
+                      <th className="p-3 text-center font-bold text-slate-700 text-sm border-r border-slate-200 w-32">วัน</th>
+                      {periods.map(period => (
+                        <th key={period} className="p-2 text-center font-bold text-slate-700 text-sm border-r border-slate-200 min-w-[100px]">
+                          {formatPeriodHeader(period)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[1, 2, 3, 4, 5].map(day => (
+                      <tr key={day} className="border-b border-slate-200">
+                        <td className="p-3 font-bold text-slate-800 border-r border-slate-200 bg-slate-50 text-center">
+                          {daysOfWeek[day]}
+                        </td>
+                        {periods.map(period => {
+                          const schedulesInPeriod = schedules.filter(s => s.dayOfWeek === day && s.period === period);
+                          return (
+                            <td key={period} className="p-2 border-r border-slate-200 align-top">
+                              {schedulesInPeriod.length > 0 ? (
+                                <div className="space-y-2">
+                                  {schedulesInPeriod.map(s => {
+                                    const teacher = teachers.find(t => t.id === s.teacherId);
+                                    const displayName = teacher?.displayName || s.teacherName;
+                                    return (
+                                      <div key={s.id} className="bg-indigo-50 border border-indigo-100 rounded p-1.5 text-xs">
+                                        <div className="font-bold text-indigo-900 truncate" title={s.teacherName}>{displayName}</div>
+                                        <div className="text-indigo-700 flex justify-between gap-1 mt-0.5">
+                                          <span className="truncate flex-1">{s.subject}</span>
+                                          <span className="font-medium whitespace-nowrap">{formatShortGrade(s.gradeLevel)}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-slate-300 text-center text-xs py-2">-</div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

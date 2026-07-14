@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { Teacher, LessonRecord, LessonPlan } from '../types';
 import { ShieldCheck, FileText, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react';
 
@@ -8,11 +10,32 @@ interface AdminMonitoringDashboardProps {
   teachers: Teacher[];
 }
 
+interface AuditLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  action: string;
+  timestamp: string;
+}
+
 export const AdminMonitoringDashboard: React.FC<AdminMonitoringDashboardProps> = ({
   records,
   plans,
   teachers
 }) => {
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(50));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const logs: AuditLog[] = [];
+      snapshot.forEach((doc) => {
+        logs.push({ id: doc.id, ...doc.data() } as AuditLog);
+      });
+      setAuditLogs(logs);
+    });
+    return () => unsub();
+  }, []);
   // Compute Stats
   const pendingRecords = useMemo(() => records.filter(r => r.teacherSigned && !r.deptHeadApproved), [records]);
   const pendingPlans = useMemo(() => plans.filter(p => p.status === 'submitted' || p.status === 'draft'), [plans]); // Or whatever logic for pending plans

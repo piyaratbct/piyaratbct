@@ -123,7 +123,8 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                 teacher: { text: 'คุณครูผู้สอน', style: 'bg-sky-50 text-sky-600 border-sky-200' },
                 academic: { text: 'หัวหน้าวิชาการ', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
                 deputy: { text: 'รองผู้อำนวยการ', style: 'bg-pink-50 text-pink-600 border-pink-200' },
-                admin: { text: 'ผู้ดูแลระบบ', style: 'bg-violet-50 text-violet-600 border-violet-200' }
+                admin: { text: 'ผู้ดูแลระบบ', style: 'bg-violet-50 text-violet-600 border-violet-200' },
+                discipline: { text: 'หัวหน้างานปกครอง', style: 'bg-amber-50 text-amber-600 border-amber-200' }
               };
               const roleConfig = roleLabels[teacher.role || 'teacher'] || roleLabels.teacher;
 
@@ -229,6 +230,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                                 <option value="teacher">คุณครูผู้สอนปกติ</option>
                                 <option value="academic">ฝ่ายวิชาการ (ตรวจแผนฯ / บันทึกหลังสอน)</option>
                                 <option value="deputy">รองผู้อำนวยการ (อนุมัติ)</option>
+                                <option value="discipline">หัวหน้างานปกครอง (ตรวจสอบวินัย)</option>
                                 <option value="admin">ผู้ดูแลระบบสูงสุด (System Administrator)</option>
                               </select>
                             </div>
