@@ -72,6 +72,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                 <input
                   type="number"
                   step="0.1"
+                  min="10"
+                  max="150"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
@@ -85,6 +87,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                 <input
                   type="number"
                   step="0.1"
+                  min="80"
+                  max="200"
                   value={height}
                   onChange={(e) => setHeight(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"

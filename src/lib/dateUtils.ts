@@ -1,4 +1,14 @@
-export const formatThaiDate = (dateString?: string) => {
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+export const formatThaiDate = (dateString?: string, format: 'short' | 'full' = 'short') => {
   if (!dateString) return '-';
   try {
     let parsedString = dateString;
@@ -23,11 +33,12 @@ export const formatThaiDate = (dateString?: string) => {
     const d = new Date(parsedString);
     if (isNaN(d.getTime())) return dateString;
     
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate();
+    const monthIdx = d.getMonth();
     const year = d.getFullYear() < 2400 ? d.getFullYear() + 543 : d.getFullYear();
     
-    return `${day}/${month}/${year}`;
+    const monthName = format === 'short' ? THAI_MONTHS_SHORT[monthIdx] : THAI_MONTHS_FULL[monthIdx];
+    return `${day} ${monthName} ${year}`;
   } catch {
     return dateString;
   }
@@ -39,13 +50,14 @@ export const formatThaiDateTime = (isoString?: string) => {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
     
-    const day = d.getDate().toString().padStart(2, '0');
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate();
+    const monthIdx = d.getMonth();
     const year = d.getFullYear() < 2400 ? d.getFullYear() + 543 : d.getFullYear();
     const hours = d.getHours().toString().padStart(2, '0');
     const minutes = d.getMinutes().toString().padStart(2, '0');
     
-    return `${day}/${month}/${year} ${hours}:${minutes} น.`;
+    const monthName = THAI_MONTHS_SHORT[monthIdx];
+    return `${day} ${monthName} ${year} ${hours}:${minutes} น.`;
   } catch {
     return isoString;
   }
@@ -57,10 +69,11 @@ export const formatThaiMonthYear = (dateString?: string) => {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
     
-    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const monthIdx = d.getMonth();
     const year = d.getFullYear() < 2400 ? d.getFullYear() + 543 : d.getFullYear();
     
-    return `${month}/${year}`;
+    const monthName = THAI_MONTHS_FULL[monthIdx];
+    return `${monthName} ${year}`;
   } catch {
     return dateString;
   }

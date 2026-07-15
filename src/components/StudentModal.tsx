@@ -72,7 +72,18 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData, student?.id);
+    const dataToSave = { ...formData };
+    if (dataToSave.weight !== '') {
+      dataToSave.weight = Number(dataToSave.weight);
+    } else {
+      delete dataToSave.weight;
+    }
+    if (dataToSave.height !== '') {
+      dataToSave.height = Number(dataToSave.height);
+    } else {
+      delete dataToSave.height;
+    }
+    onSave(dataToSave as any, student?.id);
   };
 
   return (
