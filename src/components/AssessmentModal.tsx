@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, History, Clock } from "lucide-react";
 import { Student, StudentAssessment } from "../types";
+import { formatThaiDateTime } from '../lib/dateUtils';
 
 interface AssessmentModalProps {
   student: Student;
@@ -17,26 +18,12 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
 }) => {
   const [formData, setFormData] =
     useState<StudentAssessment>(existingAssessment);
-  const [weight, setWeight] = useState<number | ''>(student.weight || '');
-  const [height, setHeight] = useState<number | ''>(student.height || '');
+  const [weight, setWeight] = useState<number | ''>(existingAssessment.weight !== undefined ? existingAssessment.weight : (student.weight || ''));
+  const [height, setHeight] = useState<number | ''>(existingAssessment.height !== undefined ? existingAssessment.height : (student.height || ''));
   const [expandedHistory, setExpandedHistory] = useState(false);
 
   // Helper for formatting date/time
-  const thaiFormatDateTime = (isoString?: string) => {
-    if (!isoString) return "-";
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleString("th-TH", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return isoString;
-    }
-  };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center p-4 print:hidden">
@@ -204,7 +191,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                 <div className="flex items-center space-x-2 text-xs font-semibold text-slate-400 shrink-0">
                   <span className="font-mono flex items-center gap-1">
                     <Clock className="h-3 w-3 text-slate-400" />
-                    {thaiFormatDateTime(formData.lastEditedAt)}
+                    {formatThaiDateTime(formData.lastEditedAt)}
                   </span>
                   {formData.editHistory && formData.editHistory.length > 1 && (
                     <span className="text-sky-600 font-extrabold text-[10px] bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded hover:bg-sky-100/70 transition-colors">
@@ -235,7 +222,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                             </span>
                           </span>
                           <span className="text-slate-400 font-mono shrink-0 italic">
-                            {thaiFormatDateTime(history.editedAt)}
+                            {formatThaiDateTime(history.editedAt)}
                           </span>
                         </div>
                       ))}

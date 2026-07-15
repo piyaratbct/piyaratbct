@@ -8,6 +8,26 @@ interface StudentDetailModalProps {
 }
 
 export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student, onClose }) => {
+  const formatThaiDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      
+      const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+      ];
+      
+      const day = d.getDate();
+      const month = thaiMonths[d.getMonth()];
+      const year = d.getFullYear() + 543;
+      
+      return `${day} ${month} ${year}`;
+    } catch {
+      return dateString;
+    }
+  };
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
@@ -45,12 +65,19 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2">
+              <div className="flex items-center gap-2 text-slate-500 mb-1">
+                <User className="h-4 w-4" />
+                <span className="text-xs font-bold">เลขประจำตัวประชาชน</span>
+              </div>
+              <p className="font-semibold text-slate-800 font-mono">{student.nationalId || '-'}</p>
+            </div>
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <div className="flex items-center gap-2 text-slate-500 mb-1">
                 <Calendar className="h-4 w-4" />
                 <span className="text-xs font-bold">วันเกิด</span>
               </div>
-              <p className="font-semibold text-slate-800">{student.dob || '-'}</p>
+              <p className="font-semibold text-slate-800">{formatThaiDate(student.dob)}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <div className="flex items-center gap-2 text-slate-500 mb-1">

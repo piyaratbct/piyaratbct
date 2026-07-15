@@ -110,6 +110,7 @@ export interface Student {
   gradeLevel: string;
   academicYear?: string;
   gender: 'male' | 'female';
+  nationalId?: string;
   number: number;
   status: 'active' | 'inactive';
   dob?: string;
@@ -180,6 +181,8 @@ export interface StudentAssessment {
 
   // 4. บันทึกพัฒนาการ (ลักษณะเดียวกับบันทึกหลังสอน)
   month?: string;        // ระบุเพียงเดือนที่ได้ลงบันทึกประเมิน
+  weight?: number;
+  height?: number;
   recordDate?: string;   // ระบุวันที่บันทึกข้อมูล (kept for backward compatibility or backend use, but won't be in form)
   
   // Edit History Tracking

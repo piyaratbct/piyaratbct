@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Student, StudentAssessment, Teacher } from "../types";
+import { formatThaiMonthYear } from '../lib/dateUtils';
 import {
   PDFPrintHelper,
   PrintPageContainer,
@@ -111,12 +112,7 @@ export const AssessmentPrintTemplate: React.FC<
                     <span className="font-bold text-slate-700">
                       การประเมินประจำเดือน:
                     </span>{" "}
-                    {assessment.month
-                      ? new Date(assessment.month).toLocaleDateString("th-TH", {
-                          year: "numeric",
-                          month: "long",
-                        })
-                      : "-"}
+{formatThaiMonthYear(assessment.month)}
                   </div>
                 </div>
 

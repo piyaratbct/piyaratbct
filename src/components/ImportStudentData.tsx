@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { Student } from '../types';
 
 interface ImportStudentDataProps {
@@ -31,7 +31,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         const worksheet = workbook.Sheets[firstSheetName];
         
         // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
         
         if (jsonData.length === 0) {
           setError('ไม่พบข้อมูลในไฟล์ หรือไฟล์มีรูปแบบไม่ถูกต้อง');
@@ -57,11 +57,22 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
     setError(null);
 
     try {
+      const studentsCollection = collection(db, 'students');
+      
+      // Fetch existing students in this grade to match by studentId for upserting
+      const q = query(studentsCollection, where('gradeLevel', '==', selectedGrade));
+      const existingSnapshot = await getDocs(q);
+      const existingMap: Record<string, string> = {};
+      existingSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.studentId) {
+          existingMap[data.studentId] = doc.id;
+        }
+      });
+
       // Process in batches of 500 (Firestore limit)
       const batch = writeBatch(db);
       let count = 0;
-      
-      const studentsCollection = collection(db, 'students');
 
       for (const row of dataPreview) {
         // Map excel columns to Student object
@@ -71,10 +82,40 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         const lastName = String(row['นามสกุล'] || row['lastName'] || '').trim();
         const nickname = String(row['ชื่อเล่น'] || row['nickname'] || '').trim();
         const rawGender = String(row['เพศ'] || row['gender'] || '').trim().toLowerCase();
+        const nationalId = String(row['เลขประจำตัวประชาชน'] || row['nationalId'] || '').trim();
         const numberRaw = row['เลขที่'] || row['number'];
         const number = parseInt(numberRaw, 10) || 0;
 
-        const dob = String(row['วันเกิด'] || row['dob'] || '').trim();
+                let parsedDob = String(row['วันเกิด'] || row['dob'] || '').trim();
+        
+        // Handle Date parsing (Buddhist Era to Christian Era YYYY-MM-DD)
+        if (parsedDob) {
+          const sep = parsedDob.includes('/') ? '/' : (parsedDob.includes('-') ? '-' : null);
+          if (sep) {
+            const parts = parsedDob.split(sep);
+            if (parts.length === 3) {
+              let day, month, year;
+              
+              if (parts[0].length <= 2 && parts[2].length === 4) {
+                // DD/MM/YYYY
+                day = parts[0].padStart(2, '0');
+                month = parts[1].padStart(2, '0');
+                year = parseInt(parts[2], 10);
+              } else if (parts[0].length === 4 && parts[2].length <= 2) {
+                // YYYY/MM/DD
+                year = parseInt(parts[0], 10);
+                month = parts[1].padStart(2, '0');
+                day = parts[2].padStart(2, '0');
+              }
+              
+              if (year !== undefined) {
+                if (year > 2400) year -= 543;
+                parsedDob = `${year}-${month}-${day}`;
+              }
+            }
+          }
+        }
+        const dob = parsedDob;
         const parentName = String(row['ชื่อผู้ปกครอง'] || row['parentName'] || '').trim();
         const parentPhone = String(row['เบอร์โทรผู้ปกครอง'] || row['parentPhone'] || '').trim();
         const fatherName = String(row['ชื่อบิดา'] || row['fatherName'] || '').trim();
@@ -93,15 +134,18 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
 
         const gender = (rawGender === 'ชาย' || rawGender === 'male' || rawGender === 'm') ? 'male' : 'female';
         
-        const newDocRef = doc(studentsCollection);
+        const existingDocId = existingMap[studentId];
+        const docRef = existingDocId ? doc(db, 'students', existingDocId) : doc(studentsCollection);
+        
         const studentData: Student = {
-          id: newDocRef.id,
+          id: docRef.id,
           studentId,
           firstName,
           lastName,
           nickname,
           gradeLevel: selectedGrade,
           gender,
+          nationalId,
           number,
           status: 'active',
           dob,
@@ -119,7 +163,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
           congenitalDisease
         };
 
-        batch.set(newDocRef, studentData);
+        batch.set(docRef, studentData, { merge: true });
         count++;
 
         if (count >= 500) {
@@ -172,7 +216,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
             <p className="font-bold mb-1">คำแนะนำรูปแบบไฟล์ (.xlsx หรือ .csv)</p>
             <p className="mb-2">หัวคอลัมน์ (Row 1) ต้องประกอบด้วยชื่อคอลัมน์ดังนี้ (อย่างน้อย "รหัสนักเรียน" และ "ชื่อ"):</p>
             <div className="flex flex-wrap gap-2">
-              {['เลขที่', 'รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'เพศ', 'วันเกิด', 'ชื่อบิดา', 'เบอร์โทรบิดา', 'ชื่อมารดา', 'เบอร์โทรมารดา', 'สถานภาพครอบครัว', 'ชื่อผู้ปกครอง', 'เบอร์โทรผู้ปกครอง', 'ที่อยู่', 'การแพ้ยา', 'การแพ้อาหาร', 'โรคประจำตัว', 'ข้อมูลสุขภาพ'].map(col => (
+              {['เลขที่', 'รหัสนักเรียน', 'ชื่อ', 'นามสกุล', 'ชื่อเล่น', 'เพศ', 'เลขประจำตัวประชาชน', 'วันเกิด', 'ชื่อบิดา', 'เบอร์โทรบิดา', 'ชื่อมารดา', 'เบอร์โทรมารดา', 'สถานภาพครอบครัว', 'ชื่อผู้ปกครอง', 'เบอร์โทรผู้ปกครอง', 'ที่อยู่', 'การแพ้ยา', 'การแพ้อาหาร', 'โรคประจำตัว', 'ข้อมูลสุขภาพ'].map(col => (
                 <span key={col} className="bg-white px-2 py-1 rounded border border-sky-200 text-xs font-bold font-mono">{col}</span>
               ))}
             </div>

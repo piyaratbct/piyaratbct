@@ -33,9 +33,25 @@ export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsMod
     return summary;
   }, [students]);
 
+  const sortGrades = (a: string, b: string) => {
+    const isKinderA = a.startsWith('อนุบาล');
+    const isKinderB = b.startsWith('อนุบาล');
+    if (isKinderA && !isKinderB) return -1;
+    if (!isKinderA && isKinderB) return 1;
+    return a.localeCompare(b, 'th-TH', { numeric: true });
+  };
+
+  const shortenGrade = (grade: string) => {
+    return grade
+      .replace('อนุบาล ', 'อ.')
+      .replace('อนุบาล', 'อ.')
+      .replace('ประถมศึกษาปีที่ ', 'ป.')
+      .replace('ประถมศึกษาปีที่', 'ป.');
+  };
+
   const chartData = useMemo(() => {
-    return Object.keys(stats).sort().map(grade => ({
-      name: grade,
+    return Object.keys(stats).sort(sortGrades).map(grade => ({
+      name: shortenGrade(grade),
       ชาย: stats[grade].male,
       หญิง: stats[grade].female,
       รวม: stats[grade].total
@@ -143,7 +159,7 @@ export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsMod
               </thead>
               <tbody>
                 {Object.keys(stats).length > 0 ? (
-                  Object.keys(stats).sort().map((grade) => (
+                  Object.keys(stats).sort(sortGrades).map((grade) => (
                     <tr key={grade} className="border-b border-slate-100 hover:bg-slate-50 transition-colors text-sm">
                       <td className="py-3 px-4 font-bold text-slate-700">{grade}</td>
                       <td className="py-3 px-4 text-center font-medium text-slate-600 bg-sky-50/30">{stats[grade].male}</td>

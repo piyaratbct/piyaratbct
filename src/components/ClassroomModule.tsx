@@ -17,7 +17,7 @@ import {
   GraduationCap,
   CalendarCheck,
   Wrench,
-  AlertTriangle, HeartPulse,
+  AlertTriangle, HeartPulse, X, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 import { StudentDetailModal } from "./StudentDetailModal";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
@@ -37,9 +37,11 @@ import {
   updateDoc,
   writeBatch,
   deleteDoc,
+  deleteField,
 } from "firebase/firestore";
 import { AssessmentModal } from "./AssessmentModal";
 import { AttendanceTracking } from "./AttendanceTracking";
+import { formatThaiDateTime, formatThaiMonthYear } from '../lib/dateUtils';
 
 interface ClassroomModuleProps {
   currentTeacher: Teacher | null;
@@ -54,7 +56,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemSemester = "1",
   teachers = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments" | "special-care">(
+  const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments" | "special-care" | "health-report">(
     "students",
   );
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
@@ -92,6 +94,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     id: string;
     name: string;
   } | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [assessmentToDelete, setAssessmentToDelete] =
     useState<StudentAssessment | null>(null);
 
@@ -103,21 +107,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     setExpandedHistory((prev) => ({ ...prev, [studentId]: !prev[studentId] }));
   };
 
-  const thaiFormatDateTime = (isoString?: string) => {
-    if (!isoString) return "-";
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleString("th-TH", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return isoString;
-    }
-  };
+
 
   useEffect(() => {
     // Fetch students from Firestore
@@ -197,7 +187,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     }
     
     // If not searching, filter by grade and gender
-    if (student.gradeLevel !== selectedGrade) return false;
+    let matchGrade = false;
+    if (selectedGrade === 'ภาพรวม') {
+      matchGrade = true;
+    } else if (selectedGrade === 'ระดับอนุบาล') {
+      matchGrade = (student.gradeLevel || '').startsWith('อนุบาล');
+    } else if (selectedGrade === 'ระดับประถมศึกษา') {
+      matchGrade = (student.gradeLevel || '').startsWith('ประถม');
+    } else {
+      matchGrade = student.gradeLevel === selectedGrade;
+    }
+    
+    if (!matchGrade) return false;
     if (genderFilter !== "all" && student.gender !== genderFilter) return false;
     
     return true;
@@ -206,13 +207,22 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   // Sort displayed students by grade level (optional but nice), then number
   displayedStudents.sort((a, b) => {
     if (a.gradeLevel !== b.gradeLevel) {
-      return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th');
+      const isKinderA = (a.gradeLevel || '').startsWith('อนุบาล');
+      const isKinderB = (b.gradeLevel || '').startsWith('อนุบาล');
+      if (isKinderA && !isKinderB) return -1;
+      if (!isKinderA && isKinderB) return 1;
+      return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th', { numeric: true });
     }
     return (a.number || 0) - (b.number || 0);
   });
 
   // Calculate counts based on displayed students (or just grade level students if not searching)
-  const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+  const studentsInGrade = students.filter(s => {
+    if (selectedGrade === 'ภาพรวม') return true;
+    if (selectedGrade === 'ระดับอนุบาล') return (s.gradeLevel || '').startsWith('อนุบาล');
+    if (selectedGrade === 'ระดับประถมศึกษา') return (s.gradeLevel || '').startsWith('ประถม');
+    return s.gradeLevel === selectedGrade;
+  });
   const countSource = searchQuery !== "" ? displayedStudents : studentsInGrade;
   
   const totalCount = countSource.length;
@@ -296,10 +306,64 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     }
   };
 
+  const handleDeleteAllStudents = async () => {
+    try {
+      setIsDeletingAll(true);
+      const studentsToDelete = students.filter(s => s.gradeLevel === selectedGrade);
+      
+      const chunks = [];
+      for (let i = 0; i < studentsToDelete.length; i += 500) {
+        chunks.push(studentsToDelete.slice(i, i + 500));
+      }
+
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        for (const student of chunk) {
+          batch.delete(doc(db, "students", student.id));
+        }
+        await batch.commit();
+      }
+      
+      setShowDeleteAllConfirm(false);
+      setIsDeletingAll(false);
+    } catch (error) {
+      console.error("Failed to delete all students:", error);
+      setIsDeletingAll(false);
+      handleFirestoreError(error, OperationType.DELETE, "students");
+    }
+  };
+
   const handleDeleteAssessment = async () => {
     if (!assessmentToDelete) return;
     try {
+      const studentId = assessmentToDelete.studentId;
       await deleteDoc(doc(db, "assessments", assessmentToDelete.id));
+      
+      // Update student's weight and height when assessment is deleted
+      if (studentId) {
+        try {
+          // Find the latest assessment for this student that is NOT the one being deleted
+          const remainingAssessments = allAssessments.filter(a => a.studentId === studentId && a.id !== assessmentToDelete.id && a.weight !== undefined && a.height !== undefined);
+          
+          if (remainingAssessments.length > 0) {
+            // Sort to find latest by month
+            remainingAssessments.sort((a, b) => (b.month || "").localeCompare(a.month || ""));
+            const latest = remainingAssessments[0];
+            await updateDoc(doc(db, "students", studentId), {
+              weight: latest.weight,
+              height: latest.height
+            });
+          } else {
+            await updateDoc(doc(db, "students", studentId), {
+              weight: deleteField(),
+              height: deleteField()
+            });
+          }
+        } catch (updateErr) {
+          console.error("Failed to update student weight and height", updateErr);
+        }
+      }
+
       setAssessmentToDelete(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, "assessments");
@@ -485,7 +549,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto xl:shrink-0 custom-scrollbar gap-1">
             <button
               onClick={() => setActiveTab("students")}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "students"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
@@ -496,7 +560,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("attendance")}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "attendance"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
@@ -507,7 +571,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("assessments")}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "assessments"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
@@ -518,7 +582,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("special-care")}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === "special-care"
                   ? "bg-pink-100 text-pink-700"
                   : "text-slate-500 hover:bg-slate-50"
@@ -527,9 +591,20 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               <HeartPulse className="h-4 w-4 shrink-0" /> 
               <span className="whitespace-nowrap">ข้อมูลสุขภาพ</span>
             </button>
+            <button
+              onClick={() => setActiveTab("health-report")}
+              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === "health-report"
+                  ? "bg-pink-100 text-pink-700"
+                  : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              <FileSpreadsheet className="h-4 w-4 shrink-0" /> 
+              <span className="whitespace-nowrap">พัฒนาการร่างกาย</span>
+            </button>
           </div>
           
-          <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full xl:w-auto transition-opacity duration-200 ${activeTab === 'assessments' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full xl:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'health-report') ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
             <input
               type="month"
@@ -537,6 +612,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer w-full"
             />
+            {selectedMonth && activeTab === 'health-report' && (
+              <button 
+                onClick={() => setSelectedMonth('')}
+                className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1"
+                title="ล้างการเลือกเดือน (ดูข้อมูลล่าสุด)"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           
           <div className="relative w-full xl:w-64 flex-1 xl:flex-none shrink-0">
@@ -558,26 +642,22 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           {activeTab === "students" && (
             <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 whitespace-nowrap">
                     {searchQuery ? (
                       <>ผลการค้นหา: <span className="text-pink-600">"{searchQuery}"</span></>
                     ) : (
                       <>รายชื่อนักเรียน {selectedGrade}</>
                     )}
                   </h3>
-                  <div className="flex gap-3 mt-2 text-sm font-medium">
-                    <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
-                      ทั้งหมด:{" "}
-                      <span className="font-bold text-slate-900">
-                        {totalCount}
-                      </span>{" "}
-                      คน
+                  <div className="flex flex-wrap gap-2 text-sm font-medium">
+                    <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600 whitespace-nowrap">
+                      ทั้งหมด: <span className="font-bold text-slate-900">{totalCount}</span> คน
                     </span>
-                    <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700">
+                    <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700 whitespace-nowrap">
                       ชาย: <span className="font-bold">{maleCount}</span> คน
                     </span>
-                    <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700">
+                    <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700 whitespace-nowrap">
                       หญิง: <span className="font-bold">{femaleCount}</span> คน
                     </span>
                   </div>
@@ -644,11 +724,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         </button>
                       )}
                       <button
+                        onClick={() => setShowDeleteAllConfirm(true)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                      >
+                        <Trash2 className="h-4 w-4" /> ลบทั้งหมด
+                      </button>
+                      <button
                         onClick={() => {
                           setEditingStudent(null);
                           setShowStudentModal(true);
                         }}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                       >
                         <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                       </button>
@@ -807,8 +893,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           {activeTab === "assessments" && (
             <div className="p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 whitespace-nowrap">
                     ประเมินพัฒนาการนักเรียน
                     {searchQuery && (
                        <span className="text-sm font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full ml-2">
@@ -816,18 +902,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                        </span>
                     )}
                   </h3>
-                  <div className="flex gap-3 mt-2 text-sm font-medium">
-                    <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600">
-                      ทั้งหมด:{" "}
-                      <span className="font-bold text-slate-900">
-                        {totalCount}
-                      </span>{" "}
-                      คน
+                  <div className="flex flex-wrap gap-2 text-sm font-medium">
+                    <span className="bg-slate-100 px-3 py-1 rounded-lg text-slate-600 whitespace-nowrap">
+                      ทั้งหมด: <span className="font-bold text-slate-900">{totalCount}</span> คน
                     </span>
-                    <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700">
+                    <span className="bg-blue-50 px-3 py-1 rounded-lg text-blue-700 whitespace-nowrap">
                       ชาย: <span className="font-bold">{maleCount}</span> คน
                     </span>
-                    <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700">
+                    <span className="bg-pink-50 px-3 py-1 rounded-lg text-pink-700 whitespace-nowrap">
                       หญิง: <span className="font-bold">{femaleCount}</span> คน
                     </span>
                   </div>
@@ -926,7 +1008,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                             <div className="flex items-center space-x-1 shrink-0 text-slate-400">
                               <Clock className="h-3 w-3" />
                               <span>
-                                {thaiFormatDateTime(assessment.lastEditedAt)}
+                                {formatThaiDateTime(assessment.lastEditedAt)}
                               </span>
                             </div>
                           </div>
@@ -950,7 +1032,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                         </span>
                                       </span>
                                       <span className="text-slate-400 italic">
-                                        {thaiFormatDateTime(history.editedAt)}
+                                        {formatThaiDateTime(history.editedAt)}
                                       </span>
                                     </div>
                                   ))}
@@ -1041,39 +1123,38 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }))
               .sort((a, b) => b.value - a.value);
 
-            const bmiDataCount = {
-              underweight: 0,
-              normal: 0,
-              overweight: 0,
-              obese1: 0,
-              obese2: 0,
+
+
+            const getStudentHealthData = (s: Student) => {
+              let weight = s.weight;
+              let height = s.height;
+              
+              if (selectedMonth) {
+                const assessmentForMonth = assessments[s.id];
+                if (assessmentForMonth && assessmentForMonth.weight !== undefined && assessmentForMonth.height !== undefined) {
+                  weight = assessmentForMonth.weight;
+                  height = assessmentForMonth.height;
+                } else {
+                  weight = undefined;
+                  height = undefined;
+                }
+              }
+              
+              return { weight, height };
             };
 
-            students.forEach(s => {
-              if (s.weight && s.height) {
-                const heightM = s.height / 100;
-                const bmi = s.weight / (heightM * heightM);
-                if (bmi < 18.5) bmiDataCount.underweight++;
-                else if (bmi < 23) bmiDataCount.normal++;
-                else if (bmi < 25) bmiDataCount.overweight++;
-                else if (bmi < 30) bmiDataCount.obese1++;
-                else bmiDataCount.obese2++;
-              }
-            });
-
-            const bmiData = [
-              { name: 'น้ำหนักน้อย', value: bmiDataCount.underweight, fill: '#3b82f6' },
-              { name: 'สมส่วน', value: bmiDataCount.normal, fill: '#22c55e' },
-              { name: 'น้ำหนักเกิน', value: bmiDataCount.overweight, fill: '#eab308' },
-              { name: 'อ้วนระดับ 1', value: bmiDataCount.obese1, fill: '#f97316' },
-              { name: 'อ้วนระดับ 2', value: bmiDataCount.obese2, fill: '#ef4444' },
-            ].filter(item => item.value > 0);
-
             const allSpecialCareStudents = students.filter(
-              s => s.allergicFood || s.congenitalDisease || s.allergicMedicine || s.medicalInfo || s.weight || s.height
+              s => {
+                const { weight, height } = getStudentHealthData(s);
+                return s.allergicFood || s.congenitalDisease || s.allergicMedicine || s.medicalInfo || weight || height;
+              }
             ).sort((a, b) => {
               if (a.gradeLevel !== b.gradeLevel) {
-                return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th');
+                const isKinderA = (a.gradeLevel || '').startsWith('อนุบาล');
+                const isKinderB = (b.gradeLevel || '').startsWith('อนุบาล');
+                if (isKinderA && !isKinderB) return -1;
+                if (!isKinderA && isKinderB) return 1;
+                return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th', { numeric: true });
               }
               return (a.number || 0) - (b.number || 0);
             });
@@ -1102,42 +1183,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               ) : (
                 <div className="flex flex-col gap-6">
                   {/* Chart Section */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-                      <h4 className="font-bold text-slate-700 mb-4 text-center">ประเมินน้ำหนัก/ส่วนสูง (BMI)</h4>
-                      <div className="h-64 w-full">
-                        {bmiData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={bmiData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                                label={({ percent }) => percent < 0.1 ? '' : `${(percent * 100).toFixed(0)}%`}
-                                labelLine={false}
-                              >
-                                {bmiData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                                ))}
-                              </Pie>
-                              <RechartsTooltip 
-                                formatter={(value) => [`${value} คน`, 'จำนวน']}
-                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                              />
-                              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-slate-400">
-                            ไม่มีข้อมูลน้ำหนัก/ส่วนสูง
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
                       <h4 className="font-bold text-slate-700 mb-4 text-center">สถิติข้อมูลสุขภาพ</h4>
                       <div className="h-64 w-full">
@@ -1232,27 +1278,48 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                   <div className="text-xs text-slate-500">{student.studentId}</div>
                                 </td>
                                 <td className="px-4 py-3 text-center whitespace-nowrap text-xs">
-                                  {student.weight && student.height ? (() => {
-                                    const h = student.height / 100;
-                                    const bmi = student.weight / (h * h);
+                                  {(() => {
+                                    const { weight, height } = getStudentHealthData(student);
+                                    if (weight && height) {
+                                      const h = height / 100;
+                                      const bmi = weight / (h * h);
+                                    
+                                    // คำนวณอายุจากวันเกิดเพื่อใช้เกณฑ์คร่าวๆ (ถ้ามี)
+                                    let ageYears = 7; // ค่าเริ่มต้นประถมต้น
+                                    if (student.dob) {
+                                      const birthDate = new Date(student.dob);
+                                      const ageDifMs = Date.now() - birthDate.getTime();
+                                      const ageDate = new Date(ageDifMs);
+                                      ageYears = Math.abs(ageDate.getUTCFullYear() - 1970);
+                                    }
+                                    
                                     let label = '';
                                     let color = '';
-                                    if (bmi < 18.5) { label = 'น้ำหนักน้อย'; color = 'text-blue-600 bg-blue-50 border-blue-100'; }
-                                    else if (bmi < 23) { label = 'สมส่วน'; color = 'text-green-600 bg-green-50 border-green-100'; }
-                                    else if (bmi < 25) { label = 'น้ำหนักเกิน'; color = 'text-yellow-600 bg-yellow-50 border-yellow-100'; }
-                                    else if (bmi < 30) { label = 'อ้วนระดับ 1'; color = 'text-orange-600 bg-orange-50 border-orange-100'; }
-                                    else { label = 'อ้วนระดับ 2'; color = 'text-red-600 bg-red-50 border-red-100'; }
+                                    // อ้างอิงเกณฑ์ BMI กรมอนามัยแบบคร่าวๆ สำหรับเด็กวัยเรียน (อายุประมาณ 6-12 ปี)
+                                    // ผอม < 14, ค่อนข้างผอม 14-15, สมส่วน 15-19, ท้วม 19-21, เริ่มอ้วน 21-23, อ้วน > 23
+                                    // ปรับตามอายุแบบง่าย
+                                    const baseNormal = 14 + (ageYears - 6) * 0.3; // ขยับขึ้นตามอายุ
+                                    const baseOverweight = 18 + (ageYears - 6) * 0.5;
+                                    const baseObese1 = 20 + (ageYears - 6) * 0.6;
+                                    const baseObese2 = 22 + (ageYears - 6) * 0.7;
+
+                                    if (bmi < baseNormal) { label = 'ผอม/น้ำหนักน้อย'; color = 'text-blue-600 bg-blue-50 border-blue-100'; }
+                                    else if (bmi < baseOverweight) { label = 'สมส่วน'; color = 'text-green-600 bg-green-50 border-green-100'; }
+                                    else if (bmi < baseObese1) { label = 'ท้วม'; color = 'text-yellow-600 bg-yellow-50 border-yellow-100'; }
+                                    else if (bmi < baseObese2) { label = 'เริ่มอ้วน'; color = 'text-orange-600 bg-orange-50 border-orange-100'; }
+                                    else { label = 'อ้วน'; color = 'text-red-600 bg-red-50 border-red-100'; }
                                     return (
                                       <div className="flex flex-col items-center gap-1">
-                                        <div className="text-slate-500">{student.weight} กก. / {student.height} ซม.</div>
+                                        <div className="text-slate-500">{weight} กก. / {height} ซม.</div>
                                         <span className={`px-2 py-0.5 rounded-md font-bold border ${color}`}>
                                           BMI: {bmi.toFixed(1)} {label}
                                         </span>
                                       </div>
                                     );
-                                  })() : (
-                                    <span className="text-slate-300">-</span>
-                                  )}
+                                    } else {
+                                      return <span className="text-slate-300">-</span>;
+                                    }
+                                  })()}
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex flex-wrap gap-2">
@@ -1288,6 +1355,263 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 </div>
               )}
             </div>
+            );
+          })()}
+
+          {activeTab === "health-report" && (() => {
+            const monthsWithData = Array.from(new Set(
+              allAssessments
+                .filter(a => a.weight !== undefined && a.height !== undefined)
+                .map(a => a.month)
+                .filter(Boolean) as string[]
+            )).sort((a, b) => a.localeCompare(b));
+
+            // If selectedMonth is set, show up to that month. Otherwise show all available.
+            const filteredMonthsWithData = selectedMonth 
+              ? monthsWithData.filter(m => m <= selectedMonth) 
+              : monthsWithData;
+              
+            const displayMonths = filteredMonthsWithData.slice(-4);
+            const currentChartMonth = selectedMonth || (displayMonths.length > 0 ? displayMonths[displayMonths.length - 1] : '');
+
+            const bmiDataCount = {
+              underweight: 0,
+              normal: 0,
+              overweight: 0,
+              obese1: 0,
+              obese2: 0,
+            };
+
+            if (currentChartMonth) {
+              displayedStudents.forEach(s => {
+                const assessmentForMonth = allAssessments.find(a => a.studentId === s.id && a.month === currentChartMonth);
+                const weight = assessmentForMonth?.weight;
+                const height = assessmentForMonth?.height;
+                
+                if (weight && height) {
+                  const heightM = height / 100;
+                  const bmi = weight / (heightM * heightM);
+                  
+                  let ageYears = 7;
+                  if (s.dob) {
+                    const birthDate = new Date(s.dob);
+                    const ageDifMs = Date.now() - birthDate.getTime();
+                    ageYears = Math.abs(new Date(ageDifMs).getUTCFullYear() - 1970);
+                  }
+                  
+                  const baseNormal = 14 + (ageYears - 6) * 0.3;
+                  const baseOverweight = 18 + (ageYears - 6) * 0.5;
+                  const baseObese1 = 20 + (ageYears - 6) * 0.6;
+                  const baseObese2 = 22 + (ageYears - 6) * 0.7;
+
+                  if (bmi < baseNormal) bmiDataCount.underweight++;
+                  else if (bmi < baseOverweight) bmiDataCount.normal++;
+                  else if (bmi < baseObese1) bmiDataCount.overweight++;
+                  else if (bmi < baseObese2) bmiDataCount.obese1++;
+                  else bmiDataCount.obese2++;
+                }
+              });
+            }
+
+            const bmiData = [
+              { name: 'ผอม/น้ำหนักน้อย', value: bmiDataCount.underweight, fill: '#3b82f6' },
+              { name: 'สมส่วน', value: bmiDataCount.normal, fill: '#22c55e' },
+              { name: 'ท้วม', value: bmiDataCount.overweight, fill: '#eab308' },
+              { name: 'เริ่มอ้วน', value: bmiDataCount.obese1, fill: '#f97316' },
+              { name: 'อ้วน', value: bmiDataCount.obese2, fill: '#ef4444' },
+            ].filter(item => item.value > 0);
+
+            return (
+              <div className="p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                      รายงานสรุปพัฒนาการทางร่างกาย (น้ำหนัก/ส่วนสูง)
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      เปรียบเทียบข้อมูลน้ำหนัก ส่วนสูง และ BMI ย้อนหลังของนักเรียนแต่ละคน
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    <Printer className="h-4 w-4" /> พิมพ์รายงาน
+                  </button>
+                </div>
+
+                <div className="mb-8 bg-white border border-slate-100 rounded-xl p-5 shadow-sm max-w-lg mx-auto">
+                  <h4 className="font-bold text-slate-700 mb-4 text-center">
+                    ประเมินน้ำหนัก/ส่วนสูง (BMI) {currentChartMonth && `ประจำเดือน ${formatThaiMonthYear(currentChartMonth + '-01')}`}
+                  </h4>
+                  <div className="h-64 w-full">
+                    {bmiData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={bmiData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                            label={({ percent }) => percent < 0.1 ? '' : `${(percent * 100).toFixed(0)}%`}
+                            labelLine={false}
+                          >
+                            {bmiData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip 
+                            formatter={(value) => [`${value} คน`, 'จำนวน']}
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-400">
+                        ไม่มีข้อมูลน้ำหนัก/ส่วนสูง สำหรับเดือนนี้
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-max">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th rowSpan={2} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center border-r border-slate-200">เลขที่</th>
+                          <th rowSpan={2} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase border-r border-slate-200">ชื่อ-สกุล</th>
+                          {displayMonths.length === 0 ? (
+                            <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center">ไม่มีข้อมูลพัฒนาการ</th>
+                          ) : (
+                            displayMonths.map(m => (
+                              <th key={m} colSpan={3} className="px-4 py-3 text-xs font-black text-slate-700 text-center border-r border-slate-200 bg-slate-100/50">
+                                {formatThaiMonthYear(m + '-01')}
+                              </th>
+                            ))
+                          )}
+                          {displayMonths.length > 1 && (
+                            <th rowSpan={2} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center bg-slate-50">แนวโน้ม BMI</th>
+                          )}
+                        </tr>
+                        {displayMonths.length > 0 && (
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            {displayMonths.map(m => (
+                              <React.Fragment key={`${m}-sub`}>
+                                <th className="px-2 py-2 text-xs font-semibold text-slate-500 text-center border-r border-slate-100">น้ำหนัก</th>
+                                <th className="px-2 py-2 text-xs font-semibold text-slate-500 text-center border-r border-slate-100">ส่วนสูง</th>
+                                <th className="px-2 py-2 text-xs font-semibold text-slate-500 text-center border-r border-slate-200 bg-slate-100/30">BMI</th>
+                              </React.Fragment>
+                            ))}
+                          </tr>
+                        )}
+                      </thead>
+                      <tbody>
+                        {displayedStudents.map((student, idx) => {
+                          const studentDataMap: Record<string, { weight?: number, height?: number, bmi?: number, bmiLabel?: string, bmiColor?: string }> = {};
+                          
+                          let ageYears = 7;
+                          if (student.dob) {
+                            const birthDate = new Date(student.dob);
+                            const ageDifMs = Date.now() - birthDate.getTime();
+                            const ageDate = new Date(ageDifMs);
+                            ageYears = Math.abs(ageDate.getUTCFullYear() - 1970);
+                          }
+                          const baseNormal = 14 + (ageYears - 6) * 0.3;
+                          const baseOverweight = 18 + (ageYears - 6) * 0.5;
+                          const baseObese1 = 20 + (ageYears - 6) * 0.6;
+                          const baseObese2 = 22 + (ageYears - 6) * 0.7;
+
+                          displayMonths.forEach(m => {
+                            const assessmentForMonth = allAssessments.find(a => a.studentId === student.id && a.month === m);
+                            if (assessmentForMonth && assessmentForMonth.weight && assessmentForMonth.height) {
+                              const h = assessmentForMonth.height / 100;
+                              const bmi = assessmentForMonth.weight / (h * h);
+                              
+                              let label = '';
+                              let color = '';
+                              if (bmi < baseNormal) { label = 'ผอม'; color = 'text-blue-600'; }
+                              else if (bmi < baseOverweight) { label = 'สมส่วน'; color = 'text-green-600'; }
+                              else if (bmi < baseObese1) { label = 'ท้วม'; color = 'text-yellow-600'; }
+                              else if (bmi < baseObese2) { label = 'เริ่มอ้วน'; color = 'text-orange-600'; }
+                              else { label = 'อ้วน'; color = 'text-red-600'; }
+
+                              studentDataMap[m] = { weight: assessmentForMonth.weight, height: assessmentForMonth.height, bmi, bmiLabel: label, bmiColor: color };
+                            }
+                          });
+
+                          let trendIcon = <Minus className="h-4 w-4 text-slate-300 mx-auto" />;
+                          if (displayMonths.length > 1) {
+                            const firstM = displayMonths[0];
+                            const lastM = displayMonths[displayMonths.length - 1];
+                            const firstBmi = studentDataMap[firstM]?.bmi;
+                            const lastBmi = studentDataMap[lastM]?.bmi;
+                            if (firstBmi && lastBmi) {
+                              const diff = lastBmi - firstBmi;
+                              if (diff > 0.5) trendIcon = <TrendingUp className="h-4 w-4 text-red-500 mx-auto" title={`เพิ่มขึ้น ${diff.toFixed(1)}`} />;
+                              else if (diff < -0.5) trendIcon = <TrendingDown className="h-4 w-4 text-green-500 mx-auto" title={`ลดลง ${Math.abs(diff).toFixed(1)}`} />;
+                            }
+                          }
+
+                          return (
+                            <tr key={student.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-2 text-sm text-center font-mono text-slate-500 border-r border-slate-200">
+                                {student.number}
+                              </td>
+                              <td className="px-4 py-2 border-r border-slate-200">
+                                <div className="font-bold text-slate-800">{student.firstName} {student.lastName}</div>
+                                <div className="text-xs text-slate-500 font-mono">{student.studentId}</div>
+                              </td>
+                              {displayMonths.length === 0 ? (
+                                <td className="px-4 py-3 text-center text-slate-400 text-sm">-</td>
+                              ) : (
+                                displayMonths.map(m => {
+                                  const d = studentDataMap[m];
+                                  if (!d) {
+                                    return (
+                                      <React.Fragment key={`${student.id}-${m}`}>
+                                        <td className="px-2 py-2 text-center text-slate-300 border-r border-slate-100">-</td>
+                                        <td className="px-2 py-2 text-center text-slate-300 border-r border-slate-100">-</td>
+                                        <td className="px-2 py-2 text-center text-slate-300 border-r border-slate-200 bg-slate-50/30">-</td>
+                                      </React.Fragment>
+                                    );
+                                  }
+                                  return (
+                                    <React.Fragment key={`${student.id}-${m}`}>
+                                      <td className="px-2 py-2 text-center text-sm font-medium text-slate-700 border-r border-slate-100">{d.weight}</td>
+                                      <td className="px-2 py-2 text-center text-sm font-medium text-slate-700 border-r border-slate-100">{d.height}</td>
+                                      <td className="px-2 py-2 text-center border-r border-slate-200 bg-slate-50/30">
+                                        <div className={`text-sm font-bold ${d.bmiColor}`}>{d.bmi?.toFixed(1)}</div>
+                                        <div className={`text-[10px] ${d.bmiColor} opacity-80`}>{d.bmiLabel}</div>
+                                      </td>
+                                    </React.Fragment>
+                                  );
+                                })
+                              )}
+                              {displayMonths.length > 1 && (
+                                <td className="px-4 py-2 text-center bg-slate-50/50">
+                                  {trendIcon}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                        {displayedStudents.length === 0 && (
+                          <tr>
+                            <td colSpan={displayMonths.length * 3 + 3} className="px-4 py-8 text-center text-slate-500">
+                              ไม่มีข้อมูลนักเรียน
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             );
           })()}
         </div>
@@ -1346,6 +1670,40 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           />
         )}
         {/* Delete Confirmation Modal */}
+        {showDeleteAllConfirm && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-rose-600" />
+              </div>
+              <h3 className="font-black text-slate-800 text-lg mb-2">
+                ยืนยันการลบนักเรียนทั้งหมด
+              </h3>
+              <p className="text-slate-500 text-sm mb-6">
+                คุณต้องการลบข้อมูลนักเรียนทั้งหมดใน "{selectedGrade}" ใช่หรือไม่?<br/>
+                มีนักเรียนทั้งหมด {students.filter(s => s.gradeLevel === selectedGrade).length} คน<br/>
+                <span className="text-rose-600 font-bold mt-2 block">การดำเนินการนี้ไม่สามารถกู้คืนได้!</span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteAllConfirm(false)}
+                  disabled={isDeletingAll}
+                  className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleDeleteAllStudents}
+                  disabled={isDeletingAll}
+                  className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isDeletingAll ? 'กำลังลบ...' : 'ลบข้อมูลทั้งหมด'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {studentToDelete && (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center animate-in zoom-in-95 duration-200">

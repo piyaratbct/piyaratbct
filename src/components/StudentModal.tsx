@@ -16,6 +16,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     lastName: '',
     nickname: '',
     gender: 'male' as 'male' | 'female',
+    nationalId: '',
     number: 1,
     status: 'active' as 'active' | 'inactive',
     gradeLevel: selectedGrade,
@@ -44,6 +45,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         lastName: student.lastName,
         nickname: student.nickname || '',
         gender: student.gender,
+        nationalId: student.nationalId || '',
         number: student.number,
         status: student.status,
         gradeLevel: student.gradeLevel,
@@ -157,14 +159,26 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">วันเกิด</label>
-            <input
-              type="date"
-              value={formData.dob}
-              onChange={e => setFormData({ ...formData, dob: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">เลขประจำตัวประชาชน</label>
+              <input
+                type="text"
+                value={formData.nationalId}
+                onChange={e => setFormData({ ...formData, nationalId: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                placeholder="เลขบัตร 13 หลัก"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">วันเกิด</label>
+              <input
+                type="date"
+                value={formData.dob}
+                onChange={e => setFormData({ ...formData, dob: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+              />
+            </div>
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">

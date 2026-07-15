@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { LessonRecord, SUBJECTS, GRADE_LEVELS, Teacher } from "../types";
+import { formatThaiDateTime } from '../lib/dateUtils';
 import {
   Search,
   Filter,
@@ -155,23 +156,7 @@ export function LessonLogList({
     return dateString;
   };
 
-  const thaiFormatDateTime = (isoString?: string) => {
-    if (!isoString) return "";
-    try {
-      const dateObj = new Date(isoString);
-      const options: Intl.DateTimeFormatOptions = {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      };
-      return dateObj.toLocaleDateString("th-TH", options) + " น.";
-    } catch {
-      return isoString || "";
-    }
-  };
+
 
   const getSubjectColor = (subj: string) => {
     switch (subj) {
@@ -557,7 +542,7 @@ export function LessonLogList({
                     <div className="flex items-center space-x-1.5 text-[10px] font-semibold text-slate-400 shrink-0">
                       <span className="font-mono flex items-center gap-1">
                         <Clock className="h-3 w-3 text-slate-400" />
-                        {thaiFormatDateTime(record.lastEditedAt)}
+                        {formatThaiDateTime(record.lastEditedAt)}
                       </span>
                       {record.editHistory && record.editHistory.length > 1 && (
                         <span className="text-sky-600 font-extrabold text-[9px] bg-sky-50 border border-sky-100 px-1 py-0.5 rounded-xs hover:bg-sky-100/70 transition-colors">
@@ -589,7 +574,7 @@ export function LessonLogList({
                                 </span>
                               </span>
                               <span className="text-slate-400 font-mono shrink-0 italic">
-                                {thaiFormatDateTime(history.editedAt)}
+                                {formatThaiDateTime(history.editedAt)}
                               </span>
                             </div>
                           ))}

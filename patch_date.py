@@ -1,11 +1,41 @@
 import re
 
-with open('src/components/DisciplineModule.tsx', 'r') as f:
+with open('src/components/StudentDetailModal.tsx', 'r') as f:
     content = f.read()
 
-content = content.replace("import { format } from 'date-fns';", "")
-content = content.replace("format(new Date(), 'yyyy-MM-dd')", "new Date().toISOString().split('T')[0]")
+target = """  const formatThaiDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return dateString;
+    }
+  };"""
 
-with open('src/components/DisciplineModule.tsx', 'w') as f:
+replacement = """  const formatThaiDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      
+      const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+      ];
+      
+      const day = d.getDate();
+      const month = thaiMonths[d.getMonth()];
+      const year = d.getFullYear() + 543;
+      
+      return `${day} ${month} ${year}`;
+    } catch {
+      return dateString;
+    }
+  };"""
+
+content = content.replace(target, replacement)
+
+with open('src/components/StudentDetailModal.tsx', 'w') as f:
     f.write(content)
-print("Removed date-fns dependency")

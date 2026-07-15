@@ -63,6 +63,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { onAuthStateChanged, signOut, updatePassword } from "firebase/auth";
+import { formatThaiDate } from './lib/dateUtils';
 import {
   collection,
   query,
@@ -1681,7 +1682,7 @@ export default function App() {
                     if (diffInHours < 24) return `${diffInHours} ชั่วโมงที่แล้ว`;
                     const diffInDays = Math.floor(diffInHours / 24);
                     if (diffInDays < 30) return `${diffInDays} วันที่แล้ว`;
-                    return new Date(timestamp).toLocaleDateString('th-TH');
+                    return formatThaiDate(timestamp);
                   };
 
                   return topActivities.map((item, i) => {
