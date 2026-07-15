@@ -25,9 +25,11 @@ import {
   Sparkles,
   Lightbulb,
   CheckCircle,
+  CalendarDays,
 } from "lucide-react";
 import { SignaturePadModal } from "./PrintTemplate";
 import { AttachmentManager } from './AttachmentManager';
+import { formatThaiDate } from '../lib/dateUtils';
 
 interface LessonPlanFormProps {
   initialPlan: LessonPlan | null;
@@ -248,7 +250,8 @@ export function LessonPlanForm({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              title="วันที่สอน"
             />
           </div>
         </div>

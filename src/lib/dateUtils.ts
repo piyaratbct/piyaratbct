@@ -66,6 +66,17 @@ export const formatThaiDateTime = (isoString?: string) => {
 export const formatThaiMonthYear = (dateString?: string) => {
   if (!dateString) return '-';
   try {
+    // Check if it's YYYY-MM
+    const parts = dateString.split('-');
+    if (parts.length === 2 && parts[0].length === 4) {
+      const year = parseInt(parts[0], 10);
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const thaiYear = year < 2400 ? year + 543 : year;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${THAI_MONTHS_FULL[monthIdx]} ${thaiYear}`;
+      }
+    }
+    
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
     

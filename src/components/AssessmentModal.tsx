@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, History, Clock } from "lucide-react";
 import { Student, StudentAssessment } from "../types";
-import { formatThaiDateTime } from '../lib/dateUtils';
+import { formatThaiDateTime, formatThaiMonthYear } from '../lib/dateUtils';
 
 interface AssessmentModalProps {
   student: Student;
@@ -108,14 +108,16 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
                 <label className="block text-sm font-bold text-slate-700 mb-1">
                   การประเมินประจำเดือน
                 </label>
-                <input
-                  type="month"
-                  value={formData.month || ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, month: e.target.value }))
-                  }
-                  className="w-full max-w-xs border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
-                />
+                <div className="w-full max-w-xs">
+                  <input
+                    type="month"
+                    value={formData.month || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, month: e.target.value }))
+                    }
+                    className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500 bg-white"
+                  />
+                </div>
               </div>
 
               <div>

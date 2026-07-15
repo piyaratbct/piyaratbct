@@ -1682,7 +1682,7 @@ export default function App() {
                     if (diffInHours < 24) return `${diffInHours} ชั่วโมงที่แล้ว`;
                     const diffInDays = Math.floor(diffInHours / 24);
                     if (diffInDays < 30) return `${diffInDays} วันที่แล้ว`;
-                    return formatThaiDate(timestamp);
+                    return formatThaiDate(new Date(timestamp).toISOString());
                   };
 
                   return topActivities.map((item, i) => {

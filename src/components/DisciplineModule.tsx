@@ -4,20 +4,9 @@ import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, 
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { db } from '../lib/firebase';
+import { formatThaiMonthYear, formatThaiDate } from '../lib/dateUtils';
 
-const formatThaiDate = (dateString: string) => {
-  if (!dateString) return '';
-  try {
-    const [year, month, day] = dateString.split('-');
-    const months = [
-      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-    ];
-    return `${parseInt(day)} ${months[parseInt(month) - 1]} ${parseInt(year) + 543}`;
-  } catch (e) {
-    return dateString;
-  }
-};
+
 
 
 
@@ -40,6 +29,7 @@ export function DisciplineModule({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('ภาพรวม');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // Form State
   const [type, setType] = useState<DisciplineIncident['type']>('fight');
@@ -340,6 +330,8 @@ export function DisciplineModule({
       
     if (!matchesSearch) return false;
     
+    if (selectedMonth && !i.date.startsWith(selectedMonth)) return false;
+    
     if (selectedGrade === 'ภาพรวม') return true;
     
     // Check if any student in the incident belongs to the selected grade view
@@ -465,15 +457,51 @@ export function DisciplineModule({
       )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="ค้นหาชื่อนักเรียน, ครู หรือรายละเอียด..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อนักเรียน, ครู หรือรายละเอียด..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all"
+            />
+          </div>
+          
+          <select
+            value={selectedGrade}
+            onChange={(e) => setSelectedGrade(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white min-w-[150px]"
+          >
+            <option value="ภาพรวม">ชั้นเรียน: ทั้งหมด</option>
+            <option value="ระดับอนุบาล">ระดับอนุบาล</option>
+            <option value="ระดับประถมศึกษา">ระดับประถมศึกษา</option>
+            {GRADE_LEVELS.map(grade => (
+              <option key={grade} value={grade}>{grade}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-2">
+            <div className="w-full min-w-[150px]">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white"
+                title="เดือน"
+              />
+            </div>
+            {selectedMonth && (
+              <button 
+                onClick={() => setSelectedMonth("")}
+                className="text-slate-400 hover:text-slate-600 shrink-0"
+                title="ล้างตัวกรองเดือน"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -601,13 +629,13 @@ export function DisciplineModule({
                 <div className="space-y-1.5">
                   <label className="text-sm font-bold text-slate-700">วันและเวลาที่เกิดเหตุ</label>
                   <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <div className="flex-1">
                       <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        title="วันที่"
                       />
                     </div>
                     <div className="relative w-28 sm:w-32">

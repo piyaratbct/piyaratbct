@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { LessonRecord, SUBJECTS, GRADE_LEVELS, Teacher } from "../types";
-import { formatThaiDateTime } from '../lib/dateUtils';
+import { formatThaiDateTime, formatThaiMonthYear } from '../lib/dateUtils';
 import {
   Search,
   Filter,
@@ -262,7 +262,7 @@ export function LessonLogList({
             {selectedMonth !== "ทั้งหมด" && (
               <button 
                 onClick={() => setSelectedMonth("ทั้งหมด")}
-                className="text-slate-400 hover:text-slate-600 text-xs"
+                className="text-slate-400 hover:text-slate-600 text-xs relative z-10 shrink-0"
                 title="ล้างตัวกรองเดือน"
               >
                 ✕

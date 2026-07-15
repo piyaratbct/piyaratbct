@@ -608,16 +608,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           
           <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full xl:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'health-report') ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-sm outline-none bg-transparent font-bold text-pink-600 cursor-pointer w-full"
-            />
+            <div className="flex items-center min-w-[120px]">
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="text-sm outline-none bg-white font-bold text-pink-600 border border-slate-200 rounded px-2 py-1 focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
             {selectedMonth && activeTab === 'health-report' && (
               <button 
                 onClick={() => setSelectedMonth('')}
-                className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1"
+                className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1 relative z-10"
                 title="ล้างการเลือกเดือน (ดูข้อมูลล่าสุด)"
               >
                 <X className="h-4 w-4" />
@@ -1347,9 +1349,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           })()}
 
           {activeTab === "health-report" && (() => {
-            const allAssessments = Object.values(assessments);
+            const allAssessments = Object.values(assessments) as StudentAssessment[];
             const availableMonthsSet = new Set<string>();
-            allAssessments.forEach(a => availableMonthsSet.add(a.month));
+            allAssessments.forEach(a => { if (a.month) availableMonthsSet.add(a.month); });
             const availableMonths = Array.from(availableMonthsSet).sort().reverse();
             
             const currentChartMonth = selectedMonth || availableMonths[0];
@@ -1714,7 +1716,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         })}
                         {displayedStudents.length === 0 && (
                           <tr>
-                            <td colSpan={displayMonths.length * 3 + 3} className="px-4 py-8 text-center text-slate-500">
+                            <td colSpan={availableMonths.slice(0, 4).length * 3 + 3} className="px-4 py-8 text-center text-slate-500">
                               ไม่มีข้อมูลนักเรียน
                             </td>
                           </tr>
