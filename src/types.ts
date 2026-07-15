@@ -122,6 +122,8 @@ export interface Student {
   familyStatus?: string;
   address?: string;
   medicalInfo?: string;
+  weight?: number;
+  height?: number;
   allergicMedicine?: string;
   allergicFood?: string;
   congenitalDisease?: string;
@@ -244,6 +246,9 @@ export const SUBJECTS: string[] = [
 ];
 
 export const GRADE_LEVELS = [
+  'อนุบาล 1',
+  'อนุบาล 2',
+  'อนุบาล 3',
   'ประถมศึกษาปีที่ 1/1',
   'ประถมศึกษาปีที่ 1/2',
   'ประถมศึกษาปีที่ 2/1',

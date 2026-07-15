@@ -31,7 +31,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     medicalInfo: '',
     allergicMedicine: '',
     allergicFood: '',
-    congenitalDisease: ''
+    congenitalDisease: '',
+    weight: '',
+    height: ''
   });
 
   useEffect(() => {
@@ -57,7 +59,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         medicalInfo: student.medicalInfo || '',
         allergicMedicine: student.allergicMedicine || '',
         allergicFood: student.allergicFood || '',
-        congenitalDisease: student.congenitalDisease || ''
+        congenitalDisease: student.congenitalDisease || '',
+        weight: student.weight || '',
+        height: student.height || ''
       });
     } else {
       setFormData(prev => ({ ...prev, gradeLevel: selectedGrade }));

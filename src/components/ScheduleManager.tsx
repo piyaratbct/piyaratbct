@@ -29,6 +29,7 @@ const formatShortGrade = (grade: string) => {
   if (!grade) return '';
   return grade
     .replace('อนุบาลปีที่ ', 'อ.')
+    .replace('อนุบาล ', 'อ.')
     .replace('ประถมศึกษาปีที่ ', 'ป.')
     .replace('มัธยมศึกษาปีที่ ', 'ม.');
 };

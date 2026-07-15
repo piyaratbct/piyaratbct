@@ -34,6 +34,7 @@ import {
   where,
   doc,
   setDoc,
+  updateDoc,
   writeBatch,
   deleteDoc,
 } from "firebase/firestore";
@@ -305,12 +306,26 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     }
   };
 
-  const handleSaveAssessment = async (assessment: StudentAssessment) => {
+  const handleSaveAssessment = async (assessment: StudentAssessment, newWeight?: number, newHeight?: number) => {
     try {
       const now = new Date().toISOString();
       const teacherName = currentTeacher
         ? currentTeacher.displayName || currentTeacher.thaiName
         : "ผู้ใช้งาน";
+        
+      // Also update student weight/height if changed
+      const currentStudent = students.find(s => s.id === assessment.studentId);
+      if (currentStudent && (newWeight !== currentStudent.weight || newHeight !== currentStudent.height)) {
+        try {
+          await updateDoc(doc(db, "students", currentStudent.id), {
+            ...(newWeight !== undefined ? { weight: newWeight } : {}),
+            ...(newHeight !== undefined ? { height: newHeight } : {}),
+            updatedAt: now
+          });
+        } catch (error) {
+          console.error("Error updating student weight/height", error);
+        }
+      }
 
       let updatedHistory = assessment.editHistory || [];
       // If the assessment is being updated (i.e. already has an ID, though we construct the ID here),
@@ -447,11 +462,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 onChange={(e) => setSelectedGrade(e.target.value)}
                 className="appearance-none bg-white text-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-sm font-bold focus:ring-2 focus:ring-pink-300 outline-none w-full sm:w-auto min-w-[120px] shadow-sm cursor-pointer"
               >
-                {GRADE_LEVELS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
+                <optgroup label="มุมมองพิเศษ">
+                  <option value="ภาพรวม">ภาพรวม (ทั้งหมด)</option>
+                  <option value="ระดับอนุบาล">ระดับอนุบาล (อนุบาล 1-3)</option>
+                  <option value="ระดับประถมศึกษา">ระดับประถมศึกษา (ป.1-ป.6)</option>
+                </optgroup>
+                <optgroup label="รายชั้นเรียน">
+                  {GRADE_LEVELS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
             </div>
@@ -604,30 +626,34 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   >
                     <Download className="h-4 w-4" /> ส่งออก CSV
                   </button>
-                  <button
-                    onClick={() => setShowImport(true)}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
-                    (Excel/CSV)
-                  </button>
-                  {currentTeacher?.role === 'admin' && (
-                    <button
-                      onClick={() => setShowBatchPromotion(true)}
-                      className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                    >
-                      <GraduationCap className="h-4 w-4" /> เลื่อนชั้นแบบกลุ่ม
-                    </button>
+                  {GRADE_LEVELS.includes(selectedGrade) && (
+                    <>
+                      <button
+                        onClick={() => setShowImport(true)}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
+                        (Excel/CSV)
+                      </button>
+                      {currentTeacher?.role === 'admin' && (
+                        <button
+                          onClick={() => setShowBatchPromotion(true)}
+                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                        >
+                          <GraduationCap className="h-4 w-4" /> เลื่อนชั้นแบบกลุ่ม
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setEditingStudent(null);
+                          setShowStudentModal(true);
+                        }}
+                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                      >
+                        <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={() => {
-                      setEditingStudent(null);
-                      setShowStudentModal(true);
-                    }}
-                    className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                  >
-                    <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
-                  </button>
                 </div>
               </div>
 
@@ -1015,8 +1041,36 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }))
               .sort((a, b) => b.value - a.value);
 
+            const bmiDataCount = {
+              underweight: 0,
+              normal: 0,
+              overweight: 0,
+              obese1: 0,
+              obese2: 0,
+            };
+
+            students.forEach(s => {
+              if (s.weight && s.height) {
+                const heightM = s.height / 100;
+                const bmi = s.weight / (heightM * heightM);
+                if (bmi < 18.5) bmiDataCount.underweight++;
+                else if (bmi < 23) bmiDataCount.normal++;
+                else if (bmi < 25) bmiDataCount.overweight++;
+                else if (bmi < 30) bmiDataCount.obese1++;
+                else bmiDataCount.obese2++;
+              }
+            });
+
+            const bmiData = [
+              { name: 'น้ำหนักน้อย', value: bmiDataCount.underweight, fill: '#3b82f6' },
+              { name: 'สมส่วน', value: bmiDataCount.normal, fill: '#22c55e' },
+              { name: 'น้ำหนักเกิน', value: bmiDataCount.overweight, fill: '#eab308' },
+              { name: 'อ้วนระดับ 1', value: bmiDataCount.obese1, fill: '#f97316' },
+              { name: 'อ้วนระดับ 2', value: bmiDataCount.obese2, fill: '#ef4444' },
+            ].filter(item => item.value > 0);
+
             const allSpecialCareStudents = students.filter(
-              s => s.allergicFood || s.congenitalDisease || s.allergicMedicine || s.medicalInfo
+              s => s.allergicFood || s.congenitalDisease || s.allergicMedicine || s.medicalInfo || s.weight || s.height
             ).sort((a, b) => {
               if (a.gradeLevel !== b.gradeLevel) {
                 return (a.gradeLevel || '').localeCompare(b.gradeLevel || '', 'th');
@@ -1033,7 +1087,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     ข้อมูลสุขภาพนักเรียน
                   </h3>
                   <p className="text-slate-500 text-sm mt-1">
-                    นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา หรือโรคประจำตัว
+                    นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา โรคประจำตัว รวมถึงการประเมินน้ำหนักและส่วนสูง
                   </p>
                 </div>
               </div>
@@ -1048,7 +1102,42 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               ) : (
                 <div className="flex flex-col gap-6">
                   {/* Chart Section */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-bold text-slate-700 mb-4 text-center">ประเมินน้ำหนัก/ส่วนสูง (BMI)</h4>
+                      <div className="h-64 w-full">
+                        {bmiData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={bmiData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={40}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                                label={({ percent }) => percent < 0.1 ? '' : `${(percent * 100).toFixed(0)}%`}
+                                labelLine={false}
+                              >
+                                {bmiData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                                ))}
+                              </Pie>
+                              <RechartsTooltip 
+                                formatter={(value) => [`${value} คน`, 'จำนวน']}
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                              />
+                              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400">
+                            ไม่มีข้อมูลน้ำหนัก/ส่วนสูง
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
                       <h4 className="font-bold text-slate-700 mb-4 text-center">สถิติข้อมูลสุขภาพ</h4>
                       <div className="h-64 w-full">
@@ -1094,7 +1183,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                 outerRadius={80}
                                 paddingAngle={5}
                                 dataKey="value"
-                                label={({ name, percent }) => percent < 0.1 ? '' : `${name} ${(percent * 100).toFixed(0)}%`}
+                                label={({ percent }) => percent < 0.1 ? '' : `${(percent * 100).toFixed(0)}%`}
                                 labelLine={false}
                               >
                                 {diseaseData.map((entry, index) => (
@@ -1105,7 +1194,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                 formatter={(value) => [`${value} คน`, 'จำนวน']}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                               />
-                              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                             </PieChart>
                           </ResponsiveContainer>
                         ) : (
@@ -1127,7 +1216,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                               <th className="px-4 py-3 text-center w-24 whitespace-nowrap">ระดับชั้น</th>
                               <th className="px-4 py-3 text-center w-16 whitespace-nowrap">เลขที่</th>
                               <th className="px-4 py-3 whitespace-nowrap">ชื่อ-สกุล</th>
-                              <th className="px-4 py-3 text-center w-24 whitespace-nowrap">ชื่อเล่น</th>
+                              <th className="px-4 py-3 text-center w-24 whitespace-nowrap">น้ำหนัก/ส่วนสูง</th>
                               <th className="px-4 py-3 whitespace-nowrap">ข้อมูลสุขภาพที่ต้องระวัง</th>
                             </tr>
                           </thead>
@@ -1142,12 +1231,26 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                   <div className="font-bold text-slate-800">{student.firstName} {student.lastName}</div>
                                   <div className="text-xs text-slate-500">{student.studentId}</div>
                                 </td>
-                                <td className="px-4 py-3 text-center whitespace-nowrap">
-                                  {student.nickname ? (
-                                    <span className="bg-sky-50 text-sky-700 px-2 py-1 rounded-md text-xs font-bold border border-sky-100 whitespace-nowrap">
-                                      {student.nickname}
-                                    </span>
-                                  ) : (
+                                <td className="px-4 py-3 text-center whitespace-nowrap text-xs">
+                                  {student.weight && student.height ? (() => {
+                                    const h = student.height / 100;
+                                    const bmi = student.weight / (h * h);
+                                    let label = '';
+                                    let color = '';
+                                    if (bmi < 18.5) { label = 'น้ำหนักน้อย'; color = 'text-blue-600 bg-blue-50 border-blue-100'; }
+                                    else if (bmi < 23) { label = 'สมส่วน'; color = 'text-green-600 bg-green-50 border-green-100'; }
+                                    else if (bmi < 25) { label = 'น้ำหนักเกิน'; color = 'text-yellow-600 bg-yellow-50 border-yellow-100'; }
+                                    else if (bmi < 30) { label = 'อ้วนระดับ 1'; color = 'text-orange-600 bg-orange-50 border-orange-100'; }
+                                    else { label = 'อ้วนระดับ 2'; color = 'text-red-600 bg-red-50 border-red-100'; }
+                                    return (
+                                      <div className="flex flex-col items-center gap-1">
+                                        <div className="text-slate-500">{student.weight} กก. / {student.height} ซม.</div>
+                                        <span className={`px-2 py-0.5 rounded-md font-bold border ${color}`}>
+                                          BMI: {bmi.toFixed(1)} {label}
+                                        </span>
+                                      </div>
+                                    );
+                                  })() : (
                                     <span className="text-slate-300">-</span>
                                   )}
                                 </td>

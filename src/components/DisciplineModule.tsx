@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Teacher, Student, DisciplineIncident } from '../types';
+import { Teacher, Student, DisciplineIncident, GRADE_LEVELS } from '../types';
 import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -39,6 +39,7 @@ export function DisciplineModule({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState<string>('ภาพรวม');
 
   // Form State
   const [type, setType] = useState<DisciplineIncident['type']>('fight');
@@ -332,11 +333,29 @@ export function DisciplineModule({
     };
   }).sort((a, b) => b.value - a.value);
 
-  const filteredIncidents = incidents.filter(i => 
-    i.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    i.studentNames.some(name => name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    i.teacherName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredIncidents = incidents.filter(i => {
+    const matchesSearch = i.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      i.studentNames.some(name => name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      i.teacherName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    if (!matchesSearch) return false;
+    
+    if (selectedGrade === 'ภาพรวม') return true;
+    
+    // Check if any student in the incident belongs to the selected grade view
+    const involvedStudents = i.studentIds.map(id => students.find(s => s.id === id)).filter(Boolean) as Student[];
+    if (involvedStudents.length === 0) return true; // If no students found, show it anyway
+    
+    return involvedStudents.some(student => {
+      if (selectedGrade === 'ระดับอนุบาล') {
+        return student.gradeLevel.includes('อนุบาล');
+      } else if (selectedGrade === 'ระดับประถมศึกษา') {
+        return student.gradeLevel.includes('ประถม');
+      } else {
+        return student.gradeLevel === selectedGrade;
+      }
+    });
+  });
 
   const filteredStudents = students.filter(s => 
     !selectedStudentIds.includes(s.id) && 

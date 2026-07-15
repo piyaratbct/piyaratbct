@@ -6,7 +6,7 @@ interface AssessmentModalProps {
   student: Student;
   existingAssessment: StudentAssessment;
   onClose: () => void;
-  onSave: (assessment: StudentAssessment) => void;
+  onSave: (assessment: StudentAssessment, weight?: number, height?: number) => void;
 }
 
 export const AssessmentModal: React.FC<AssessmentModalProps> = ({
@@ -17,6 +17,8 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
 }) => {
   const [formData, setFormData] =
     useState<StudentAssessment>(existingAssessment);
+  const [weight, setWeight] = useState<number | ''>(student.weight || '');
+  const [height, setHeight] = useState<number | ''>(student.height || '');
   const [expandedHistory, setExpandedHistory] = useState(false);
 
   // Helper for formatting date/time
@@ -70,6 +72,41 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-8">
+          {/* Health Data Section */}
+          <section>
+            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">
+              ข้อมูลน้ำหนักและส่วนสูง (สำหรับการคำนวณ BMI ในหน้าข้อมูลสุขภาพ)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  น้ำหนัก (กิโลกรัม)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
+                  placeholder="เช่น 45.5"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  ส่วนสูง (เซนติเมตร)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500"
+                  placeholder="เช่น 150.0"
+                />
+              </div>
+            </div>
+          </section>
+
           {/* Section 5: Narrative Log */}
           <section>
             <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">
@@ -216,7 +253,7 @@ export const AssessmentModal: React.FC<AssessmentModalProps> = ({
             ยกเลิก
           </button>
           <button
-            onClick={() => onSave(formData)}
+            onClick={() => onSave(formData, weight === '' ? undefined : Number(weight), height === '' ? undefined : Number(height))}
             className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
           >
             <CheckCircle className="h-4 w-4" /> บันทึกผลประเมิน
