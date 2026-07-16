@@ -356,7 +356,8 @@ export default function App() {
     // Set records query based on Role-Based Access Control list constraints
     let recordsQuery;
     try {
-      if (currentTeacher.role !== "teacher") {
+      const canReadAll = ['admin', 'academic', 'deputy'].includes(currentTeacher.role || '');
+      if (canReadAll) {
         recordsQuery = collection(db, "records");
       } else {
         recordsQuery = query(
@@ -492,9 +493,12 @@ export default function App() {
       },
     );
 
-    let plansQuery: any = collection(db, "lessonPlans");
+    let plansQuery: any;
     try {
-      if (currentTeacher.role === "teacher") {
+      const canReadAll = ['admin', 'academic', 'deputy'].includes(currentTeacher.role || '');
+      if (canReadAll) {
+        plansQuery = collection(db, "lessonPlans");
+      } else {
         plansQuery = query(
           collection(db, "lessonPlans"),
           where("teacherId", "==", currentTeacher.id),

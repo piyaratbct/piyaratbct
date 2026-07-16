@@ -162,7 +162,12 @@ service cloud.firestore {
     match /disciplineIncidents/{incidentId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid 
+        || isAdmin()
+        || (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) 
+            && getTeacherProfile(request.auth.uid).role == 'discipline')
+      );
     }
     
     match /auditLogs/{logId} {
