@@ -760,8 +760,8 @@ export default function App() {
       !pEnglishName ||
       !pEmployeeId ||
       !pPhoneNumber ||
-      !pAffiliation ||
-      !pDisplayName
+      !pDisplayName ||
+      (currentTeacher.role === "teacher" && !pAffiliation)
     ) {
       alert("กรุณากรอกข้อมูลโปรไฟล์ของคุณครูให้ครบทุกช่อง");
       return;
