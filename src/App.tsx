@@ -1292,8 +1292,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <LayoutDashboard className="h-4.5 w-4.5" />
-            <span>หน้าแรก (Overview)</span>
+            <LayoutDashboard className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">หน้าแรก</span>
+              <span className="text-xs font-semibold opacity-90">(Overview)</span>
+            </div>
           </button>
 
           <button
@@ -1304,8 +1307,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <Presentation className="h-4.5 w-4.5" />
-            <span>1. การจัดการผู้สอน (LessonTeach)</span>
+            <Presentation className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">1. การจัดการผู้สอน</span>
+              <span className="text-xs font-semibold opacity-90">(LessonTeach)</span>
+            </div>
           </button>
 
           <button
@@ -1316,8 +1322,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <Users className="h-4.5 w-4.5" />
-            <span>2. การจัดการชั้นเรียน (LessonClass)</span>
+            <Users className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">2. การจัดการชั้นเรียน</span>
+              <span className="text-xs font-semibold opacity-90">(LessonClass)</span>
+            </div>
           </button>
 
           <button
@@ -1328,8 +1337,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <BarChart3 className="h-4.5 w-4.5" />
-            <span>3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</span>
+            <BarChart3 className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">3. การวัดและประเมินผลผู้เรียน</span>
+              <span className="text-xs font-semibold opacity-90">(LessonAchieve)</span>
+            </div>
           </button>
 
           <button
@@ -1340,8 +1352,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <BookOpen className="h-4.5 w-4.5" />
-            <span>4. การบริหาร<br />งานวิชาการ (LessonAcad)</span>
+            <BookOpen className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">4. การบริหารงานวิชาการ</span>
+              <span className="text-xs font-semibold opacity-90">(LessonAcad)</span>
+            </div>
           </button>
 
           <button
@@ -1352,8 +1367,11 @@ export default function App() {
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
-            <ShieldAlert className="h-4.5 w-4.5" />
-            <span>5. การบริหารงาน<br />ปกครอง (Discipline)</span>
+            <ShieldAlert className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">5. การบริหารงานปกครอง</span>
+              <span className="text-xs font-semibold opacity-90">(LessonDiscipline)</span>
+            </div>
           </button>
           
           {currentTeacher.role === "admin" && (
@@ -1365,8 +1383,11 @@ export default function App() {
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
-              <ShieldCheck className="h-4.5 w-4.5" />
-              <span>การจัดการระบบ<br />ผู้ใช้งาน (Admin)</span>
+              <ShieldCheck className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
+              <span className="text-xs font-semibold opacity-90">(Admin)</span>
+            </div>
             </button>
           )}
         </div>
@@ -1517,8 +1538,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Presentation className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">
-                  1. การจัดการผู้สอน (LessonTeach)
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">1. การจัดการผู้สอน</span>
+                  <span className="text-base text-slate-500 font-black">(LessonTeach)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
@@ -1536,8 +1558,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">
-                  2. การจัดการชั้นเรียน (LessonClass)
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">2. การจัดการชั้นเรียน</span>
+                  <span className="text-base text-slate-500 font-black">(LessonClass)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   จัดการข้อมูลนักเรียน เช็กชื่อ และบันทึกพฤติกรรม
@@ -1555,8 +1578,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <BarChart3 className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">
-                  3. การวัดและประเมินผลผู้เรียน (LessonAchieve)
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap text-base sm:text-lg">3. การวัดและประเมินผลผู้เรียน</span>
+                  <span className="text-base text-slate-500 font-black">(LessonAchieve)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน
@@ -1574,8 +1598,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-indigo-500">
                   <BookOpen className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">
-                  4. การบริหาร<br />งานวิชาการ (LessonAcad)
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">4. การบริหารงานวิชาการ</span>
+                  <span className="text-base text-slate-500 font-black">(LessonAcad)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   ดูตารางสอน ปฏิทินกิจกรรม และการตั้งค่าวิชาการ
@@ -1593,8 +1618,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <ShieldAlert className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2">
-                  5. การบริหารงานปกครอง (LessonDiscipline)
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">5. การบริหารงานปกครอง</span>
+                  <span className="text-base text-slate-500 font-black">(LessonDiscipline)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
@@ -1612,9 +1638,10 @@ export default function App() {
                   <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <ShieldCheck className="h-8 w-8" />
                   </div>
-                  <h3 className="text-lg font-black text-slate-800 mb-2">
-                    การจัดการระบบ<br />ผู้ใช้งาน (Admin)
-                  </h3>
+                  <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
+                  <span className="text-base text-slate-500 font-black">(Admin)</span>
+                </h3>
                   <p className="text-sm text-slate-500">
                     จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และข้อมูลของโรงเรียน
                   </p>

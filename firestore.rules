@@ -27,6 +27,19 @@ service cloud.firestore {
         );
     }
 
+    function isStudentManager() {
+      return isSignedIn() 
+        && (
+          request.auth.token.email == 'piyarat.bct@gmail.com'
+          ||
+          (exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+            && (getTeacherProfile(request.auth.uid).role == 'academic' 
+                || getTeacherProfile(request.auth.uid).role == 'deputy'
+                || getTeacherProfile(request.auth.uid).role == 'admin'
+                || getTeacherProfile(request.auth.uid).role == 'discipline'))
+        );
+    }
+
     function isAdmin() {
       return isSignedIn() 
         && (
@@ -128,7 +141,7 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isStudentManager();
     }
 
     match /assessments/{assessmentId} {

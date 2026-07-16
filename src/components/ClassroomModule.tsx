@@ -22,6 +22,7 @@ import {
 import { StudentDetailModal } from "./StudentDetailModal";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
 import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";
+import { HealthPrintTemplate } from "./HealthPrintTemplate";
 import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
 import { ImportStudentData } from "./ImportStudentData";
 import { StudentModal } from "./StudentModal";
@@ -73,6 +74,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     new Date().toISOString().slice(0, 7)
   );
   const [allAssessments, setAllAssessments] = useState<StudentAssessment[]>([]);
+  const [showHistoryCompare, setShowHistoryCompare] = useState(false);
   const [assessments, setAssessments] = useState<
     Record<string, StudentAssessment>
   >({});
@@ -82,6 +84,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   // Print state
   const [printStudents, setPrintStudents] = useState<Student[] | null>(null);
+  const [printHealthStudents, setPrintHealthStudents] = useState<Student[] | null>(null);
   const [showFeedbackPrint, setShowFeedbackPrint] = useState(false);
 
   // Student Form state
@@ -108,6 +111,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   };
 
 
+
+  const isStudentManager = currentTeacher?.role && ['admin', 'academic', 'deputy', 'discipline'].includes(currentTeacher.role);
 
   useEffect(() => {
     // Fetch students from Firestore
@@ -437,6 +442,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     setPrintStudents([student]);
   };
 
+  const printBatchHealthReport = () => {
+    if (displayedStudents.length === 0) {
+      alert("ไม่มีข้อมูลนักเรียนในระดับชั้นนี้");
+      return;
+    }
+    setPrintHealthStudents(displayedStudents);
+  };
+
+  const printSingleHealthReport = (student: Student) => {
+    setPrintHealthStudents([student]);
+  };
+
   const printBatchReport = () => {
     // Print all students in the current grade who have been assessed
     const assessedStudents = displayedStudents.filter((s) => assessments[s.id]);
@@ -547,8 +564,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         </div>
 
         {/* Tabs and Filters */}
-        <div className="flex flex-col xl:flex-row gap-4 w-full xl:items-center xl:justify-between">
-          <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full xl:w-auto xl:shrink-0 custom-scrollbar gap-1">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full custom-scrollbar gap-1">
             <button
               onClick={() => setActiveTab("students")}
               className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
@@ -606,38 +623,40 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             </button>
           </div>
           
-          <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full xl:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'health-report') ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
-            <div className="flex items-center min-w-[120px]">
+          <div className="flex flex-col sm:flex-row gap-4 w-full justify-between items-start sm:items-center">
+            <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full sm:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'health-report') ? 'opacity-100' : 'opacity-0 hidden sm:flex pointer-events-none'}`}>
+              <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
+              <div className="flex items-center min-w-[120px]">
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="text-sm outline-none bg-white font-bold text-pink-600 border border-slate-200 rounded px-2 py-1 focus:ring-2 focus:ring-pink-500"
+                />
+              </div>
+              {selectedMonth && activeTab === 'health-report' && (
+                <button 
+                  onClick={() => setSelectedMonth('')}
+                  className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1 relative z-10"
+                  title="ล้างการเลือกเดือน (ดูข้อมูลล่าสุด)"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            
+            <div className="relative w-full sm:w-80 shrink-0">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
               <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="text-sm outline-none bg-white font-bold text-pink-600 border border-slate-200 rounded px-2 py-1 focus:ring-2 focus:ring-pink-500"
+                type="text"
+                placeholder="ค้นหานักเรียน (ทั้งหมด)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 bg-white w-full transition-all"
               />
             </div>
-            {selectedMonth && activeTab === 'health-report' && (
-              <button 
-                onClick={() => setSelectedMonth('')}
-                className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1 relative z-10"
-                title="ล้างการเลือกเดือน (ดูข้อมูลล่าสุด)"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          
-          <div className="relative w-full xl:w-64 flex-1 xl:flex-none shrink-0">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="ค้นหานักเรียน (ทั้งหมด)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-700 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 bg-white w-full transition-all"
-            />
           </div>
         </div>
 
@@ -712,13 +731,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </button>
                   {GRADE_LEVELS.includes(selectedGrade) && (
                     <>
-                      <button
+{isStudentManager && (                      <button
                         onClick={() => setShowImport(true)}
                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                       >
                         <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
                         (Excel/CSV)
-                      </button>
+                      </button>)}
                       {currentTeacher?.role === 'admin' && (
                         <button
                           onClick={() => setShowBatchPromotion(true)}
@@ -727,6 +746,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                           <GraduationCap className="h-4 w-4" /> เลื่อนชั้นแบบกลุ่ม
                         </button>
                       )}
+{isStudentManager && (
+                        <>
                       <button
                         onClick={() => setShowDeleteAllConfirm(true)}
                         className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
@@ -742,6 +763,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       >
                         <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                       </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -834,6 +857,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                               >
                                 <Search className="h-4 w-4" />
                               </button>
+{isStudentManager && (
+                                <>
                               <button
                                 onClick={() => {
                                   setEditingStudent(student);
@@ -856,6 +881,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1354,7 +1381,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             allAssessments.forEach(a => { if (a.month) availableMonthsSet.add(a.month); });
             const availableMonths = Array.from(availableMonthsSet).sort().reverse();
             
-            const currentChartMonth = selectedMonth || availableMonths[0];
+            const currentChartMonth = selectedMonth;
             const fallbackMonth = currentChartMonth; // fallback to master record
             
             const bmiDataCount = {
@@ -1375,8 +1402,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 }
                 
                 const assessmentForMonth = allAssessments.find(a => a.studentId === s.id && a.month === currentChartMonth);
-                const weight = assessmentForMonth?.weight !== undefined ? assessmentForMonth.weight : (currentChartMonth === fallbackMonth ? s.weight : undefined);
-                const height = assessmentForMonth?.height !== undefined ? assessmentForMonth.height : (currentChartMonth === fallbackMonth ? s.height : undefined);
+                const weight = assessmentForMonth?.weight;
+                const height = assessmentForMonth?.height;
                 
                 if (weight && height) {
                   bmiByGrade[grade].total++;
@@ -1410,8 +1437,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               
               displayedStudents.forEach(s => {
                 const assessmentForMonth = allAssessments.find(a => a.studentId === s.id && a.month === currentChartMonth);
-                const weight = assessmentForMonth?.weight !== undefined ? assessmentForMonth.weight : (currentChartMonth === fallbackMonth ? s.weight : undefined);
-                const height = assessmentForMonth?.height !== undefined ? assessmentForMonth.height : (currentChartMonth === fallbackMonth ? s.height : undefined);
+                const weight = assessmentForMonth?.weight;
+                const height = assessmentForMonth?.height;
                 
                 if (weight && height) {
                   const heightM = height / 100;
@@ -1475,17 +1502,32 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       เปรียบเทียบข้อมูล BMI ของนักเรียน
                     </p>
                   </div>
-                  {currentChartMonth && (
-                    <div className="bg-pink-50 text-pink-700 px-4 py-2 rounded-lg font-bold text-sm">
-                      ข้อมูลประจำเดือน {currentChartMonth}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={printBatchHealthReport}
+                      className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors flex items-center gap-2"
+                    >
+                      <Printer className="h-4 w-4" /> พิมพ์รายงานทั้งหมด
+                    </button>
+                    <button
+                      onClick={() => setShowHistoryCompare(!showHistoryCompare)}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showHistoryCompare ? 'bg-pink-50 text-pink-600 border-pink-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {showHistoryCompare ? 'ซ่อนเปรียบเทียบย้อนหลัง' : 'เปรียบเทียบย้อนหลัง 4 เดือน'}
+                    </button>
+                    {currentChartMonth && (
+                      <div className="bg-pink-50 text-pink-700 px-4 py-2 rounded-lg font-bold text-sm">
+                        ข้อมูลประจำเดือน {formatThaiMonthYear(currentChartMonth)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-                    <h4 className="font-bold text-slate-700 mb-4 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ (ห้องนี้)</h4>
-                    <div className="h-64 w-full">
+                {currentChartMonth && bmiData.length > 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
+                      <h4 className="font-bold text-slate-700 mb-4 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ (ห้อง {selectedGrade})</h4>
+                      <div className="h-64 w-full">
                       {bmiData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -1552,12 +1594,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                 { value: 'ขาดวันเกิด', type: 'circle', color: '#94a3b8' }
                               ]}
                             />
-                            <Bar dataKey="underweight" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="normal" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="overweight" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="obese1" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="obese2" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="unknown" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="underweight" name="ผอม" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="normal" name="สมส่วน" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="overweight" name="ท้วม" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="obese1" name="เริ่มอ้วน" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="obese2" name="อ้วน" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="unknown" name="ขาดวันเกิด" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
@@ -1568,6 +1610,11 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </div>
                   </div>
                 </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 mb-8 text-center text-slate-500 font-medium">
+                    {currentChartMonth ? 'ไม่มีข้อมูลพัฒนาการร่างกายในเดือนนี้' : 'กรุณาเลือกประจำเดือนเพื่อดูสรุปข้อมูล'}
+                  </div>
+                )}
 
                 <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
@@ -1577,24 +1624,30 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                           <th className="px-4 py-3 text-center w-16 whitespace-nowrap border-r border-slate-200">เลขที่</th>
                           <th className="px-4 py-3 whitespace-nowrap border-r border-slate-200">ชื่อ-สกุล</th>
                           <th className="px-4 py-3 text-center w-24 whitespace-nowrap border-r border-slate-200">อายุ (ปี/เดือน)</th>
-                          {availableMonths.length === 0 ? (
-                            <th className="px-4 py-3 text-center whitespace-nowrap">ไม่มีข้อมูลการประเมิน</th>
-                          ) : (
-                            availableMonths.slice(0, 4).map(m => (
-                              <th key={m} className="px-2 py-3 text-center whitespace-nowrap border-r border-slate-200 text-xs">
-                                <div className="font-bold text-pink-600">{m}</div>
-                                <div className="text-[10px] text-slate-400 font-normal mt-0.5">BMI / ผลประเมิน</div>
-                              </th>
-                            ))
-                          )}
-                          {availableMonths.length > 1 && (
-                            <th className="px-4 py-3 text-center w-20 whitespace-nowrap">แนวโน้ม</th>
-                          )}
+                          {(() => {
+                            const tableDisplayMonths = showHistoryCompare ? availableMonths.slice(0, 4) : (selectedMonth ? [selectedMonth] : []);
+                            if (tableDisplayMonths.length === 0) {
+                              return <th className="px-4 py-3 text-center whitespace-nowrap">ไม่มีข้อมูลการประเมิน</th>;
+                            }
+                            return (
+                              <>
+                                {tableDisplayMonths.map(m => (
+                                  <th key={m} className="px-2 py-3 text-center whitespace-nowrap border-r border-slate-200 text-xs">
+                                    <div className="font-bold text-pink-600">{formatThaiMonthYear(m)}</div>
+                                    <div className="text-[10px] text-slate-400 font-normal mt-0.5">BMI / ผลประเมิน</div>
+                                  </th>
+                                ))}
+                                {tableDisplayMonths.length > 1 && (
+                                  <th className="px-4 py-3 text-center w-20 whitespace-nowrap border-r border-slate-200">แนวโน้ม</th>
+                                )}
+                              </>
+                            );
+                          })()}
                         </tr>
                       </thead>
                       <tbody>
                         {displayedStudents.map((student) => {
-                          const displayMonths = availableMonths.slice(0, 4);
+                          const displayMonths = showHistoryCompare ? availableMonths.slice(0, 4) : (selectedMonth ? [selectedMonth] : []);
                           const studentDataMap: Record<string, { weight: number, height: number, bmi: number, bmiLabel: string, bmiColor: string }> = {};
                           
                           let currentAgeYears = 7;
@@ -1618,8 +1671,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
                           displayMonths.forEach(m => {
                             const assessmentForMonth = allAssessments.find(a => a.studentId === student.id && a.month === m);
-                            const weight = assessmentForMonth?.weight !== undefined ? assessmentForMonth.weight : (m === fallbackMonth ? student.weight : undefined);
-                            const height = assessmentForMonth?.height !== undefined ? assessmentForMonth.height : (m === fallbackMonth ? student.height : undefined);
+                            const weight = assessmentForMonth?.weight;
+                            const height = assessmentForMonth?.height;
                             
                             if (weight && height) {
                               const h = height / 100;
@@ -1885,6 +1938,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       </div>
 
       {/* Print Overlay */}
+      {printHealthStudents && (
+        <HealthPrintTemplate
+          students={printHealthStudents}
+          allAssessments={allAssessments}
+          teacher={currentTeacher!}
+          academicYear={systemAcademicYear}
+          semester={systemSemester}
+          months={showHistoryCompare ? Array.from(new Set(allAssessments.filter(a => a.month).map(a => a.month as string))).sort().reverse().slice(0, 4) : (selectedMonth ? [selectedMonth] : [])}
+          onClose={() => setPrintHealthStudents(null)}
+        />
+      )}
       {printStudents && (
         <AssessmentPrintTemplate
           students={printStudents}

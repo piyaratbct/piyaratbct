@@ -12,6 +12,7 @@ interface ImportStudentDataProps {
 }
 
 export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGrade, onClose, onSuccess }) => {
+  const [allData, setAllData] = useState<any[]>([]);
   const [dataPreview, setDataPreview] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
           return;
         }
         
+        setAllData(jsonData);
         setDataPreview(jsonData.slice(0, 50)); // Preview up to 50 rows
       } catch (err) {
         console.error("Error reading file:", err);
@@ -51,7 +53,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
   };
 
   const handleImport = async () => {
-    if (dataPreview.length === 0) return;
+    if (allData.length === 0) return;
     
     setIsProcessing(true);
     setError(null);
@@ -74,19 +76,24 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
       const batch = writeBatch(db);
       let count = 0;
 
-      for (const row of dataPreview) {
+      for (const row of allData) {
+        // Helper to find key flexibly
+        const findKey = (keys: string[]) => {
+          const rowKey = Object.keys(row).find(k => keys.some(search => k.replace(/\s+/g, '').toLowerCase().includes(search.toLowerCase())));
+          return rowKey ? String(row[rowKey] || '').trim() : '';
+        };
         // Map excel columns to Student object
         // Expected columns: รหัสนักเรียน, ชื่อ, นามสกุล, ชื่อเล่น, เพศ, เลขที่
-        const studentId = String(row['รหัสนักเรียน'] || row['studentId'] || '').trim();
-        const firstName = String(row['ชื่อ'] || row['firstName'] || '').trim();
-        const lastName = String(row['นามสกุล'] || row['lastName'] || '').trim();
-        const nickname = String(row['ชื่อเล่น'] || row['nickname'] || '').trim();
-        const rawGender = String(row['เพศ'] || row['gender'] || '').trim().toLowerCase();
-        const nationalId = String(row['เลขประจำตัวประชาชน'] || row['nationalId'] || '').trim();
-        const numberRaw = row['เลขที่'] || row['number'];
+        const studentId = findKey(['รหัสนักเรียน', 'studentId', 'รหัส']);
+        const firstName = findKey(['ชื่อ', 'firstName']);
+        const lastName = findKey(['นามสกุล', 'lastName', 'สกุล']);
+        const nickname = findKey(['ชื่อเล่น', 'nickname']);
+        const rawGender = findKey(['เพศ', 'gender']).toLowerCase();
+        const nationalId = findKey(['เลขประจำตัวประชาชน', 'เลขบัตรประชาชน', 'บัตรประชาชน', 'nationalId', 'เลขบัตร']);
+        const numberRaw = findKey(['เลขที่', 'number']);
         const number = parseInt(numberRaw, 10) || 0;
 
-                let parsedDob = String(row['วันเกิด'] || row['dob'] || '').trim();
+                let parsedDob = findKey(['วันเกิด', 'dob']);
         
         // Handle Date parsing (Buddhist Era to Christian Era YYYY-MM-DD)
         if (parsedDob) {
@@ -116,12 +123,12 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
           }
         }
         const dob = parsedDob;
-        const parentName = String(row['ชื่อผู้ปกครอง'] || row['parentName'] || '').trim();
-        const parentPhone = String(row['เบอร์โทรผู้ปกครอง'] || row['parentPhone'] || '').trim();
-        const fatherName = String(row['ชื่อบิดา'] || row['fatherName'] || '').trim();
-        const fatherPhone = String(row['เบอร์โทรบิดา'] || row['fatherPhone'] || '').trim();
-        const motherName = String(row['ชื่อมารดา'] || row['motherName'] || '').trim();
-        const motherPhone = String(row['เบอร์โทรมารดา'] || row['motherPhone'] || '').trim();
+        const parentName = findKey(['ชื่อผู้ปกครอง', 'parentName', 'ผู้ปกครอง']);
+        const parentPhone = findKey(['เบอร์โทรผู้ปกครอง', 'เบอร์ผู้ปกครอง', 'parentPhone', 'โทรผู้ปกครอง']);
+        const fatherName = findKey(['ชื่อบิดา', 'fatherName', 'บิดา']);
+        const fatherPhone = findKey(['เบอร์โทรบิดา', 'เบอร์บิดา', 'fatherPhone']);
+        const motherName = findKey(['ชื่อมารดา', 'motherName', 'มารดา']);
+        const motherPhone = findKey(['เบอร์โทรมารดา', 'เบอร์มารดา', 'motherPhone']);
         const familyStatus = String(row['สถานภาพครอบครัว'] || row['familyStatus'] || 'สมรส').trim();
         const address = String(row['ที่อยู่'] || row['address'] || '').trim();
         const medicalInfo = String(row['ข้อมูลสุขภาพ'] || row['medicalInfo'] || '').trim();
@@ -137,31 +144,33 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         const existingDocId = existingMap[studentId];
         const docRef = existingDocId ? doc(db, 'students', existingDocId) : doc(studentsCollection);
         
-        const studentData: Student = {
+        // Build data object, omitting empty fields to avoid overwriting existing data with blanks
+        const studentData: Partial<Student> = {
           id: docRef.id,
           studentId,
-          firstName,
-          lastName,
-          nickname,
           gradeLevel: selectedGrade,
-          gender,
-          nationalId,
-          number,
           status: 'active',
-          dob,
-          parentName,
-          parentPhone,
-          fatherName,
-          fatherPhone,
-          motherName,
-          motherPhone,
-          familyStatus,
-          address,
-          medicalInfo,
-          allergicMedicine,
-          allergicFood,
-          congenitalDisease
         };
+        
+        if (firstName) studentData.firstName = firstName;
+        if (lastName) studentData.lastName = lastName;
+        if (nickname) studentData.nickname = nickname;
+        if (gender) studentData.gender = gender;
+        if (nationalId) studentData.nationalId = nationalId;
+        if (number) studentData.number = number;
+        if (dob) studentData.dob = dob;
+        if (parentName) studentData.parentName = parentName;
+        if (parentPhone) studentData.parentPhone = parentPhone;
+        if (fatherName) studentData.fatherName = fatherName;
+        if (fatherPhone) studentData.fatherPhone = fatherPhone;
+        if (motherName) studentData.motherName = motherName;
+        if (motherPhone) studentData.motherPhone = motherPhone;
+        if (familyStatus) studentData.familyStatus = familyStatus;
+        if (address) studentData.address = address;
+        if (medicalInfo) studentData.medicalInfo = medicalInfo;
+        if (allergicMedicine) studentData.allergicMedicine = allergicMedicine;
+        if (allergicFood) studentData.allergicFood = allergicFood;
+        if (congenitalDisease) studentData.congenitalDisease = congenitalDisease;
 
         batch.set(docRef, studentData, { merge: true });
         count++;
@@ -247,7 +256,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
               <div className="flex justify-between items-center">
                 <h4 className="font-bold text-slate-800">ตัวอย่างข้อมูล ({dataPreview.length} รายการแรก)</h4>
                 <button 
-                  onClick={() => setDataPreview([])}
+                  onClick={() => { setAllData([]); setDataPreview([]); }}
                   className="text-sm font-bold text-pink-600 hover:text-pink-700"
                 >
                   อัปโหลดไฟล์ใหม่
@@ -295,7 +304,7 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
           </button>
           <button 
             onClick={handleImport}
-            disabled={!dataPreview.length || isProcessing}
+            disabled={!allData.length || isProcessing}
             className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
           >
             {isProcessing ? (
