@@ -1,14 +1,21 @@
-with open('src/components/AssessmentPrintTemplate.tsx', 'r') as f:
+with open('src/components/KindergartenPrintTemplate.tsx', 'r') as f:
     content = f.read()
 
-content = content.replace("import {\nimport { formatThaiMonthYear } from '../lib/dateUtils';", "import { formatThaiMonthYear } from '../lib/dateUtils';\nimport {")
-with open('src/components/AssessmentPrintTemplate.tsx', 'w') as f:
+# Fix studentId issue
+content = content.replace('find(a => a.studentId)', 'find(a => (a as any).studentId)')
+
+# Fix PrintSignatureBox props
+old_sig = """                <PrintSignatureBox
+                  title="ผู้ประเมิน"
+                  name={teacher.thaiName}
+                  position="ครูประจำชั้น"
+                />"""
+new_sig = """                <PrintSignatureBox
+                  role="ผู้ประเมิน"
+                  name={teacher.thaiName}
+                  label="ครูประจำชั้น"
+                />"""
+content = content.replace(old_sig, new_sig)
+
+with open('src/components/KindergartenPrintTemplate.tsx', 'w') as f:
     f.write(content)
-
-with open('src/components/LessonLogList.tsx', 'r') as f:
-    content = f.read()
-
-content = content.replace("import {\nimport { formatThaiDateTime } from '../lib/dateUtils';", "import { formatThaiDateTime } from '../lib/dateUtils';\nimport {")
-with open('src/components/LessonLogList.tsx', 'w') as f:
-    f.write(content)
-

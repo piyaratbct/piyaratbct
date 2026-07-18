@@ -1,33 +1,93 @@
-import re
-
 with open('src/components/ClassroomModule.tsx', 'r') as f:
     content = f.read()
 
-# Add import
-if "import { formatThaiDateTime } from '../lib/dateUtils';" not in content:
-    content = content.replace("import { Download, Search, Plus, User, HeartPulse, MoreVertical, X, Filter, AlertCircle, FileText, BarChart3, Clock, HelpCircle, Save, Trash2, Printer } from 'lucide-react';", "import { Download, Search, Plus, User, HeartPulse, MoreVertical, X, Filter, AlertCircle, FileText, BarChart3, Clock, HelpCircle, Save, Trash2, Printer } from 'lucide-react';\nimport { formatThaiDateTime } from '../lib/dateUtils';")
+# 1. Update imports
+old_import = 'import { AssessmentModal } from "./AssessmentModal";'
+new_import = 'import { AssessmentModal } from "./AssessmentModal";\nimport { KindergartenAssessmentModal } from "./KindergartenAssessmentModal";\nimport { KindergartenAssessment } from "../types";'
+content = content.replace(old_import, new_import)
 
-# Remove internal thaiFormatDateTime
-target = """  const thaiFormatDateTime = (isoString?: string) => {
-    if (!isoString) return "-";
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleString("th-TH", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return isoString;
-    }
-  };"""
+# 2. Update assessments state to any
+old_assessments = """  const [assessments, setAssessments] = useState<
+    Record<string, StudentAssessment>
+  >({});"""
+new_assessments = """  const [assessments, setAssessments] = useState<
+    Record<string, any>
+  >({});"""
+content = content.replace(old_assessments, new_assessments)
 
-content = content.replace(target, "")
+# 3. Add getInitialKindergartenAssessment
+old_get_initial = """  // Initialize empty assessment if not exist"""
+new_get_initial = """  const isKindergarten = selectedGrade.startsWith("อนุบาล");
 
-# Replace usage of thaiFormatDateTime with formatThaiDateTime
-content = content.replace("thaiFormatDateTime(", "formatThaiDateTime(")
+  const getInitialKindergartenAssessment = (studentId: string): KindergartenAssessment => {
+    return {
+      id: `ka-${Date.now()}`,
+      studentId,
+      gradeLevel: selectedGrade,
+      semester: systemSemester || '',
+      academicYear: systemAcademicYear || '',
+      teacherId: currentTeacher?.id || "t-unknown",
+      standard1: 0,
+      standard2: 0,
+      standard3: 0,
+      standard4: 0,
+      standard5: 0,
+      standard6: 0,
+      standard7: 0,
+      standard8: 0,
+      standard9: 0,
+      standard10: 0,
+      standard11: 0,
+      standard12: 0,
+      updatedAt: new Date().toISOString(),
+    };
+  };
+
+  // Initialize empty assessment if not exist"""
+content = content.replace(old_get_initial, new_get_initial)
+
+# 4. Modify handleSaveAssessment to handle any
+old_save = """  const handleSaveAssessment = async (assessment: StudentAssessment, newWeight?: number, newHeight?: number) => {"""
+new_save = """  const handleSaveAssessment = async (assessment: any, newWeight?: number, newHeight?: number) => {"""
+content = content.replace(old_save, new_save)
+
+# 5. Modify the AssessmentModal render
+old_modal = """        {/* Assessment Modal/Form Overlay */}
+        {evaluatingStudent && (
+          <AssessmentModal
+            student={evaluatingStudent}
+            existingAssessment={
+              assessments[evaluatingStudent.id] ||
+              getInitialAssessment(evaluatingStudent.id)
+            }
+            onClose={() => setEvaluatingStudent(null)}
+            onSave={handleSaveAssessment}
+          />
+        )}"""
+new_modal = """        {/* Assessment Modal/Form Overlay */}
+        {evaluatingStudent && isKindergarten && (
+          <KindergartenAssessmentModal
+            student={evaluatingStudent}
+            existingAssessment={
+              assessments[evaluatingStudent.id] ||
+              getInitialKindergartenAssessment(evaluatingStudent.id)
+            }
+            onClose={() => setEvaluatingStudent(null)}
+            onSave={handleSaveAssessment}
+          />
+        )}
+        {evaluatingStudent && !isKindergarten && (
+          <AssessmentModal
+            student={evaluatingStudent}
+            existingAssessment={
+              assessments[evaluatingStudent.id] ||
+              getInitialAssessment(evaluatingStudent.id)
+            }
+            onClose={() => setEvaluatingStudent(null)}
+            onSave={handleSaveAssessment}
+          />
+        )}"""
+content = content.replace(old_modal, new_modal)
 
 with open('src/components/ClassroomModule.tsx', 'w') as f:
     f.write(content)

@@ -1,20 +1,43 @@
-import re
-
-with open('src/components/AssessmentPrintTemplate.tsx', 'r') as f:
+with open('src/components/ClassroomModule.tsx', 'r') as f:
     content = f.read()
 
 # Add import
-if "import { formatThaiMonthYear } from '../lib/dateUtils';" not in content:
-    content = content.replace("import React from 'react';", "import React from 'react';\nimport { formatThaiMonthYear } from '../lib/dateUtils';")
+old_import = 'import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";'
+new_import = 'import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";\nimport { KindergartenPrintTemplate } from "./KindergartenPrintTemplate";'
+content = content.replace(old_import, new_import)
 
-target = """                    {assessment.month
-                      ? new Date(assessment.month).toLocaleDateString("th-TH", {
-                          year: "numeric",
-                          month: "long",
-                        })
-                      : "-"}"""
+# Replace the render logic
+old_print = """      {printStudents && (
+        <AssessmentPrintTemplate
+          students={printStudents}
+          assessments={assessments}
+          teacher={currentTeacher!}
+          academicYear={systemAcademicYear}
+          semester={systemSemester}
+          onClose={() => setPrintStudents(null)}
+        />
+      )}"""
+new_print = """      {printStudents && isKindergarten && (
+        <KindergartenPrintTemplate
+          students={printStudents}
+          assessments={assessments}
+          teacher={currentTeacher!}
+          academicYear={systemAcademicYear || ''}
+          semester={systemSemester || ''}
+          onClose={() => setPrintStudents(null)}
+        />
+      )}
+      {printStudents && !isKindergarten && (
+        <AssessmentPrintTemplate
+          students={printStudents}
+          assessments={assessments}
+          teacher={currentTeacher!}
+          academicYear={systemAcademicYear || ''}
+          semester={systemSemester || ''}
+          onClose={() => setPrintStudents(null)}
+        />
+      )}"""
+content = content.replace(old_print, new_print)
 
-content = content.replace(target, "{formatThaiMonthYear(assessment.month)}")
-
-with open('src/components/AssessmentPrintTemplate.tsx', 'w') as f:
+with open('src/components/ClassroomModule.tsx', 'w') as f:
     f.write(content)

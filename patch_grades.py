@@ -1,34 +1,22 @@
 import re
 
-with open('src/types.ts', 'r') as f:
+with open('src/components/EvaluationModule.tsx', 'r') as f:
     content = f.read()
 
-target = """export const GRADE_LEVELS = [
-  'ประถมศึกษาปีที่ 1/1',
-  'ประถมศึกษาปีที่ 1/2',
-  'ประถมศึกษาปีที่ 2/1',
-  'ประถมศึกษาปีที่ 2/2',
-  'ประถมศึกษาปีที่ 3',
-  'ประถมศึกษาปีที่ 4',
-  'ประถมศึกษาปีที่ 5',
-  'ประถมศึกษาปีที่ 6'
-];"""
+# Update initial selectedGrade state
+old_state = "const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);"
+new_state = "const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);"
+content = content.replace(old_state, new_state)
 
-replacement = """export const GRADE_LEVELS = [
-  'อนุบาล 1',
-  'อนุบาล 2',
-  'อนุบาล 3',
-  'ประถมศึกษาปีที่ 1/1',
-  'ประถมศึกษาปีที่ 1/2',
-  'ประถมศึกษาปีที่ 2/1',
-  'ประถมศึกษาปีที่ 2/2',
-  'ประถมศึกษาปีที่ 3',
-  'ประถมศึกษาปีที่ 4',
-  'ประถมศึกษาปีที่ 5',
-  'ประถมศึกษาปีที่ 6'
-];"""
+# Filter the select options
+old_select = """                    {GRADE_LEVELS.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}"""
+new_select = """                    {GRADE_LEVELS.filter(g => g.includes('ประถม')).map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}"""
+content = content.replace(old_select, new_select)
 
-content = content.replace(target, replacement)
-
-with open('src/types.ts', 'w') as f:
+with open('src/components/EvaluationModule.tsx', 'w') as f:
     f.write(content)
+

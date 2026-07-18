@@ -145,6 +145,84 @@ export interface AttendanceSession {
   updatedAt: string;
 }
 
+export interface KindergartenAssessment {
+  id: string;
+  studentId: string;
+  gradeLevel: string;
+  semester: string;
+  academicYear: string;
+  teacherId: string;
+  
+  // การประเมินพัฒนาการ 4 ด้าน ตามมาตรฐานคุณลักษณะที่พึงประสงค์ 12 ประการ (3=ดี, 2=พอใช้, 1=ควรส่งเสริม)
+  // ร่างกาย: มาตรฐาน 1-2
+  // อารมณ์ จิตใจ: มาตรฐาน 3-5
+  // สังคม: มาตรฐาน 6-8
+  // สติปัญญา: มาตรฐาน 9-12
+  standard1: number;
+  standard2: number;
+  standard3: number;
+  standard4: number;
+  standard5: number;
+  standard6: number;
+  standard7: number;
+  standard8: number;
+  standard9: number;
+  standard10: number;
+  standard11: number;
+  standard12: number;
+  
+  teacherNotes?: string;
+  updatedAt: string;
+}
+
+export interface SubjectScore {
+  id: string;
+  studentId: string;
+  gradeLevel: string;
+  academicYear: string;
+  semester: string;
+  subject: string;
+  teacherId: string;
+  
+  // Non-grade scores
+  preTestScore?: number;
+  postTestScore?: number;
+
+  // Grade scores
+  beforeMidKnowledgeScore: number; // 20
+  beforeMidSoftSkillScore: number; // 10
+  midtermScore: number; // 20
+  afterMidKnowledgeScore: number; // 20
+  afterMidSoftSkillScore: number; // 10
+  finalScore: number; // 20
+  
+  // Dynamic activity scores (activityId -> score)
+  activities?: Record<string, number>;
+  
+  totalScore: number; // /100
+  grade: string; // "4", "3.5", "3", etc.
+  
+  updatedAt: string;
+}
+
+export interface ActivityColumn {
+  id: string;
+  name: string;
+  maxScore: number;
+}
+
+export interface SubjectSettings {
+  id: string;
+  academicYear: string;
+  semester: string;
+  gradeLevel: string;
+  subject: string;
+  beforeMidKnowledge: ActivityColumn[];
+  beforeMidSoftSkill: ActivityColumn[];
+  afterMidKnowledge: ActivityColumn[];
+  afterMidSoftSkill: ActivityColumn[];
+}
+
 export interface StudentAssessment {
   id: string;
   studentId: string;

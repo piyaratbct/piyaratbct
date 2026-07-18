@@ -182,14 +182,7 @@ export const HealthPrintTemplate: React.FC<HealthPrintTemplateProps> = ({
             </div>
 
             {/* Signatures */}
-            <div className="flex justify-between items-end mt-12 px-8">
-              <div className="w-64">
-                <PrintSignatureBox 
-                  role="ผู้ปกครอง" 
-                  name=" " 
-                  label="ลงชื่อ"
-                />
-              </div>
+            <div className="flex justify-end items-end mt-12 px-8">
               <div className="w-64">
                 <PrintSignatureBox 
                   role="ครูประจำชั้น/ผู้ประเมิน" 

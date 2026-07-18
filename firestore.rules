@@ -174,5 +174,15 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
+
+
+    match /subject_scores/{scoreId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    match /subject_settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
   }
 }

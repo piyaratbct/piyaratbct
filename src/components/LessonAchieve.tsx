@@ -245,7 +245,7 @@ export function LessonAchieve() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {atRiskStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={student.id} className={`transition-colors ${student.severity === 'high' ? 'bg-rose-50/70 hover:bg-rose-100' : 'bg-amber-50/70 hover:bg-amber-100'}`}>
                   <td className="px-4 py-3 font-medium text-slate-800">{student.name}</td>
                   <td className="px-4 py-3 text-slate-600">{student.class}</td>
                   <td className="px-4 py-3 text-slate-600">{student.issue}</td>

@@ -453,7 +453,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                       <span>กำลังดำเนินการ...</span>
                     </>
                   ) : (
-                    <span>เข้าสู่ระบบด้วยอีเมลรหัสผ่าน</span>
+                    <span>เข้าสู่ระบบ / Login</span>
                   )}
                 </button>
               </div>

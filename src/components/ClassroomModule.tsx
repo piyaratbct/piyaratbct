@@ -22,6 +22,7 @@ import {
 import { StudentDetailModal } from "./StudentDetailModal";
 import { Student, StudentAssessment, GRADE_LEVELS, Teacher } from "../types";
 import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";
+import { KindergartenPrintTemplate } from "./KindergartenPrintTemplate";
 import { HealthPrintTemplate } from "./HealthPrintTemplate";
 import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
 import { ImportStudentData } from "./ImportStudentData";
@@ -41,6 +42,8 @@ import {
   deleteField,
 } from "firebase/firestore";
 import { AssessmentModal } from "./AssessmentModal";
+import { KindergartenAssessmentModal } from "./KindergartenAssessmentModal";
+import { KindergartenAssessment } from "../types";
 import { AttendanceTracking } from "./AttendanceTracking";
 import { formatThaiDateTime, formatThaiMonthYear } from '../lib/dateUtils';
 
@@ -76,7 +79,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const [allAssessments, setAllAssessments] = useState<StudentAssessment[]>([]);
   const [showHistoryCompare, setShowHistoryCompare] = useState(false);
   const [assessments, setAssessments] = useState<
-    Record<string, StudentAssessment>
+    Record<string, any>
   >({});
   const [evaluatingStudent, setEvaluatingStudent] = useState<Student | null>(
     null,
@@ -241,6 +244,32 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     (t) => t.homeroomClass === selectedGrade || t.coHomeroomClass === selectedGrade
   );
 
+  const isKindergarten = selectedGrade.startsWith("อนุบาล");
+
+  const getInitialKindergartenAssessment = (studentId: string): KindergartenAssessment => {
+    return {
+      id: `ka-${Date.now()}`,
+      studentId,
+      gradeLevel: selectedGrade,
+      semester: systemSemester || '',
+      academicYear: systemAcademicYear || '',
+      teacherId: currentTeacher?.id || "t-unknown",
+      standard1: 0,
+      standard2: 0,
+      standard3: 0,
+      standard4: 0,
+      standard5: 0,
+      standard6: 0,
+      standard7: 0,
+      standard8: 0,
+      standard9: 0,
+      standard10: 0,
+      standard11: 0,
+      standard12: 0,
+      updatedAt: new Date().toISOString(),
+    };
+  };
+
   // Initialize empty assessment if not exist
   const getInitialAssessment = (studentId: string): StudentAssessment => {
     const today = new Date();
@@ -375,7 +404,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     }
   };
 
-  const handleSaveAssessment = async (assessment: StudentAssessment, newWeight?: number, newHeight?: number) => {
+  const handleSaveAssessment = async (assessment: any, newWeight?: number, newHeight?: number) => {
     try {
       const now = new Date().toISOString();
       const teacherName = currentTeacher
@@ -1784,7 +1813,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         </div>
 
         {/* Assessment Modal/Form Overlay */}
-        {evaluatingStudent && (
+        {evaluatingStudent && isKindergarten && (
+          <KindergartenAssessmentModal
+            student={evaluatingStudent}
+            existingAssessment={
+              assessments[evaluatingStudent.id] ||
+              getInitialKindergartenAssessment(evaluatingStudent.id)
+            }
+            onClose={() => setEvaluatingStudent(null)}
+            onSave={handleSaveAssessment}
+          />
+        )}
+        {evaluatingStudent && !isKindergarten && (
           <AssessmentModal
             student={evaluatingStudent}
             existingAssessment={
@@ -1949,13 +1989,23 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           onClose={() => setPrintHealthStudents(null)}
         />
       )}
-      {printStudents && (
+      {printStudents && isKindergarten && (
+        <KindergartenPrintTemplate
+          students={printStudents}
+          assessments={assessments}
+          teacher={currentTeacher!}
+          academicYear={systemAcademicYear || ''}
+          semester={systemSemester || ''}
+          onClose={() => setPrintStudents(null)}
+        />
+      )}
+      {printStudents && !isKindergarten && (
         <AssessmentPrintTemplate
           students={printStudents}
           assessments={assessments}
           teacher={currentTeacher!}
-          academicYear={systemAcademicYear}
-          semester={systemSemester}
+          academicYear={systemAcademicYear || ''}
+          semester={systemSemester || ''}
           onClose={() => setPrintStudents(null)}
         />
       )}

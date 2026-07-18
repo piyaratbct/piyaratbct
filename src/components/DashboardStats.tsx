@@ -54,14 +54,47 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
     return dateString;
   };
 
-  const subjectDistribution = SUBJECTS.map(subj => {
-    const logs = records.filter(p => p.subject === subj);
+  const WEEKS_PER_SEMESTER = 20; // จำนวนสัปดาห์ใน 1 ภาคเรียน (โดยประมาณ)
+  const allSubjectGrades = new Set([
+    ...records.map(r => {
+      const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
+      const grade = r.gradeLevel || 'ไม่ระบุชั้น';
+      return `${subj}|${grade}`;
+    }),
+    ...schedules.map(s => {
+      const subj = s.subject;
+      const grade = s.gradeLevel || 'ไม่ระบุชั้น';
+      return `${subj}|${grade}`;
+    })
+  ]);
+
+  const subjectDistribution = Array.from(allSubjectGrades).map(key => {
+    const [subj, grade] = key.split('|');
+    const logs = records.filter(p => 
+      ((p.subject === 'อื่นๆ' && p.customSubject === subj) || p.subject === subj) && 
+      (p.gradeLevel === grade || (!p.gradeLevel && grade === 'ไม่ระบุชั้น'))
+    );
+    const scheduledPeriodsPerWeek = schedules.filter(s => s.subject === subj && (s.gradeLevel === grade || (!s.gradeLevel && grade === 'ไม่ระบุชั้น'))).length;
+    const expectedTotalPeriods = scheduledPeriodsPerWeek * WEEKS_PER_SEMESTER;
+    
+    const hasSchedule = expectedTotalPeriods > 0;
+    const percentage = hasSchedule 
+      ? Math.min((logs.length / expectedTotalPeriods) * 100, 100) 
+      : (totalLogs > 0 ? (logs.length / totalLogs) * 100 : 0);
+
     return {
+      key: key,
       name: subj,
+      grade: grade,
       count: logs.length,
-      percentage: totalLogs > 0 ? (logs.length / totalLogs) * 100 : 0
+      expected: expectedTotalPeriods,
+      percentage: percentage,
+      hasSchedule: hasSchedule
     };
-  }).filter(item => item.count > 0 || item.name === 'ภาษาไทย' || item.name === 'คณิตศาสตร์' || item.name === 'วิทยาศาสตร์และเทคโนโลยี');
+  }).sort((a, b) => {
+    if (a.grade !== b.grade) return a.grade.localeCompare(b.grade);
+    return a.name.localeCompare(b.name);
+  });
 
   const pendingApprovals = records.filter(r => r.teacherSigned && !r.deptHeadApproved);
   
@@ -212,12 +245,17 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
                 const barColor = colors[index % colors.length];
 
                 return (
-                  <div key={item.name} className="space-y-1">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-slate-600">{item.name}</span>
-                      <span className="text-slate-900 font-bold">{item.count} ครั้ง ({Math.round(item.percentage)}%)</span>
+                  <div key={item.key} className="space-y-1">
+                    <div className="flex justify-between text-xs font-medium mb-1">
+                      <span className="text-slate-600">
+                        {item.name} <span className="text-indigo-600 font-bold ml-1">({item.grade})</span>
+                        {item.hasSchedule && <span className="text-xs text-slate-400 font-normal ml-1">(ตามตารางสอน)</span>}
+                      </span>
+                      <span className="text-slate-900 font-bold">
+                        {item.count} {item.hasSchedule ? `/ ${item.expected}` : ''} คาบ ({Math.round(item.percentage)}%)
+                      </span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                         style={{ width: `${item.percentage || 1}%` }}
