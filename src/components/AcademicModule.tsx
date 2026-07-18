@@ -7,9 +7,12 @@ import {
   Users, 
   GraduationCap,
   ShieldCheck,
-  CalendarDays
+  CalendarDays,
+  ArrowRight
 } from "lucide-react";
 import { SchoolEventCalendar } from "./SchoolEventCalendar";
+import { PromotionManager } from "./PromotionManager";
+import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
 import { Teacher } from "../types";
 
@@ -23,8 +26,9 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   currentTeacher,
   systemAcademicYear,
   systemSemester,
+  students,
 }) => {
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion">("calendar");
 
 
 
@@ -92,6 +96,16 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
           }`}
         >
           <Users className="h-4 w-4" /> ข้อมูลบุคลากร
+        </button>
+        <button
+          onClick={() => setActiveTab("promotion")}
+          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            activeTab === "promotion"
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <ArrowRight className="h-4 w-4" /> เลื่อนชั้น/จบการศึกษา
         </button>
       </div>
 

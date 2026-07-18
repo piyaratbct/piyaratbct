@@ -31,6 +31,7 @@ import { BatchPromotionModal } from "./BatchPromotionModal";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import {
   collection,
+  getDocs,
   onSnapshot,
   query,
   where,
@@ -63,6 +64,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const [activeTab, setActiveTab] = useState<"students" | "attendance" | "assessments" | "special-care" | "health-report">(
     "students",
   );
+
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [students, setStudents] = useState<Student[]>([]);
   const [showImport, setShowImport] = useState(false);
@@ -767,14 +769,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
                         (Excel/CSV)
                       </button>)}
-                      {currentTeacher?.role === 'admin' && (
-                        <button
-                          onClick={() => setShowBatchPromotion(true)}
-                          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                        >
-                          <GraduationCap className="h-4 w-4" /> เลื่อนชั้นแบบกลุ่ม
-                        </button>
-                      )}
+
 {isStudentManager && (
                         <>
                       <button

@@ -19,9 +19,17 @@ export const BatchPromotionModal: React.FC<BatchPromotionModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [newGradeLevel, setNewGradeLevel] = useState<string>(
-    GRADE_LEVELS[GRADE_LEVELS.indexOf(currentGrade) + 1] || GRADE_LEVELS[GRADE_LEVELS.length - 1]
-  );
+  const getNextGrade = (current: string) => {
+    if (current === 'อนุบาล 3') return 'ประถมศึกษาปีที่ 1/1';
+    if (current === 'ประถมศึกษาปีที่ 6') return 'จบการศึกษา';
+    if (current === 'ประถมศึกษาปีที่ 1') return 'ประถมศึกษาปีที่ 2';
+    if (current === 'ประถมศึกษาปีที่ 1/1' || current === 'ประถมศึกษาปีที่ 1/2') return 'ประถมศึกษาปีที่ 2/1';
+    if (current === 'ประถมศึกษาปีที่ 2') return 'ประถมศึกษาปีที่ 3';
+    if (current === 'ประถมศึกษาปีที่ 2/1' || current === 'ประถมศึกษาปีที่ 2/2') return 'ประถมศึกษาปีที่ 3';
+    return GRADE_LEVELS[GRADE_LEVELS.indexOf(current) + 1] || 'จบการศึกษา';
+  };
+
+  const [newGradeLevel, setNewGradeLevel] = useState<string>(getNextGrade(currentGrade));
   // Default to system year + 1 for promotion
   const [newAcademicYear, setNewAcademicYear] = useState<string>(
     (parseInt(systemAcademicYear) + 1).toString()

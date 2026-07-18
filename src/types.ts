@@ -112,13 +112,25 @@ export interface Student {
   gender: 'male' | 'female';
   nationalId?: string;
   number: number;
-  status: 'active' | 'inactive';
+  status: 'active' | 'graduated' | 'inactive';
   dob?: string;
   parentName?: string;
   parentPhone?: string;
+  fatherFirstName?: string;
+  fatherLastName?: string;
+  motherPrefix?: string;
+  motherFirstName?: string;
+  motherLastName?: string;
+  guardianFirstName?: string;
+  guardianLastName?: string;
+  additionalNotes?: string;
   fatherName?: string;
+  fatherWorkplace?: string;
+  fatherWorkplaceProvince?: string;
   fatherPhone?: string;
   motherName?: string;
+  motherWorkplace?: string;
+  motherWorkplaceProvince?: string;
   motherPhone?: string;
   familyStatus?: string;
   address?: string;
@@ -330,8 +342,10 @@ export const GRADE_LEVELS = [
   'อนุบาล 1',
   'อนุบาล 2',
   'อนุบาล 3',
+  'ประถมศึกษาปีที่ 1',
   'ประถมศึกษาปีที่ 1/1',
   'ประถมศึกษาปีที่ 1/2',
+  'ประถมศึกษาปีที่ 2',
   'ประถมศึกษาปีที่ 2/1',
   'ประถมศึกษาปีที่ 2/2',
   'ประถมศึกษาปีที่ 3',
@@ -374,4 +388,105 @@ export interface DisciplineIncident {
   academicYear: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Address {
+  houseNumber: string;
+  moo: string;
+  village: string;
+  soi: string;
+  road: string;
+  subDistrict: string;
+  district: string;
+  province: string;
+  zipCode: string;
+}
+
+export interface AdmissionRecord {
+  id: string;
+  academicYear: string;
+  applyForGrade: string;
+  firstName: string;
+  lastName: string;
+  nickname?: string;
+  gender: 'male' | 'female';
+  nationalId?: string;
+  birthDate?: string;
+  birthHospital?: string;
+  birthProvince?: string;
+  religion?: string;
+  ethnicity?: string;
+  nationality?: string;
+  underlyingDisease?: string;
+  familyStatus?: string;
+  livingWith?: string;
+
+  fatherEthnicity?: string;
+  fatherNationality?: string;
+  fatherBirthDate?: string;
+
+  motherEthnicity?: string;
+  motherNationality?: string;
+  motherBirthDate?: string;
+
+  guardianEthnicity?: string;
+  guardianNationality?: string;
+  guardianBirthDate?: string;
+  address?: string; // legacy flat string
+  addressObj?: Address;
+  weight?: number;
+  height?: number;
+  bloodGroup?: string;
+  allergies?: string;
+  drugAllergy?: string;
+  foodAllergy?: string;
+  
+  siblingCount?: number;
+  siblingOrder?: number;
+  
+  previousSchool?: string;
+  previousSchoolProvince?: string;
+  
+  fatherFirstName?: string;
+  fatherLastName?: string;
+  motherPrefix?: string;
+  motherFirstName?: string;
+  motherLastName?: string;
+  guardianFirstName?: string;
+  guardianLastName?: string;
+  additionalNotes?: string;
+  fatherName?: string;
+  fatherOccupation?: string;
+  fatherIncome?: string;
+  fatherWorkplace?: string;
+  fatherWorkplaceProvince?: string;
+  fatherPhone?: string;
+  fatherLineId?: string;
+  fatherAddressObj?: Address;
+  
+  motherName?: string;
+  motherOccupation?: string;
+  motherIncome?: string;
+  motherWorkplace?: string;
+  motherWorkplaceProvince?: string;
+  motherPhone?: string;
+  motherLineId?: string;
+  motherAddressObj?: Address;
+  
+  guardianName?: string;
+  guardianRelation?: string;
+  guardianOccupation?: string;
+  guardianIncome?: string;
+  guardianWorkplace?: string;
+  guardianWorkplaceProvince?: string;
+  guardianPhone?: string;
+  guardianLineId?: string;
+  guardianAddressObj?: Address;
+  
+  emergencyContactName?: string;
+  emergencyContactRelation?: string;
+  emergencyContactPhone?: string;
+  
+  status: 'pending' | 'approved' | 'rejected' | 'enrolled';
+  appliedAt: string;
 }

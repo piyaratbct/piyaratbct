@@ -361,21 +361,33 @@ export function DisciplineModule({
 
   return (
     <div className="discipline-module-content space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <ShieldAlert className="h-6 w-6 text-rose-500" />
-            การบริหารงานปกครอง (LessonDiscipline)
-          </h2>
-          <p className="text-slate-500">บันทึกและติดตามข้อมูลเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ</p>
+      <div className="bg-gradient-to-r from-rose-500 to-red-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-rose-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
+
+        <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
+          <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex-shrink-0 flex items-center justify-center shadow-inner border border-white/30">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
+              การบริหารงานปกครอง (LessonDiscipline)
+            </h2>
+            <p className="text-rose-100 font-medium mt-1">
+              บันทึกและติดตามข้อมูลเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
+            </p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
-        >
-          <PlusCircle className="h-4 w-4" />
-          บันทึกเหตุการณ์ใหม่
-        </button>
+        
+        <div className="relative z-10 w-full md:w-auto">
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full md:w-auto bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all border border-white/30"
+          >
+            <PlusCircle className="h-5 w-5" />
+            บันทึกเหตุการณ์ใหม่
+          </button>
+        </div>
       </div>
 
       {!loading && incidents.length > 0 && (

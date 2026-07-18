@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Teacher, LessonRecord, LessonPlan, SUBJECTS, Student } from "./types";
+import {
+Teacher, LessonRecord, LessonPlan, SUBJECTS, Student } from "./types";
 import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
 import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
@@ -19,6 +20,8 @@ import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
 import { OverviewCalendar } from "./components/OverviewCalendar";
 import { AcademicModule } from "./components/AcademicModule";
 import { DisciplineModule } from "./components/DisciplineModule";
+import { LessonAdmitModule } from './components/LessonAdmitModule';
+
 import {
   BookOpen,
   LogOut,
@@ -59,6 +62,7 @@ import {
   PenLine,
   List,
   History,
+  UserPlus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
@@ -168,7 +172,7 @@ export default function App() {
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
-    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline"
+    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission"
   >("home");
   const [activeTab, setActiveTab] = useState<
     "form" | "dashboard" | "plan-form" | "plan-list"
@@ -1377,6 +1381,20 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonDiscipline)</span>
             </div>
           </button>
+          <button
+            onClick={() => setActiveModule("admission")}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+              activeModule === "admission"
+                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <UserPlus className="h-4.5 w-4.5 shrink-0" />
+            <div className="flex flex-col items-center sm:items-start leading-tight">
+              <span className="whitespace-nowrap">6. การรับสมัครนักเรียน</span>
+              <span className="text-xs font-semibold opacity-90">(LessonAdmit)</span>
+            </div>
+          </button>
           
           {currentTeacher.role === "admin" && (
             <button
@@ -1628,6 +1646,25 @@ export default function App() {
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
+                </p>
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+                  เปิดใช้งาน
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveModule("admission")}
+                className="bg-white p-8 rounded-2xl border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                <div className="h-16 w-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <UserPlus className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
+                  <span className="whitespace-nowrap">6. การรับสมัครนักเรียน</span>
+                  <span className="text-base text-slate-500 font-black">(LessonAdmit)</span>
+                </h3>
+                <p className="text-sm text-slate-500">
+                  ระบบรับสมัครเรียน เลื่อนชั้น และจบการศึกษา
                 </p>
                 <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                   เปิดใช้งาน
@@ -1933,6 +1970,7 @@ export default function App() {
               currentTeacher={currentTeacher}
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
+              students={students}
             />
           </div>
         ) : activeModule === "analytics" ? (
@@ -1977,6 +2015,12 @@ export default function App() {
             currentTeacher={currentTeacher}
             systemSemester={systemSemester}
             systemAcademicYear={systemAcademicYear}
+            students={students}
+          />
+        ) : activeModule === "admission" ? (
+          <LessonAdmitModule
+            systemAcademicYear={systemAcademicYear}
+            systemSemester={systemSemester}
             students={students}
           />
         ) : null}
