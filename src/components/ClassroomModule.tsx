@@ -28,6 +28,7 @@ import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
 import { ImportStudentData } from "./ImportStudentData";
 import { StudentModal } from "./StudentModal";
 import { BatchPromotionModal } from "./BatchPromotionModal";
+import { AssignSectionModal } from "./AssignSectionModal";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import {
   collection,
@@ -66,9 +67,25 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   );
 
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
-  const [students, setStudents] = useState<Student[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
+  
+  const uniqueGrades = React.useMemo(() => {
+    const dbGrades = new Set(students.map(s => s.gradeLevel));
+    
+    // Grades to hide if they don't have any students (to avoid clutter when sub-rooms are used)
+    const hideIfEmpty = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
+    const filteredGradeLevels = GRADE_LEVELS.filter(g => !hideIfEmpty.includes(g) || dbGrades.has(g));
+
+    // Filter out grades that are already in GRADE_LEVELS
+    const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
+    // Sort extraGrades simply by string comparison
+    extraGrades.sort();
+    return [...filteredGradeLevels, ...extraGrades];
+  }, [students]);
+
   const [showImport, setShowImport] = useState(false);
   const [showBatchPromotion, setShowBatchPromotion] = useState(false);
+  const [showAssignSection, setShowAssignSection] = useState(false);
   const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">(
     "all",
   );
@@ -228,6 +245,11 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   // Calculate counts based on displayed students (or just grade level students if not searching)
   const studentsInGrade = students.filter(s => {
+    if (selectedGrade === 'จบการศึกษา') return s.status === 'graduated' || s.gradeLevel === 'จบการศึกษา';
+    
+    // For all other views, hide graduated students
+    if (s.status === 'graduated') return false;
+    
     if (selectedGrade === 'ภาพรวม') return true;
     if (selectedGrade === 'ระดับอนุบาล') return (s.gradeLevel || '').startsWith('อนุบาล');
     if (selectedGrade === 'ระดับประถมศึกษา') return (s.gradeLevel || '').startsWith('ประถม');
@@ -576,13 +598,16 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 onChange={(e) => setSelectedGrade(e.target.value)}
                 className="appearance-none bg-white text-slate-800 rounded-lg pl-3 pr-8 py-1.5 text-sm font-bold focus:ring-2 focus:ring-pink-300 outline-none w-full sm:w-auto min-w-[120px] shadow-sm cursor-pointer"
               >
-                <optgroup label="มุมมองพิเศษ">
-                  <option value="ภาพรวม">ภาพรวม (ทั้งหมด)</option>
-                  <option value="ระดับอนุบาล">ระดับอนุบาล (อนุบาล 1-3)</option>
-                  <option value="ระดับประถมศึกษา">ระดับประถมศึกษา (ป.1-ป.6)</option>
-                </optgroup>
+                {isStudentManager && (
+                  <optgroup label="มุมมองพิเศษ">
+                    <option value="ภาพรวม">ภาพรวม (ทั้งหมด)</option>
+                    <option value="ระดับอนุบาล">ระดับอนุบาล (อนุบาล 1-3)</option>
+                    <option value="ระดับประถมศึกษา">ระดับประถมศึกษา (ป.1-ป.6)</option>
+                    <option value="จบการศึกษา">จบการศึกษา (ศิษย์เก่า)</option>
+                  </optgroup>
+                )}
                 <optgroup label="รายชั้นเรียน">
-                  {GRADE_LEVELS.map((g) => (
+                  {uniqueGrades.map((g) => (
                     <option key={g} value={g}>
                       {g}
                     </option>
@@ -760,7 +785,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   >
                     <Download className="h-4 w-4" /> ส่งออก CSV
                   </button>
-                  {GRADE_LEVELS.includes(selectedGrade) && (
+                  {uniqueGrades.includes(selectedGrade) && (
                     <>
 {isStudentManager && (                      <button
                         onClick={() => setShowImport(true)}
@@ -787,6 +812,20 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       >
                         <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                       </button>
+                      <button
+                        onClick={() => setShowBatchPromotion(true)}
+                        className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                      >
+                        <TrendingUp className="h-4 w-4" /> เลื่อนชั้นทั้งห้อง
+                      </button>
+                      {GRADE_LEVELS.some(g => g.startsWith(selectedGrade + "/")) && (
+                        <button
+                          onClick={() => setShowAssignSection(true)}
+                          className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                        >
+                          <Users className="h-4 w-4" /> ย้ายห้อง/จัดห้องย่อย
+                        </button>
+                      )}
                         </>
                       )}
                     </>
@@ -1839,6 +1878,16 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             systemAcademicYear={systemAcademicYear}
             onClose={() => setShowBatchPromotion(false)}
             onSuccess={() => setShowBatchPromotion(false)}
+          />
+        )}
+
+        {/* Assign Section Modal */}
+        {showAssignSection && (
+          <AssignSectionModal
+            students={studentsInGrade}
+            currentGrade={selectedGrade}
+            onClose={() => setShowAssignSection(false)}
+            onSuccess={() => setShowAssignSection(false)}
           />
         )}
 

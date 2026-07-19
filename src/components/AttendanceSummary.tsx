@@ -5,17 +5,29 @@ import { AttendanceSession, GRADE_LEVELS } from '../types';
 import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2 } from 'lucide-react';
 import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
 
+import { Student } from '../types';
+
 interface AttendanceSummaryProps {
   systemAcademicYear?: string;
   systemSemester?: string;
+  students: Student[];
 }
 
-export function AttendanceSummary({ systemAcademicYear, systemSemester }: AttendanceSummaryProps) {
+export function AttendanceSummary({ systemAcademicYear, systemSemester, students }: AttendanceSummaryProps) {
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'daily' | 'cumulative'>('daily');
+
+  const uniqueGrades = React.useMemo(() => {
+    const dbGrades = new Set(students.map(s => s.gradeLevel));
+    const hideIfEmpty = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
+    const filteredGradeLevels = GRADE_LEVELS.filter(g => !hideIfEmpty.includes(g) || dbGrades.has(g));
+    const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
+    extraGrades.sort();
+    return [...filteredGradeLevels, ...extraGrades];
+  }, [students]);
 
   useEffect(() => {
     if (viewMode === 'cumulative') return;
@@ -93,7 +105,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester }: Attend
           onChange={(e) => setSelectedGrade(e.target.value)}
           className="border border-slate-200 rounded-lg px-4 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
         >
-          {GRADE_LEVELS.map(g => (
+          {uniqueGrades.map(g => (
             <option key={g} value={g}>{g}</option>
           ))}
         </select>

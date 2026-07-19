@@ -873,6 +873,7 @@ export default function App() {
           deputy: "รองผู้อำนวยการ",
           admin: "ผู้ดูแลระบบ",
           discipline: "หัวหน้างานปกครอง",
+          staff: "เจ้าหน้าที่ธุรการ",
         };
         const currentRoleStr = currentTeacher
           ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
@@ -1396,7 +1397,7 @@ export default function App() {
             </div>
           </button>
           
-          {currentTeacher.role === "admin" && (
+          {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
             <button
               onClick={() => setActiveModule("admin" as any)}
               className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1560,9 +1561,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-violet-50 text-violet-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Presentation className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">1. การจัดการผู้สอน</span>
-                  <span className="text-base text-slate-500 font-black">(LessonTeach)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">1. การจัดการผู้สอน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonTeach)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
@@ -1580,9 +1581,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Users className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">2. การจัดการชั้นเรียน</span>
-                  <span className="text-base text-slate-500 font-black">(LessonClass)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">2. การจัดการชั้นเรียน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonClass)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   จัดการข้อมูลนักเรียน เช็กชื่อ และบันทึกพฤติกรรม
@@ -1600,9 +1601,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <BarChart3 className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap text-base sm:text-lg">3. การวัดและประเมินผลผู้เรียน</span>
-                  <span className="text-base text-slate-500 font-black">(LessonAchieve)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap text-base sm:text-lg">3. การวัดและประเมินผลผู้เรียน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAchieve)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน
@@ -1620,9 +1621,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-indigo-500">
                   <BookOpen className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">4. การบริหารงานวิชาการ</span>
-                  <span className="text-base text-slate-500 font-black">(LessonAcad)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">4. การบริหารงานวิชาการ</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAcad)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   ดูตารางสอน ปฏิทินกิจกรรม และการตั้งค่าวิชาการ
@@ -1640,9 +1641,9 @@ export default function App() {
                 <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <ShieldAlert className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">5. การบริหารงานปกครอง</span>
-                  <span className="text-base text-slate-500 font-black">(LessonDiscipline)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">5. การบริหารงานปกครอง</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonDiscipline)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
@@ -1659,18 +1660,18 @@ export default function App() {
                 <div className="h-16 w-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <UserPlus className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">6. การรับสมัครนักเรียน</span>
-                  <span className="text-base text-slate-500 font-black">(LessonAdmit)</span>
+                <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">6. การรับสมัครนักเรียน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAdmit)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   ระบบรับสมัครเรียน เลื่อนชั้น และจบการศึกษา
                 </p>
-                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
-                  เปิดใช้งาน
+                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
+                  <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
                 </div>
               </button>
-              {currentTeacher.role === "admin" && (
+              {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
                 <button
                   onClick={() => setActiveModule("admin" as any)}
                   className="bg-white p-8 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
@@ -1679,15 +1680,15 @@ export default function App() {
                   <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <ShieldCheck className="h-8 w-8" />
                   </div>
-                  <h3 className="text-lg font-black text-slate-800 mb-2 leading-tight flex flex-col gap-0.5">
-                  <span className="whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
-                  <span className="text-base text-slate-500 font-black">(Admin)</span>
+                  <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(Admin)</span>
                 </h3>
                   <p className="text-sm text-slate-500">
                     จัดการบัญชีผู้ใช้งาน สิทธิ์การเข้าถึง และข้อมูลของโรงเรียน
                   </p>
                   <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
-                    เปิดใช้งานเฉพาะ Admin
+                    เปิดใช้งานเฉพาะ Admin/ธุรการ
                   </div>
                 </button>
               )}
@@ -2018,11 +2019,35 @@ export default function App() {
             students={students}
           />
         ) : activeModule === "admission" ? (
-          <LessonAdmitModule
-            systemAcademicYear={systemAcademicYear}
-            systemSemester={systemSemester}
-            students={students}
-          />
+          <div className="relative animate-in fade-in duration-300">
+            {currentTeacher.role === 'teacher' && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
+                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">
+                    โมดูลการรับสมัครนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                  </p>
+                  <button
+                    onClick={() => setActiveModule("home")}
+                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                  >
+                    กลับสู่หน้าหลัก
+                  </button>
+                </div>
+              </div>
+            )}
+            <LessonAdmitModule
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+              students={students}
+              currentTeacher={currentTeacher}
+            />
+          </div>
         ) : null}
       </main>
 
@@ -2069,6 +2094,7 @@ export default function App() {
                 deputy: "รองผู้อำนวยการ",
                 admin: "ผู้ดูแลระบบ",
                 discipline: "หัวหน้างานปกครอง",
+                staff: "เจ้าหน้าที่ธุรการ",
               };
               const currentRoleStr = currentTeacher
                 ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"

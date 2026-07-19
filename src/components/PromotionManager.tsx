@@ -19,23 +19,22 @@ export const PromotionManager: React.FC<{
   ).sort((a, b) => a.number - b.number);
 
   const getNextGrade = (current: string): string => {
-    if (current === 'อนุบาล 3') return 'ประถมศึกษาปีที่ 1/1';
-    if (current === 'ประถมศึกษาปีที่ 6') return 'จบการศึกษา';
+    if (current === 'อนุบาล 3') return 'ประถมศึกษาปีที่ 1';
+    if (current.startsWith('ประถมศึกษาปีที่ 6')) return 'จบการศึกษา';
     
-    // Custom handling for classes with sections
-    if (current === 'ประถมศึกษาปีที่ 1') return 'ประถมศึกษาปีที่ 2';
-    if (current === 'ประถมศึกษาปีที่ 1/1' || current === 'ประถมศึกษาปีที่ 1/2') return 'ประถมศึกษาปีที่ 2/1';
-    if (current === 'ประถมศึกษาปีที่ 2') return 'ประถมศึกษาปีที่ 3';
-    if (current === 'ประถมศึกษาปีที่ 2/1' || current === 'ประถมศึกษาปีที่ 2/2') return 'ประถมศึกษาปีที่ 3';
-
-    // Find next grade in array (for regular classes)
-    const currentIndex = GRADE_LEVELS.indexOf(current);
-    if (currentIndex >= 0 && currentIndex < GRADE_LEVELS.length - 1) {
-      // Return the next logical grade level (skipping sections if coming from a non-section grade)
-      // Since we handled 1/x and 2/x above, this works for Kindergarten and Prathom 3-5.
-      return GRADE_LEVELS[currentIndex + 1];
+    // Check for /1 or /2
+    const match = current.match(/ประถมศึกษาปีที่ (\d)(\/(\d))?/);
+    if (match) {
+      const year = parseInt(match[1]);
+      const room = match[3];
+      if (room) {
+        return `ประถมศึกษาปีที่ ${year + 1}/${room}`;
+      } else {
+        return `ประถมศึกษาปีที่ ${year + 1}`;
+      }
     }
-    return current; // Default
+    
+    return GRADE_LEVELS[GRADE_LEVELS.indexOf(current) + 1] || 'จบการศึกษา';
   };
 
   const handlePromoteAll = async () => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Settings, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus } from 'lucide-react';
-import { Student, AdmissionRecord, GRADE_LEVELS } from '../types';
+import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
 import { collection, query, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
@@ -8,13 +8,16 @@ interface LessonAdmitModuleProps {
   systemAcademicYear: string;
   systemSemester: string;
   students: Student[];
+  currentTeacher: Teacher;
 }
 
 export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({ 
   systemAcademicYear, 
-  students 
+  students,
+  currentTeacher
 }) => {
   const [activeTab, setActiveTab] = useState<'admission' | 'promotion'>('admission');
+  const [showForm, setShowForm] = useState(false);
   const [applicants, setApplicants] = useState<AdmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +57,7 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
           </div>
           <div>
             <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
-              งานรับนักเรียน (LessonAdmit)
+              การรับสมัครนักเรียน (LessonAdmit)
             </h2>
             <p className="text-indigo-100 font-medium mt-1">
               ระบบรับสมัครและจัดการสถานะผู้เรียน
@@ -64,7 +67,14 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
         
         <div className="relative z-10 flex bg-white/20 backdrop-blur-md rounded-xl p-1 shadow-inner border border-white/20 w-full lg:w-auto">
           <button
-            className={`flex-1 lg:flex-none flex items-center justify-center gap-2 py-2 px-6 rounded-lg text-sm font-bold transition-all bg-white text-indigo-600 shadow-sm`}
+            onClick={() => {
+              if (currentTeacher.role === 'teacher') {
+                alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
+                return;
+              }
+              setShowForm(!showForm);
+            }}
+            className={`flex-1 lg:flex-none flex items-center justify-center gap-2 py-2 px-6 rounded-lg text-sm font-bold transition-all bg-white text-indigo-600 shadow-sm hover:bg-indigo-50 hover:shadow-md`}
           >
             <UserPlus className="h-4 w-4" /> รับสมัครเรียนใหม่
           </button>
@@ -76,6 +86,9 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
           targetAcademicYear={targetAcademicYear} 
           applicants={applicants}
           refreshApplicants={fetchApplicants}
+          showForm={showForm}
+          setShowForm={setShowForm}
+          currentTeacher={currentTeacher}
         />
       )}
 
@@ -133,12 +146,13 @@ const NationalIdInput = ({ value, onChange }: { value: string, onChange: (val: s
 };
 
 const AdmissionManager: React.FC<{
-
   targetAcademicYear: string;
   applicants: AdmissionRecord[];
   refreshApplicants: () => void;
-}> = ({ targetAcademicYear, applicants, refreshApplicants }) => {
-  const [showForm, setShowForm] = useState(false);
+  showForm: boolean;
+  setShowForm: (val: boolean) => void;
+  currentTeacher: Teacher;
+}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [thaiDb, setThaiDb] = useState<any[]>([]);
@@ -157,7 +171,7 @@ const AdmissionManager: React.FC<{
 
   const [formData, setFormData] = useState<Partial<AdmissionRecord>>({
     academicYear: targetAcademicYear,
-    applyForGrade: 'ประถมศึกษาปีที่ 1/1',
+    applyForGrade: 'ประถมศึกษาปีที่ 1',
     gender: 'male',
     status: 'pending',
     firstName: 'เด็กชาย ',
@@ -177,6 +191,10 @@ const AdmissionManager: React.FC<{
     motherAddressObj: { ...emptyAddress },
     guardianAddressObj: { ...emptyAddress }
   });
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, academicYear: targetAcademicYear }));
+  }, [targetAcademicYear]);
 
   const handleGenderChange = (newGender: 'male' | 'female') => {
     let currentName = formData.firstName || '';
@@ -236,6 +254,10 @@ const AdmissionManager: React.FC<{
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentTeacher.role === 'teacher') {
+      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
+      return;
+    }
     if (!formData.firstName || !formData.lastName || !formData.nationalId || formData.nationalId.length !== 13) {
       alert('กรุณากรอกข้อมูลให้ครบถ้วน รวมถึงเลขประจำตัวประชาชน 13 หลัก');
       return;
@@ -269,6 +291,21 @@ const AdmissionManager: React.FC<{
   };
 
   const handleStatusChange = async (id: string, newStatus: AdmissionRecord['status'], applicant: AdmissionRecord) => {
+    if (currentTeacher.role === 'teacher') {
+      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
+      return;
+    }
+    
+    let finalGrade = applicant.applyForGrade;
+    if (newStatus === 'enrolled') {
+      const userChoice = window.prompt(
+        "กรุณาระบุห้องเรียนที่ต้องการให้เข้าศึกษา (เช่น ประถมศึกษาปีที่ 1/1, ประถมศึกษาปีที่ 1/2)\nหากมีเพียงห้องเดียว สามารถกดยืนยันได้เลย",
+        applicant.applyForGrade
+      );
+      if (userChoice === null) return; // cancelled
+      finalGrade = userChoice.trim() || applicant.applyForGrade;
+    }
+    
     try {
       await updateDoc(doc(db, 'admissions', id), { status: newStatus });
       
@@ -278,7 +315,7 @@ const AdmissionManager: React.FC<{
           firstName: applicant.firstName,
           lastName: applicant.lastName,
           nickname: applicant.nickname,
-          gradeLevel: applicant.applyForGrade,
+          gradeLevel: finalGrade,
           gender: applicant.gender,
           nationalId: applicant.nationalId,
           number: 99,
@@ -360,7 +397,7 @@ const AdmissionManager: React.FC<{
       return (
         <div className="flex gap-2">
           <input type="text" value={value === 'other' ? '' : value} onChange={e => onChange(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder={placeholder} autoFocus />
-          <button type="button" onClick={() => onChange('')} className="text-xs text-rose-500 font-bold px-2 whitespace-nowrap">ยกเลิก</button>
+          <button type="button" onClick={() => onChange('')} className="text-xs text-rose-500 hover:text-white hover:bg-rose-500 px-2 py-1 rounded shadow-sm hover:shadow-md font-bold whitespace-nowrap transition-all">ยกเลิก</button>
         </div>
       );
     }
@@ -468,7 +505,7 @@ const AdmissionManager: React.FC<{
         <div className="flex justify-between items-center mb-2">
           <h5 className="font-bold text-slate-700 text-sm">{label}</h5>
           {person !== 'addressObj' && (
-            <button type="button" onClick={() => copyStudentAddress(person)} className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-1 rounded">
+            <button type="button" onClick={() => copyStudentAddress(person)} className="text-xs text-indigo-600 hover:text-white font-bold bg-indigo-50 hover:bg-indigo-500 shadow-sm hover:shadow-md px-2 py-1 rounded transition-all">
               + ใช้ที่อยู่เดียวกับนักเรียน
             </button>
           )}
@@ -542,13 +579,6 @@ const AdmissionManager: React.FC<{
           <h3 className="text-lg font-bold text-slate-800">ข้อมูลการรับสมัคร ปีการศึกษา {targetAcademicYear}</h3>
           <p className="text-sm text-slate-500">จัดการข้อมูลผู้สมัครเข้าเรียนใหม่ และอนุมัติเข้าสู่ระบบ</p>
         </div>
-        <button 
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-sm flex items-center gap-2"
-        >
-          {showForm ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-          {showForm ? 'ปิดแบบฟอร์ม' : 'กรอกใบสมัคร'}
-        </button>
       </div>
 
       {showForm && (
@@ -567,7 +597,7 @@ const AdmissionManager: React.FC<{
                   onChange={(e) => setFormData({...formData, applyForGrade: e.target.value})}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                 >
-                  {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
+                  {GRADE_LEVELS.filter(g => !g.includes('/')).map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
             </div>
@@ -1041,7 +1071,7 @@ const AdmissionManager: React.FC<{
                       <select 
                         value={app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value as any, app)}
-                        disabled={app.status === 'enrolled'}
+                        disabled={app.status === 'enrolled' || currentTeacher.role === 'teacher'}
                         className="border border-slate-200 rounded text-xs px-2 py-1 bg-white outline-none focus:border-indigo-500"
                       >
                         <option value="pending">รอตรวจสอบ</option>

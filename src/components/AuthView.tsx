@@ -33,7 +33,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
   const [affiliation, setAffiliation] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<'teacher' | 'academic' | 'discipline' | 'deputy' | 'admin'>('teacher');
+  const [regRole, setRegRole] = useState<'teacher' | 'academic' | 'discipline' | 'deputy' | 'admin' | 'staff'>('teacher');
   const [academicPasscode, setAcademicPasscode] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -161,6 +161,8 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
         resolvedAffiliation = 'รองผู้อำนวยการ';
       } else if (regRole === 'admin') {
         resolvedAffiliation = 'ผู้ดูแลระบบ';
+      } else if (regRole === 'staff') {
+        resolvedAffiliation = 'เจ้าหน้าที่ธุรการ';
       }
 
       const newTeacher: Teacher = {
@@ -479,7 +481,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                   disabled={isLoading}
                   value={regRole}
                   onChange={(e) => {
-                    setRegRole(e.target.value as 'teacher' | 'academic' | 'discipline' | 'deputy' | 'admin');
+                    setRegRole(e.target.value as 'teacher' | 'academic' | 'discipline' | 'deputy' | 'admin' | 'staff');
                     setAcademicPasscode('');
                   }}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 cursor-pointer"
@@ -489,6 +491,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                   <option value="discipline">หัวหน้าฝ่ายปกครอง (ดูแลภาพรวมงานปกครอง วินัยนักเรียน)</option>
                   <option value="deputy">รองผู้อำนวยการ (ดูแลฝ่ายวิชาการ ตรวจสอบรับรองลงนามรายงาน)</option>
                   <option value="admin">ผู้ดูแลระบบ (ควบคุมดูแล จัดระบบฐานข้อมูลความปลอดภัย)</option>
+                  <option value="staff">เจ้าหน้าที่ธุรการ (งานสารบรรณ ระบบรับสมัครนักเรียนใหม่)</option>
                 </select>
               </div>
 

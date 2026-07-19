@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { SchoolEventCalendar } from "./SchoolEventCalendar";
 import { PromotionManager } from "./PromotionManager";
+import { AcademicSettings } from "./AcademicSettings";
+import { StaffManager } from "./StaffManager";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
 import { Teacher } from "../types";
@@ -87,16 +89,18 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         >
           <Settings className="h-4 w-4" /> ตั้งค่าปี/ภาคเรียน
         </button>
-        <button
-          onClick={() => setActiveTab("staff")}
-          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
-            activeTab === "staff"
-              ? "bg-indigo-50 text-indigo-700"
-              : "text-slate-500 hover:bg-slate-50"
-          }`}
-        >
-          <Users className="h-4 w-4" /> ข้อมูลบุคลากร
-        </button>
+        {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
+          <button
+            onClick={() => setActiveTab("staff")}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+              activeTab === "staff"
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Users className="h-4 w-4" /> ข้อมูลบุคลากร
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("promotion")}
           className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
@@ -119,37 +123,19 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       )}
 
       {activeTab === "settings" && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
-          <div className="h-16 w-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Settings className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">ตั้งค่าระบบและวันเปิด-ปิดภาคเรียน</h3>
-          <p className="text-slate-500">ส่วนนี้ใช้สำหรับกำหนดจำนวนวันเรียนของแต่ละภาคเรียน การตั้งค่าเกณฑ์การผ่าน และข้อมูลอื่นๆ</p>
-          {(currentTeacher.role === 'admin' || currentTeacher.role === 'academic') ? (
-            <button className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition">
-              ตั้งค่าภาคเรียนปัจจุบัน
-            </button>
-          ) : (
-            <p className="mt-4 text-sm text-rose-500 font-medium">คุณไม่มีสิทธิ์แก้ไขการตั้งค่านี้</p>
-          )}
-        </div>
+        <AcademicSettings currentTeacher={currentTeacher} />
       )}
 
       {activeTab === "staff" && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 text-center">
-          <div className="h-16 w-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
-            <GraduationCap className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">ระบบจัดสรรบุคลากร</h3>
-          <p className="text-slate-500">ส่วนนี้ใช้สำหรับจัดโครงสร้างครูประจำชั้น และจัดสรรตารางสอนให้กับบุคลากร</p>
-          {(currentTeacher.role === 'admin' || currentTeacher.role === 'academic') ? (
-            <button className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition">
-              จัดการโครงสร้าง
-            </button>
-          ) : (
-            <p className="mt-4 text-sm text-rose-500 font-medium">คุณไม่มีสิทธิ์แก้ไขโครงสร้างบุคลากร</p>
-          )}
-        </div>
+        <StaffManager currentTeacher={currentTeacher} />
+      )}
+
+      {activeTab === "promotion" && (
+        <PromotionManager 
+          currentAcademicYear={systemAcademicYear} 
+          targetAcademicYear={String(parseInt(systemAcademicYear || "2567") + 1)} 
+          students={students} 
+        />
       )}
     </div>
   );

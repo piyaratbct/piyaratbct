@@ -21,12 +21,12 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Teacher>>({});
 
-  if (currentTeacher.role !== 'admin') {
+  if (currentTeacher.role !== 'admin' && currentTeacher.role !== 'staff') {
     return (
       <div className="p-12 text-center text-rose-600 bg-rose-50 rounded-2xl border border-rose-200 animate-in fade-in">
         <ShieldCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
         <h3 className="text-lg font-black tracking-wide">Unauthorized Access</h3>
-        <p className="text-sm font-semibold mt-1 text-rose-500">เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเข้าถึงการจัดการผู้ใช้งานได้</p>
+        <p className="text-sm font-semibold mt-1 text-rose-500">เฉพาะผู้ดูแลระบบ (Admin) และเจ้าหน้าที่ธุรการ (Staff) เท่านั้นที่สามารถเข้าถึงการจัดการผู้ใช้งานได้</p>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
       </div>
 
       {/* Metrics cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
           <span className="text-[10px] text-slate-400 font-black uppercase tracking-wide block">จำนวนสมาชิกทั้งหมด</span>
           <span className="text-xl font-extrabold text-slate-800 mt-1 block">{teachers.length} บัญชี</span>
@@ -68,6 +68,12 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
           <span className="text-[10px] text-slate-400 font-black uppercase tracking-wide block">ฝ่ายบริหาร / วิชาการ</span>
           <span className="text-xl font-extrabold text-pink-600 mt-1 block">
             {teachers.filter(t => t.role === 'academic' || t.role === 'deputy').length} ท่าน
+          </span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+          <span className="text-[10px] text-slate-400 font-black uppercase tracking-wide block">เจ้าหน้าที่ธุรการ</span>
+          <span className="text-xl font-extrabold text-indigo-600 mt-1 block">
+            {teachers.filter(t => t.role === 'staff').length} ท่าน
           </span>
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
@@ -124,7 +130,8 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                 academic: { text: 'หัวหน้าวิชาการ', style: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
                 deputy: { text: 'รองผู้อำนวยการ', style: 'bg-pink-50 text-pink-600 border-pink-200' },
                 admin: { text: 'ผู้ดูแลระบบ', style: 'bg-violet-50 text-violet-600 border-violet-200' },
-                discipline: { text: 'หัวหน้างานปกครอง', style: 'bg-amber-50 text-amber-600 border-amber-200' }
+                discipline: { text: 'หัวหน้างานปกครอง', style: 'bg-amber-50 text-amber-600 border-amber-200' },
+                staff: { text: 'เจ้าหน้าที่ธุรการ', style: 'bg-indigo-50 text-indigo-600 border-indigo-200' }
               };
               const roleConfig = roleLabels[teacher.role || 'teacher'] || roleLabels.teacher;
 
@@ -231,6 +238,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                                 <option value="academic">ฝ่ายวิชาการ (ตรวจแผนฯ / บันทึกหลังสอน)</option>
                                 <option value="deputy">รองผู้อำนวยการ (อนุมัติ)</option>
                                 <option value="discipline">หัวหน้างานปกครอง (ตรวจสอบวินัย)</option>
+                                <option value="staff">เจ้าหน้าที่ธุรการ (จัดการข้อมูล)</option>
                                 <option value="admin">ผู้ดูแลระบบสูงสุด (System Administrator)</option>
                               </select>
                             </div>

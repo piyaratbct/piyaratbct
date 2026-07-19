@@ -29,6 +29,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
 
+  const uniqueGrades = React.useMemo(() => {
+    const dbGrades = new Set(students.map(s => s.gradeLevel));
+    const hideIfEmpty = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
+    const filteredGradeLevels = GRADE_LEVELS.filter(g => !hideIfEmpty.includes(g) || dbGrades.has(g));
+    const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
+    extraGrades.sort();
+    return [...filteredGradeLevels, ...extraGrades];
+  }, [students]);
+
+  useEffect(() => {
+    const prathomGrades = uniqueGrades.filter(g => g.includes('ประถม'));
+    if (!prathomGrades.includes(selectedGrade) && prathomGrades.length > 0) {
+      setSelectedGrade(prathomGrades[0]);
+    }
+  }, [uniqueGrades, selectedGrade]);
+
   useEffect(() => {
     const q = query(collection(db, "subject_scores"));
     const unsubscribe = onSnapshot(
@@ -356,7 +372,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onChange={(e) => setSelectedGrade(e.target.value)}
                     className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
-                    {GRADE_LEVELS.filter(g => g.includes('ประถม')).map(g => (
+                    {uniqueGrades.filter(g => g.includes('ประถม')).map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
@@ -637,6 +653,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             <AttendanceSummary 
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
+              students={students}
             />
           )}
 

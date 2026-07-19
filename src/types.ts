@@ -8,7 +8,7 @@ export interface Teacher {
   affiliation: string;
   displayName: string;
   password?: string;
-  role?: 'teacher' | 'academic' | 'deputy' | 'admin' | 'discipline';
+  role?: 'teacher' | 'academic' | 'deputy' | 'admin' | 'discipline' | 'staff';
   hasSeeded?: boolean;
   homeroomClass?: string;
   coHomeroomClass?: string;
@@ -101,6 +101,12 @@ export interface LessonPlan {
 }
 
 
+export interface HistoricalRecord {
+  academicYear: string;
+  gradeLevel: string;
+  promotedAt?: string;
+}
+
 export interface Student {
   id: string;
   studentId: string;
@@ -140,6 +146,8 @@ export interface Student {
   allergicMedicine?: string;
   allergicFood?: string;
   congenitalDisease?: string;
+  historicalRecords?: HistoricalRecord[];
+  destinationSchool?: string;
 }
 
 export interface AttendanceSession {
