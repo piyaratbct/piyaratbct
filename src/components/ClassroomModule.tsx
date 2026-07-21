@@ -247,8 +247,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const studentsInGrade = students.filter(s => {
     if (selectedGrade === 'จบการศึกษา') return s.status === 'graduated' || s.gradeLevel === 'จบการศึกษา';
     
-    // For all other views, hide graduated students
-    if (s.status === 'graduated') return false;
+    // For all other views, hide graduated and inactive students
+    if (s.status === 'graduated' || s.status === 'inactive') return false;
     
     if (selectedGrade === 'ภาพรวม') return true;
     if (selectedGrade === 'ระดับอนุบาล') return (s.gradeLevel || '').startsWith('อนุบาล');

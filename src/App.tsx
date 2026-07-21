@@ -381,7 +381,7 @@ export default function App() {
         snapshot.forEach((doc) => {
           const data = doc.data() as LessonRecord;
           if (data.gradeLevel) {
-            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
           }
           fetchedRecords.push(data);
         });
@@ -518,7 +518,7 @@ export default function App() {
         snapshot.forEach((doc) => {
           const data = doc.data() as LessonPlan;
           if (data.gradeLevel) {
-            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
           }
           fetchedPlans.push(data);
         });
@@ -537,7 +537,7 @@ export default function App() {
         const fetchedStudents = snapshot.docs.map((doc) => {
           const data = doc.data() as Student;
           if (data.gradeLevel) {
-            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '');
+            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
           }
           return { id: doc.id, ...data };
         });

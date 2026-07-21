@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus } from 'lucide-react';
+import { UserPlus, Settings, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
-import { collection, query, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface LessonAdmitModuleProps {
@@ -89,6 +90,7 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
           showForm={showForm}
           setShowForm={setShowForm}
           currentTeacher={currentTeacher}
+          students={students}
         />
       )}
 
@@ -97,6 +99,55 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
   );
 };
 
+
+
+const CapacityModal = ({ isOpen, onClose, initialCapacities, onSave, isSaving }: { isOpen: boolean, onClose: () => void, initialCapacities: Record<string, number>, onSave: (caps: Record<string, number>) => void, isSaving: boolean }) => {
+  const [caps, setCaps] = useState<Record<string, number>>({});
+  
+  useEffect(() => {
+    if (isOpen) {
+      setCaps({ ...initialCapacities });
+    }
+  }, [isOpen, initialCapacities]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="font-bold text-slate-800 text-lg">ตั้งค่าจำนวนรับสมัคร</h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
+          {GRADE_LEVELS.filter(g => !g.includes('/')).map(grade => (
+            <div key={grade} className="flex justify-between items-center">
+              <label className="text-sm font-bold text-slate-700">{grade}</label>
+              <input 
+                type="number" 
+                min="0"
+                value={caps[grade] || ''} 
+                onChange={(e) => setCaps({...caps, [grade]: parseInt(e.target.value) || 0})}
+                className="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-right"
+                placeholder="ไม่จำกัด"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100">
+            ยกเลิก
+          </button>
+          <button onClick={() => onSave(caps)} disabled={isSaving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:opacity-50">
+            {isSaving ? 'กำลังบันทึก...' : 'บันทึก'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NationalIdInput = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
   const handleChange = (index: number, char: string) => {
@@ -145,6 +196,23 @@ const NationalIdInput = ({ value, onChange }: { value: string, onChange: (val: s
   );
 };
 
+const InputOrSelect = ({ options, value, onChange, placeholder }: any) => {
+  const isOtherSelected = value === 'other' || (value && !options.some((o:any) => o.value === value));
+  if (isOtherSelected) {
+    return (
+      <div className="flex gap-2">
+        <input type="text" value={value === 'other' ? '' : value} onChange={e => onChange(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder={placeholder} autoFocus />
+        <button type="button" onClick={() => onChange('')} className="text-xs text-rose-500 hover:text-white hover:bg-rose-500 px-2 py-1 rounded shadow-sm hover:shadow-md font-bold whitespace-nowrap transition-all">ยกเลิก</button>
+      </div>
+    );
+  }
+  return (
+    <select value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      {options.map((o:any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+};
+
 const AdmissionManager: React.FC<{
   targetAcademicYear: string;
   applicants: AdmissionRecord[];
@@ -152,10 +220,65 @@ const AdmissionManager: React.FC<{
   showForm: boolean;
   setShowForm: (val: boolean) => void;
   currentTeacher: Teacher;
-}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher }) => {
+  students: Student[];
+}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher, students }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [gradeCapacities, setGradeCapacities] = useState<Record<string, number>>({});
+  const [isSavingCapacity, setIsSavingCapacity] = useState(false);
+
+  useEffect(() => {
+    const fetchCapacities = async () => {
+      try {
+        const docRef = doc(db, 'settings', `admission_capacity_${targetAcademicYear}`);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setGradeCapacities(docSnap.data().capacities || {});
+        }
+      } catch (err) {
+        console.error('Failed to load capacities', err);
+      }
+    };
+    fetchCapacities();
+  }, [targetAcademicYear]);
+
+  const saveCapacities = async (newCapacities: Record<string, number>) => {
+    try {
+      setIsSavingCapacity(true);
+      await setDoc(doc(db, 'settings', `admission_capacity_${targetAcademicYear}`), { capacities: newCapacities }, { merge: true });
+      setGradeCapacities(newCapacities);
+      setShowCapacityModal(false);
+    } catch (err) {
+      console.error('Failed to save capacities', err);
+      alert('บันทึกข้อมูลไม่สำเร็จ');
+    } finally {
+      setIsSavingCapacity(false);
+    }
+  };
+
   
   const [thaiDb, setThaiDb] = useState<any[]>([]);
+  const activeStudents = React.useMemo(() => {
+    return students.filter(s => s.status === 'active' || !s.status);
+  }, [students]);
+
+  const formatAddress = (addr: any) => {
+    if (!addr) return '-';
+    const parts = [];
+    if (addr.houseNumber) parts.push(`เลขที่ ${addr.houseNumber}`);
+    if (addr.moo) parts.push(`ม.${addr.moo}`);
+    if (addr.village) parts.push(`หมู่บ้าน${addr.village}`);
+    if (addr.soi) parts.push(`ซ.${addr.soi}`);
+    if (addr.road) parts.push(`ถ.${addr.road}`);
+    if (addr.subDistrict) parts.push(`ต.${addr.subDistrict}`);
+    if (addr.district) parts.push(`อ.${addr.district}`);
+    if (addr.province) parts.push(`จ.${addr.province}`);
+    if (addr.zipCode) parts.push(`${addr.zipCode}`);
+    return parts.join(' ') || '-';
+  };
+
+  const [viewingApplicant, setViewingApplicant] = useState<AdmissionRecord | null>(null);
   useEffect(() => {
     fetch('/thai_address.json')
       .then(res => res.json())
@@ -296,6 +419,26 @@ const AdmissionManager: React.FC<{
       return;
     }
     
+    if ((newStatus === 'approved' || newStatus === 'enrolled') && !['approved', 'enrolled'].includes(applicant.status)) {
+      const grade = applicant.applyForGrade;
+      const cap = gradeCapacities[grade] || 0;
+      if (cap > 0) {
+        const currentStudentsInGrade = activeStudents.filter(s => {
+          const g = (s.gradeLevel || '').trim();
+          return g === grade || g.startsWith(grade + '/');
+        }).length;
+        const newlyApproved = applicants.filter(a => a.applyForGrade === grade && a.status === 'approved').length;
+        const totalOccupied = currentStudentsInGrade + newlyApproved;
+        
+        if (totalOccupied >= cap) {
+          const confirmExceed = window.confirm(`ระดับชั้น ${grade} เต็มความจุแล้ว (รวมนร.เดิมและใหม่ ${totalOccupied}/${cap} คน)\n\nคุณต้องการยืนยันรับนักเรียนใหม่เกินขนาดห้องหรือไม่?`);
+          if (!confirmExceed) {
+            return;
+          }
+        }
+      }
+    }
+    
     let finalGrade = applicant.applyForGrade;
     if (newStatus === 'enrolled') {
       const userChoice = window.prompt(
@@ -319,7 +462,17 @@ const AdmissionManager: React.FC<{
           gender: applicant.gender,
           nationalId: applicant.nationalId,
           number: 99,
-          status: 'active'
+          status: 'active',
+          dob: applicant.birthDate || '',
+          fatherFirstName: applicant.fatherFirstName || '',
+          fatherLastName: applicant.fatherLastName || '',
+          fatherPhone: applicant.fatherPhone || '',
+          motherFirstName: applicant.motherFirstName || '',
+          motherLastName: applicant.motherLastName || '',
+          motherPhone: applicant.motherPhone || '',
+          guardianFirstName: applicant.guardianFirstName || '',
+          guardianLastName: applicant.guardianLastName || '',
+          additionalNotes: applicant.underlyingDisease ? `โรคประจำตัว: ${applicant.underlyingDisease}` : '',
         };
         await addDoc(collection(db, 'students'), studentPayload);
         alert('เพิ่มข้อมูลลงในฐานข้อมูลนักเรียนเรียบร้อยแล้ว');
@@ -332,6 +485,27 @@ const AdmissionManager: React.FC<{
   };
 
   const pendingCount = applicants.filter(a => a.status === 'pending').length;
+
+  const gradeStats = React.useMemo(() => {
+    const stats: Record<string, number> = {};
+    applicants.forEach(app => {
+      const grade = app.applyForGrade || 'ไม่ระบุ';
+      stats[grade] = (stats[grade] || 0) + 1;
+    });
+    return Object.entries(stats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [applicants]);
+
+  const schoolStats = React.useMemo(() => {
+    const stats: Record<string, number> = {};
+    applicants.forEach(app => {
+      const school = app.previousSchool || 'ไม่ระบุโรงเรียนเดิม';
+      stats[school] = (stats[school] || 0) + 1;
+    });
+    return Object.entries(stats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+  }, [applicants]);
+
+  const COLORS = ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#6366f1'];
+
 
 
 
@@ -391,22 +565,7 @@ const AdmissionManager: React.FC<{
     { value: 'other', label: 'อื่นๆ (ระบุ)' },
   ];
 
-  const InputOrSelect = ({ options, value, onChange, placeholder }: any) => {
-    const isOtherSelected = value === 'other' || (value && !options.some((o:any) => o.value === value));
-    if (isOtherSelected) {
-      return (
-        <div className="flex gap-2">
-          <input type="text" value={value === 'other' ? '' : value} onChange={e => onChange(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder={placeholder} autoFocus />
-          <button type="button" onClick={() => onChange('')} className="text-xs text-rose-500 hover:text-white hover:bg-rose-500 px-2 py-1 rounded shadow-sm hover:shadow-md font-bold whitespace-nowrap transition-all">ยกเลิก</button>
-        </div>
-      );
-    }
-    return (
-      <select value={value || ''} onChange={e => onChange(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-        {options.map((o:any) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    );
-  };
+
 
   const handleAddressChange = (person: 'addressObj' | 'fatherAddressObj' | 'motherAddressObj' | 'guardianAddressObj', field: string, value: string) => {
     setFormData(prev => {
@@ -1029,15 +1188,165 @@ const AdmissionManager: React.FC<{
         </form>
       )}
 
+      
+
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                <h5 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-emerald-500" /> สถานะการรับสมัคร / โควตา
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {GRADE_LEVELS.filter(g => !g.includes('/')).map(grade => {
+                    const cap = gradeCapacities[grade] || 0;
+                    const currentStudentsInGrade = activeStudents.filter(s => {
+                      const g = (s.gradeLevel || '').trim();
+                      return g === grade || g.startsWith(grade + '/');
+                    }).length;
+                    
+                    const totalApplied = applicants.filter(a => a.applyForGrade === grade).length;
+                    const newlyApproved = applicants.filter(a => a.applyForGrade === grade && a.status === 'approved').length;
+                    const totalOccupied = currentStudentsInGrade + newlyApproved;
+                    
+                    const remaining = cap > 0 ? cap - totalOccupied : 'ไม่จำกัด';
+                    const isFull = cap > 0 && totalOccupied >= cap;
+                    
+                    if (cap === 0 && totalApplied === 0 && currentStudentsInGrade === 0) return null;
+                    
+                    const progressPercent = cap > 0 ? Math.min(100, Math.round((totalOccupied / cap) * 100)) : (totalOccupied > 0 ? 100 : 0);
+                    let progressColor = 'bg-emerald-500';
+                    if (isFull) progressColor = 'bg-rose-500';
+                    else if (cap > 0 && progressPercent >= 80) progressColor = 'bg-amber-500';
+                    
+                    return (
+                      <div key={grade} className="bg-slate-50 rounded-lg p-4 border border-slate-100 flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <h6 className="font-bold text-slate-800">{grade}</h6>
+                          {isFull ? (
+                            <span className="text-rose-600 font-bold text-xs bg-rose-100 px-2 py-1 rounded-full">
+                              {totalOccupied > cap ? `เกินขนาดห้อง ${totalOccupied - cap} ที่นั่ง` : 'เต็มแล้ว'}
+                            </span>
+                          ) : cap > 0 ? (
+                            <span className="text-emerald-600 font-bold text-xs bg-emerald-100 px-2 py-1 rounded-full">รับเพิ่มได้ {remaining} ที่นั่ง</span>
+                          ) : (
+                            <span className="text-slate-600 font-bold text-xs bg-slate-200 px-2 py-1 rounded-full">ไม่จำกัด</span>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-slate-600 text-[10px]">
+                              เดิม <span className="font-bold text-slate-700">{currentStudentsInGrade}</span> | 
+                              ใหม่ <span className="font-bold text-emerald-600">{newlyApproved}</span> | 
+                              สมัคร <span className="font-bold text-indigo-600">{totalApplied}</span>
+                            </span>
+                            {cap > 0 ? (
+                              <span className="text-slate-500 text-right text-[10px]">ความจุ {cap} คน</span>
+                            ) : (
+                              <span className="text-slate-500 text-right text-[10px]">ไม่จำกัด</span>
+                            )}
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div className={`${progressColor} h-2 rounded-full transition-all duration-500`} style={{ width: `${progressPercent}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {GRADE_LEVELS.filter(g => !g.includes('/')).every(grade => {
+                    const cap = gradeCapacities[grade] || 0;
+                    const totalApplied = applicants.filter(a => a.applyForGrade === grade).length;
+                    const currentStudentsInGrade = activeStudents.filter(s => {
+                      const g = (s.gradeLevel || '').trim();
+                      return g === grade || g.startsWith(grade + '/');
+                    }).length;
+                    return cap === 0 && totalApplied === 0 && currentStudentsInGrade === 0;
+                  }) && (
+                     <div className="col-span-full py-8 text-center text-slate-400">ยังไม่มีข้อมูลการตั้งค่าโควตา หรือข้อมูลผู้สมัคร</div>
+                  )}
+                </div>
+              </div>
+
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h4 className="font-bold text-slate-800">รายชื่อผู้สมัคร ({applicants.length} คน)</h4>
-          {pendingCount > 0 && (
-            <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
-              รอดำเนินการ {pendingCount} รายการ
-            </span>
-          )}
+        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center bg-slate-50 gap-4 sm:gap-0">
+          <div className="flex items-center gap-4">
+            <h4 className="font-bold text-slate-800">รายชื่อผู้สมัคร ({applicants.length} คน)</h4>
+            {pendingCount > 0 && (
+              <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                รอดำเนินการ {pendingCount} รายการ
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowCapacityModal(true)} 
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+            >
+              <Settings className="h-4 w-4" />
+              ตั้งค่าจำนวนรับ
+            </button>
+            <button 
+              onClick={() => setShowStats(!showStats)} 
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm ${showStats ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+            >
+              {showStats ? <BarChart3 className="h-4 w-4" /> : <PieChartIcon className="h-4 w-4" />}
+              {showStats ? 'ซ่อนสถิติ' : 'ดูสถิติ'}
+            </button>
+          </div>
         </div>
+        {showStats && (
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <h5 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
+                  <BarChart3 className="h-4 w-4 text-indigo-500" /> จำนวนนักเรียนจำแนกตามระดับชั้น
+                </h5>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gradeStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Bar dataKey="value" fill="#4f46e5" radius={[4, 4, 0, 0]} name="จำนวนนักเรียน (คน)">
+                        {gradeStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <h5 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-sm">
+                  <PieChartIcon className="h-4 w-4 text-pink-500" /> สถิติโรงเรียนเดิม (10 อันดับแรก)
+                </h5>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={schoolStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => percent > 0.05 ? `${name.substring(0,10)}${name.length > 10 ? '...' : ''} ${(percent * 100).toFixed(0)}%` : ''}
+                        labelLine={false}
+                      >
+                        {schoolStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[(index + 4) % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-white text-slate-500 text-xs uppercase border-b border-slate-100">
@@ -1067,7 +1376,14 @@ const AdmissionManager: React.FC<{
                       {app.status === 'rejected' && <span className="px-2 py-1 bg-rose-100 text-rose-700 text-[10px] font-bold rounded-full">ไม่ผ่าน</span>}
                       {app.status === 'enrolled' && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">ขึ้นทะเบียนแล้ว</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => setViewingApplicant(app)}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition-colors"
+                        title="ดูข้อมูล"
+                      >
+                        <Search className="h-4 w-4" />
+                      </button>
                       <select 
                         value={app.status}
                         onChange={(e) => handleStatusChange(app.id, e.target.value as any, app)}
@@ -1087,6 +1403,156 @@ const AdmissionManager: React.FC<{
           </table>
         </div>
       </div>
+
+
+      {viewingApplicant && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-lg">ข้อมูลใบสมัคร: {viewingApplicant.firstName} {viewingApplicant.lastName}</h3>
+              <button onClick={() => setViewingApplicant(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+              
+              {/* Row 1: Personal & Health */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-indigo-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลส่วนตัว
+                  </h4>
+                  <ul className="space-y-2 text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                    <li className="col-span-2"><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.firstName} {viewingApplicant.lastName}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ชื่อเล่น:</span> {viewingApplicant.nickname || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">เพศ:</span> {viewingApplicant.gender === 'male' ? 'ชาย' : 'หญิง'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ชั้นที่สมัคร:</span> {viewingApplicant.applyForGrade}</li>
+                    <li className="col-span-2"><span className="text-slate-500 w-28 inline-block">เลข ปชช:</span> {viewingApplicant.nationalId || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">วันเกิด:</span> {viewingApplicant.birthDate || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.addressObj)}</span></li>
+                    <li><span className="text-slate-500 w-28 inline-block">รพ.ที่เกิด:</span> {viewingApplicant.birthHospital || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">จังหวัดที่เกิด:</span> {viewingApplicant.birthProvince || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.nationality || '-'}/{viewingApplicant.ethnicity || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ศาสนา:</span> {viewingApplicant.religion || '-'}</li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                  <div>
+                    <h4 className="font-bold text-rose-600 mb-3 border-b pb-2 flex items-center gap-2">
+                      <Settings className="h-4 w-4" /> ข้อมูลสุขภาพ
+                    </h4>
+                    <ul className="space-y-2 text-sm">
+                      <li><span className="text-slate-500 w-28 inline-block">หมู่เลือด:</span> {viewingApplicant.bloodGroup || '-'}</li>
+                      <li><span className="text-slate-500 w-28 inline-block">น้ำหนัก/ส่วนสูง:</span> {viewingApplicant.weight ? viewingApplicant.weight + ' กก.' : '-'} / {viewingApplicant.height ? viewingApplicant.height + ' ซม.' : '-'}</li>
+                      <li><span className="text-slate-500 w-28 inline-block">โรคประจำตัว:</span> {viewingApplicant.underlyingDisease || '-'}</li>
+                      <li><span className="text-slate-500 w-28 inline-block">แพ้ยา:</span> {viewingApplicant.drugAllergy || '-'}</li>
+                      <li><span className="text-slate-500 w-28 inline-block">แพ้อาหาร:</span> {viewingApplicant.foodAllergy || '-'}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-emerald-600 mb-3 border-b pb-2 flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" /> ประวัติการศึกษา
+                    </h4>
+                    <ul className="space-y-2 text-sm">
+                      <li><span className="text-slate-500 w-32 inline-block">โรงเรียนเดิม:</span> {viewingApplicant.previousSchool || '-'}</li>
+                      <li><span className="text-slate-500 w-32 inline-block">จังหวัดโรงเรียนเดิม:</span> {viewingApplicant.previousSchoolProvince || '-'}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Parents */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-blue-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลบิดา
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.fatherFirstName || ''} {viewingApplicant.fatherLastName || '-'}</li>
+                    
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.fatherNationality || '-'}/{viewingApplicant.fatherEthnicity || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.fatherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">รายได้:</span> {viewingApplicant.fatherIncome || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.fatherPhone || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.fatherAddressObj)}</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-pink-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลมารดา
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.motherPrefix || ''}{viewingApplicant.motherFirstName || ''} {viewingApplicant.motherLastName || '-'}</li>
+                    
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.motherNationality || '-'}/{viewingApplicant.motherEthnicity || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.motherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">รายได้:</span> {viewingApplicant.motherIncome || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.motherPhone || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.motherAddressObj)}</span></li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Row 3: Guardian & Family */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-purple-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลผู้ปกครอง
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.guardianFirstName || ''} {viewingApplicant.guardianLastName || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">เกี่ยวข้องเป็น:</span> {viewingApplicant.guardianRelation || '-'}</li>
+                    
+                    <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.guardianOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.guardianPhone || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.guardianAddressObj)}</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-amber-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <Settings className="h-4 w-4" /> ข้อมูลครอบครัว
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li><span className="text-slate-500 w-36 inline-block">สถานภาพครอบครัว:</span> {viewingApplicant.familyStatus || '-'}</li>
+                    <li><span className="text-slate-500 w-36 inline-block">นักเรียนอาศัยอยู่กับ:</span> {viewingApplicant.livingWith || '-'}</li>
+                    <li><span className="text-slate-500 w-36 inline-block">จำนวนพี่น้องร่วมบิดามารดา:</span> {viewingApplicant.siblingCount || '0'} คน</li>
+                    <li><span className="text-slate-500 w-36 inline-block">นักเรียนเป็นบุตรคนที่:</span> {viewingApplicant.siblingOrder || '1'}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <h4 className="font-bold text-red-600 mb-3 border-b pb-2 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" /> ผู้ติดต่อฉุกเฉิน
+                </h4>
+                <ul className="space-y-2 text-sm">
+                  <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.emergencyContactName || '-'}</li>
+                  <li><span className="text-slate-500 w-28 inline-block">ความสัมพันธ์:</span> {viewingApplicant.emergencyContactRelation || '-'}</li>
+                  <li><span className="text-slate-500 w-28 inline-block">เบอร์โทร:</span> {viewingApplicant.emergencyContactPhone || '-'}</li>
+                </ul>
+              </div>
+
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
+              <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors">
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      <CapacityModal 
+        isOpen={showCapacityModal} 
+        onClose={() => setShowCapacityModal(false)} 
+        initialCapacities={gradeCapacities}
+        onSave={saveCapacities}
+        isSaving={isSavingCapacity}
+      />
     </div>
   );
 };
