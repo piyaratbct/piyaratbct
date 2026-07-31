@@ -16,6 +16,8 @@ import { AcademicSettings } from "./AcademicSettings";
 import { StaffManager } from "./StaffManager";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
+import { LearningHoursReport } from "./LearningHoursReport";
+
 import { Teacher } from "../types";
 
 interface AcademicModuleProps {
@@ -30,7 +32,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   systemSemester,
   students,
 }) => {
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "learning_hours">("calendar");
 
 
 
@@ -111,6 +113,16 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         >
           <ArrowRight className="h-4 w-4" /> เลื่อนชั้น/จบการศึกษา
         </button>
+        <button
+          onClick={() => setActiveTab("learning_hours")}
+          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            activeTab === "learning_hours"
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> รายงานเวลาเรียน
+        </button>
       </div>
 
       {/* Tab Contents */}
@@ -135,6 +147,14 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
           currentAcademicYear={systemAcademicYear} 
           targetAcademicYear={String(parseInt(systemAcademicYear || "2567") + 1)} 
           students={students} 
+        />
+      )}
+
+      {activeTab === "learning_hours" && (
+        <LearningHoursReport 
+          systemAcademicYear={systemAcademicYear}
+          systemSemester={systemSemester}
+          students={students}
         />
       )}
     </div>

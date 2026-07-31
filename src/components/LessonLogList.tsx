@@ -174,7 +174,7 @@ export function LessonLogList({
         return "bg-purple-50 text-purple-700 border-purple-200";
       case "การงานอาชีพ":
         return "bg-teal-50 text-teal-700 border-teal-200";
-      case "ภาษาต่างประเทศ (ภาษาอังกฤษ)":
+      case "ภาษาอังกฤษ":
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
       default:
         return "bg-slate-50 text-slate-700 border-slate-200";

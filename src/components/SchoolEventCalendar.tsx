@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, Plus, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher } from '../types';
@@ -137,24 +137,33 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
           <div className="py-12 text-center text-slate-500 text-sm">ยังไม่มีข้อมูลกิจกรรมวิชาการในขณะนี้</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.map(event => {
+            {events.map((event) => {
               const d = new Date(event.date);
+              const today = new Date();
+              today.setHours(0,0,0,0);
+              const isPast = d < today;
+              
               return (
-                <div key={event.id} className={`p-5 rounded-2xl border ${getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-default flex flex-col justify-between`}>
+                <div key={event.id} className={`p-5 rounded-2xl border ${isPast ? 'bg-slate-50 border-slate-200 opacity-60 grayscale' : getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-default flex flex-col justify-between relative overflow-hidden`}>
+                  {isPast && (
+                    <div className="absolute top-0 right-0 bg-slate-200 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> ผ่านไปแล้ว
+                    </div>
+                  )}
                   <div className="flex gap-4 items-start">
-                    <div className="flex flex-col items-center justify-center bg-white/80 rounded-xl p-3 min-w-[4rem] backdrop-blur-sm shadow-sm">
+                    <div className={`flex flex-col items-center justify-center ${isPast ? 'bg-slate-100/80 text-slate-500' : 'bg-white/80'} rounded-xl p-3 min-w-[4rem] backdrop-blur-sm shadow-sm`}>
                       <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
                       <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-base leading-tight mb-2">{event.title}</h4>
-                      <p className="text-sm font-medium opacity-80 flex items-center gap-1.5">
+                      <h4 className={`font-bold text-base leading-tight mb-2 ${isPast ? 'text-slate-600 line-through' : ''}`}>{event.title}</h4>
+                      <p className={`text-sm font-medium flex items-center gap-1.5 ${isPast ? 'text-slate-400' : 'opacity-80'}`}>
                         <Clock className="h-3.5 w-3.5" /> {event.timeRange} น.
                       </p>
                     </div>
                   </div>
                   {canManageEvents && (
-                    <div className="mt-4 pt-4 border-t border-black/5 flex justify-end">
+                    <div className="mt-4 pt-4 border-t border-black/5 flex justify-end relative z-10">
                       <button onClick={() => handleDelete(event.id)} className="text-xs font-bold flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-red-700 transition-colors">
                         <Trash2 className="h-3.5 w-3.5" /> ลบ
                       </button>

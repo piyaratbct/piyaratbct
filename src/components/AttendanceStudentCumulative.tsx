@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AttendanceSession, Student, SUBJECTS } from '../types';
-import { Search, Loader2, BookOpen } from 'lucide-react';
+import { Search, Loader2, BookOpen, Printer } from 'lucide-react';
+import { AttendancePrintTemplate } from './AttendancePrintTemplate';
+
 
 interface Props {
   gradeLevel: string;
@@ -15,6 +17,7 @@ export function AttendanceStudentCumulative({ gradeLevel, systemAcademicYear, sy
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
+  const [showPrint, setShowPrint] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,6 +77,13 @@ export function AttendanceStudentCumulative({ gradeLevel, systemAcademicYear, sy
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+          <button
+            onClick={() => setShowPrint(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white text-sm font-bold rounded-lg hover:bg-indigo-600 transition-colors shadow-sm ml-2"
+          >
+            <Printer className="h-4 w-4" />
+            พิมพ์รายงาน
+          </button>
       </div>
 
       {totalPeriods === 0 ? (
@@ -143,6 +153,17 @@ export function AttendanceStudentCumulative({ gradeLevel, systemAcademicYear, sy
             </table>
           </div>
         </div>
+      )}
+      {showPrint && (
+        <AttendancePrintTemplate
+          students={students}
+          sessions={sessions}
+          subject={selectedSubject}
+          gradeLevel={gradeLevel}
+          academicYear={systemAcademicYear || "2567"}
+          semester={systemSemester || "1"}
+          onClose={() => setShowPrint(false)}
+        />
       )}
     </div>
   );

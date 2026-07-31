@@ -4,6 +4,7 @@ import { Printer, X } from "lucide-react";
 import { SchoolLogo } from "./PrintTemplate";
 
 interface PDFPrintHelperProps {
+  layout?: 'portrait' | 'landscape';
   children: ReactNode;
   onClose: () => void;
   documentTitle?: string;
@@ -19,6 +20,7 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
   hideControls = false,
   isCompact = false,
   onToggleCompact,
+  layout = 'portrait',
 }) => {
   useEffect(() => {
     document.body.classList.add("print-mode-active");
@@ -67,7 +69,7 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
             print-color-adjust: exact !important;
           }
           @page {
-            size: A4 portrait;
+            size: A4 ${layout};
             margin: 1cm !important;
           }
           /* Hide main app containers completely for browser print */
@@ -181,11 +183,11 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
 
 export const PrintPageContainer = React.forwardRef<
   HTMLDivElement,
-  { children: ReactNode; className?: string }
->(({ children, className = "" }, ref) => (
+  { children: ReactNode; className?: string; layout?: 'portrait' | 'landscape' }
+>(({ children, className = "", layout = 'portrait' }, ref) => (
   <div
     ref={ref}
-    className={`print-container w-[210mm] min-h-[297mm] bg-white shadow-xl print:shadow-none print:w-full print:h-auto mx-auto mb-8 print:mb-0 relative text-black ${className}`}
+    className={`print-container ${layout === 'landscape' ? 'w-[297mm] min-h-[210mm]' : 'w-[210mm] min-h-[297mm]'} bg-white shadow-xl print:shadow-none print:w-full print:h-auto mx-auto mb-8 print:mb-0 relative text-black ${className}`}
     style={{
       WebkitPrintColorAdjust: "exact",
       printColorAdjust: "exact",

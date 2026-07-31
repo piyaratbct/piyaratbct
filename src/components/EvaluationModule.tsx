@@ -3,6 +3,11 @@ import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCir
 import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { SubjectSettingsModal } from './SubjectSettingsModal';
+import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
+import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
+
+import { Printer } from 'lucide-react';
+
 import { LessonAchieve } from './LessonAchieve';
 import { collection, query, onSnapshot, setDoc, doc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -27,6 +32,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   
   const [gradesSubTab, setGradesSubTab] = useState<'part1' | 'part2'>('part1');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPrintScore, setShowPrintScore] = useState(false);
+  const [showPrintReport, setShowPrintReport] = useState(false);
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
 
   const uniqueGrades = React.useMemo(() => {
@@ -109,7 +116,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   };
 
-  const calculateGrade = (total: number): string => {
+  const calculateGrade = (total: number, subject: string): string => {
+    if (subject === 'กิจกรรมลูกเสือ') return total >= 80 ? "ผ" : "มผ";
     if (total >= 80) return "4";
     if (total >= 75) return "3.5";
     if (total >= 70) return "3";
@@ -158,7 +166,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         (updated.afterMidKnowledgeScore || 0) + 
         (updated.afterMidSoftSkillScore || 0) + 
         (updated.finalScore || 0));
-      updated.grade = calculateGrade(updated.totalScore);
+      updated.grade = calculateGrade(updated.totalScore, selectedSubject);
 
       return { ...prev, [key]: updated };
     });
@@ -219,7 +227,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         (updated.afterMidKnowledgeScore || 0) + 
         (updated.afterMidSoftSkillScore || 0) + 
         (updated.finalScore || 0));
-      updated.grade = calculateGrade(updated.totalScore);
+      updated.grade = calculateGrade(updated.totalScore, selectedSubject);
 
       return { ...prev, [key]: updated };
     });
@@ -358,12 +366,20 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-3">
-                  <select 
+                                    <select 
                     value={selectedSubject}
                     onChange={(e) => setSelectedSubject(e.target.value)}
                     className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
-                    {SUBJECTS.map(s => (
+                    {SUBJECTS.filter(s => {
+                      const isPrimary = selectedGrade.includes('ประถม');
+                      const isPrimaryUpper = isPrimary && (selectedGrade.includes('4') || selectedGrade.includes('5') || selectedGrade.includes('6'));
+                      const isPrimaryLower = isPrimary && (selectedGrade.includes('1') || selectedGrade.includes('2') || selectedGrade.includes('3'));
+                      
+                      if (s === 'จินตคณิต' && isPrimaryUpper) return false;
+                      if (s === 'ภาษาอังกฤษเพื่อการสื่อสาร' && isPrimaryLower) return false;
+                      return true;
+                    }).map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -382,9 +398,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   >
                     <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
                   </button>
+                  <button
+                    onClick={() => setShowPrintScore(true)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    <Printer className="h-4 w-4" /> พิมพ์ (ปพ.5)
+                  </button>
+                  <button
+                    onClick={() => setShowPrintReport(true)}
+                    className="flex items-center gap-2 bg-pink-600 text-white hover:bg-pink-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    <Printer className="h-4 w-4" /> สมุดพก (ปพ.6)
+                  </button>
                 </div>
               </div>
 
+              {selectedSubject !== 'กิจกรรมลูกเสือ' ? ( <>
               {/* Sub tabs for grades */}
               <div className="flex border-b border-slate-200 mb-6">
                 <button
@@ -634,7 +663,81 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
                 </button>
               </div>
-            </div>
+
+              </>
+              ) : (
+                <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full mt-6">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
+                        <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
+                        <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">เวลาเรียน<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
+                        <th className="px-4 py-3 text-center bg-emerald-50">ผลการประเมิน<br/><span className="text-xs font-normal text-slate-400">(ผ/มผ)</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
+                        students.filter(s => s.gradeLevel === selectedGrade)
+                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
+                          .map((student) => {
+                            const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const score = draftScores[key] || { totalScore: '' };
+                            
+                            return (
+                            <tr key={student.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50">
+                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
+                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
+                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
+                                <input 
+                                  type="number" min={0} max={100}
+                                  className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={score.totalScore === '-' ? '' : score.totalScore}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const numVal = val === '' ? 0 : Number(val);
+                                    setDraftScores(prev => ({
+                                      ...prev,
+                                      [key]: {
+                                        ...(prev[key] || {
+                                          id: `sc-${Date.now()}`,
+                                          studentId: student.id,
+                                          gradeLevel: selectedGrade,
+                                          academicYear: systemAcademicYear || '',
+                                          semester: systemSemester || '',
+                                          subject: selectedSubject,
+                                          teacherId: 'current-teacher',
+                                          beforeMidKnowledgeScore: 0,
+                                          beforeMidSoftSkillScore: 0,
+                                          midtermScore: 0,
+                                          afterMidKnowledgeScore: 0,
+                                          afterMidSoftSkillScore: 0,
+                                          finalScore: 0
+                                        }),
+                                        totalScore: numVal,
+                                        grade: calculateGrade(numVal, selectedSubject)
+                                      }
+                                    }));
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
+                                {score.grade || '-'}
+                              </td>
+                            </tr>
+                            );
+                          })
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}            </div>
           )}
 
           {activeTab === 'kindergarten' && (
@@ -667,6 +770,31 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           onClose={() => setShowSettingsModal(false)}
           settings={subjectSettings}
           onSave={handleSaveSettings}
+        />
+      )}
+      
+      {showPrintScore && (
+        <SubjectScorePrintTemplate
+          students={students}
+          scores={scores}
+          subject={selectedSubject}
+          gradeLevel={selectedGrade}
+          academicYear={systemAcademicYear || "2567"}
+          semester={systemSemester || "1"}
+          settings={subjectSettings}
+          teacherName={undefined}
+          onClose={() => setShowPrintScore(false)}
+        />
+      )}
+
+      {showPrintReport && (
+        <StudentReportPrintTemplate
+          students={students}
+          scores={scores}
+          gradeLevel={selectedGrade}
+          academicYear={systemAcademicYear || "2567"}
+          semester={systemSemester || "1"}
+          onClose={() => setShowPrintReport(false)}
         />
       )}
     </div>
