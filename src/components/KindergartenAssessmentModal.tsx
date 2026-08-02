@@ -26,6 +26,36 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
     }));
   };
 
+  
+  const getDomainSummary = (scores: number[]) => {
+    const validScores = scores.filter(s => s > 0);
+    if (validScores.length === 0) return 0;
+    const sum = validScores.reduce((a, b) => a + b, 0);
+    return Math.round(sum / validScores.length);
+  };
+
+  const getScoreText = (score: number) => {
+    if (score === 3) return "ดี";
+    if (score === 2) return "พอใช้";
+    if (score === 1) return "ควรส่งเสริม";
+    return "-";
+  };
+
+  const physicalScores = [formData.standard1, formData.standard2];
+  const physicalSummary = getDomainSummary(physicalScores);
+
+  const emotionalScores = [formData.standard3, formData.standard4, formData.standard5];
+  const emotionalSummary = getDomainSummary(emotionalScores);
+
+  const socialScores = [formData.standard6, formData.standard7, formData.standard8];
+  const socialSummary = getDomainSummary(socialScores);
+
+  const cognitiveScores = [formData.standard9, formData.standard10, formData.standard11, formData.standard12];
+  const cognitiveSummary = getDomainSummary(cognitiveScores);
+
+  const overallScores = [...physicalScores, ...emotionalScores, ...socialScores, ...cognitiveScores];
+  const overallSummary = getDomainSummary(overallScores);
+
   const getScoreColor = (score: number) => {
     if (score === 3) return "bg-emerald-100 text-emerald-700 border-emerald-200";
     if (score === 2) return "bg-blue-100 text-blue-700 border-blue-200";
@@ -122,6 +152,10 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
                 onChange={(val) => handleStandardChange('standard2', val)}
                 getScoreColor={getScoreColor}
               />
+              <div className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="font-bold text-slate-700">สรุปผลด้านร่างกาย</span>
+                <span className={`font-bold px-3 py-1 rounded-full text-sm border ${getScoreColor(physicalSummary)}`}>{getScoreText(physicalSummary)}</span>
+              </div>
             </div>
 
             {/* อารมณ์ จิตใจ */}
@@ -151,6 +185,10 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
                 onChange={(val) => handleStandardChange('standard5', val)}
                 getScoreColor={getScoreColor}
               />
+              <div className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="font-bold text-slate-700">สรุปผลด้านอารมณ์ จิตใจ</span>
+                <span className={`font-bold px-3 py-1 rounded-full text-sm border ${getScoreColor(emotionalSummary)}`}>{getScoreText(emotionalSummary)}</span>
+              </div>
             </div>
 
             {/* สังคม */}
@@ -216,7 +254,18 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
                 onChange={(val) => handleStandardChange('standard12', val)}
                 getScoreColor={getScoreColor}
               />
+              <div className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="font-bold text-slate-700">สรุปผลด้านสติปัญญา</span>
+                <span className={`font-bold px-3 py-1 rounded-full text-sm border ${getScoreColor(cognitiveSummary)}`}>{getScoreText(cognitiveSummary)}</span>
+              </div>
             </div>
+          </div>
+
+          <div className="bg-pink-50 border border-pink-200 rounded-xl p-6 flex justify-between items-center">
+            <h4 className="font-bold text-lg text-pink-800">สรุปผลการประเมินพัฒนาการทุกด้าน</h4>
+            <span className={`font-black text-xl px-6 py-2 rounded-full border shadow-sm ${getScoreColor(overallSummary)}`}>
+              {getScoreText(overallSummary)}
+            </span>
           </div>
 
           <div className="space-y-2">

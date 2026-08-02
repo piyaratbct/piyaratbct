@@ -37,6 +37,14 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
   const sampleAssessment = Object.values(assessments).find(a => (a as any).studentId) as any;
   const assessmentMonth = sampleAssessment?.month;
 
+  
+  const getDomainSummary = (scores: number[]) => {
+    const validScores = scores.filter(s => s > 0);
+    if (validScores.length === 0) return 0;
+    const sum = validScores.reduce((a, b) => a + b, 0);
+    return Math.round(sum / validScores.length);
+  };
+
   const getScoreText = (score: number) => {
     if (score === 3) return "ดี";
     if (score === 2) return "พอใช้";
@@ -62,9 +70,24 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
           </div>
         )}
 
-        {students.map((student, idx) => {
+                {students.map((student, idx) => {
           const assessment = assessments[student.id];
           if (!assessment) return null;
+          
+          const physicalScores = [assessment.standard1, assessment.standard2];
+          const physicalSummary = getDomainSummary(physicalScores);
+
+          const emotionalScores = [assessment.standard3, assessment.standard4, assessment.standard5];
+          const emotionalSummary = getDomainSummary(emotionalScores);
+
+          const socialScores = [assessment.standard6, assessment.standard7, assessment.standard8];
+          const socialSummary = getDomainSummary(socialScores);
+
+          const cognitiveScores = [assessment.standard9, assessment.standard10, assessment.standard11, assessment.standard12];
+          const cognitiveSummary = getDomainSummary(cognitiveScores);
+
+          const overallScores = [...physicalScores, ...emotionalScores, ...socialScores, ...cognitiveScores];
+          const overallSummary = getDomainSummary(overallScores);
 
           return (
             <div key={student.id} className="mb-12 page-break-inside-avoid border border-slate-200 rounded-lg p-6">
@@ -95,6 +118,10 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                         <td className="border p-2">มาตรฐานที่ 2 กล้ามเนื้อแข็งแรงคล่องแคล่วฯ</td>
                         <td className="border p-2 text-center w-24">{getScoreText(assessment.standard2)}</td>
                       </tr>
+                      <tr className="bg-slate-100 font-bold">
+                        <td className="border p-2 text-right">สรุปผลด้านร่างกาย</td>
+                        <td className="border p-2 text-center text-pink-700">{getScoreText(physicalSummary)}</td>
+                      </tr>
                     </tbody>
                   </table>
                   
@@ -112,6 +139,10 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                       <tr>
                         <td className="border p-2">มาตรฐานที่ 5 มีคุณธรรม จริยธรรมฯ</td>
                         <td className="border p-2 text-center w-24">{getScoreText(assessment.standard5)}</td>
+                      </tr>
+                      <tr className="bg-slate-100 font-bold">
+                        <td className="border p-2 text-right">สรุปผลด้านอารมณ์ จิตใจ</td>
+                        <td className="border p-2 text-center text-pink-700">{getScoreText(emotionalSummary)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -132,6 +163,10 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                       <tr>
                         <td className="border p-2">มาตรฐานที่ 8 อยู่ร่วมกับผู้อื่นอย่างมีความสุข</td>
                         <td className="border p-2 text-center w-24">{getScoreText(assessment.standard8)}</td>
+                      </tr>
+                      <tr className="bg-slate-100 font-bold">
+                        <td className="border p-2 text-right">สรุปผลด้านสังคม</td>
+                        <td className="border p-2 text-center text-pink-700">{getScoreText(socialSummary)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -154,6 +189,10 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                       <tr>
                         <td className="border p-2">มาตรฐานที่ 12 มีเจตคติที่ดีต่อการเรียนรู้ฯ</td>
                         <td className="border p-2 text-center w-24">{getScoreText(assessment.standard12)}</td>
+                      </tr>
+                      <tr className="bg-slate-100 font-bold">
+                        <td className="border p-2 text-right">สรุปผลด้านสติปัญญา</td>
+                        <td className="border p-2 text-center text-pink-700">{getScoreText(cognitiveSummary)}</td>
                       </tr>
                     </tbody>
                   </table>

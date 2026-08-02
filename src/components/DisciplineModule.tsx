@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Teacher, Student, DisciplineIncident, GRADE_LEVELS } from '../types';
-import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock } from 'lucide-react';
+import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock, Printer } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { db } from '../lib/firebase';
 import { formatThaiMonthYear, formatThaiDate } from '../lib/dateUtils';
+import { DisciplineSemesterReportPrintTemplate } from './DisciplineSemesterReportPrintTemplate';
 
 
 
@@ -28,6 +29,7 @@ export function DisciplineModule({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPrintReport, setShowPrintReport] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<string>('ภาพรวม');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
 
@@ -379,7 +381,14 @@ export function DisciplineModule({
           </div>
         </div>
         
-        <div className="relative z-10 w-full md:w-auto">
+                <div className="relative z-10 w-full md:w-auto flex flex-col md:flex-row gap-3">
+          <button
+            onClick={() => setShowPrintReport(true)}
+            className="w-full md:w-auto bg-white hover:bg-slate-50 text-rose-600 px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all border border-rose-100"
+          >
+            <Printer className="h-5 w-5" />
+            สรุปผลภาคเรียน
+          </button>
           <button
             onClick={() => setShowForm(true)}
             className="w-full md:w-auto bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all border border-white/30"
@@ -911,6 +920,14 @@ export function DisciplineModule({
             </div>
           </div>
         </div>
+      )}
+          {showPrintReport && (
+        <DisciplineSemesterReportPrintTemplate
+          incidents={incidents}
+          academicYear={systemAcademicYear}
+          semester={systemSemester}
+          onClose={() => setShowPrintReport(false)}
+        />
       )}
     </div>
   );
