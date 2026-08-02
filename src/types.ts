@@ -37,9 +37,11 @@ export interface LessonRecord {
   attachments?: Attachment[];
   semester?: string;
   evaluations?: {
+    planning: Record<string, number>;
+    time: Record<string, number>;
+    media: Record<string, number>;
     teacher: Record<string, number>;
     learner: Record<string, number>;
-    media: Record<string, number>;
   };
   createdAt: string;
   updatedAt: string;

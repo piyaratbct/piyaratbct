@@ -37,30 +37,28 @@ const formatShortGrade = (grade: string) => {
 export function ScheduleManager({ systemSemester, systemAcademicYear, currentTeacher }: ScheduleManagerProps) {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+  const [allSchedules, setAllSchedules] = useState<TeacherSchedule[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<'manage' | 'overview'>('manage');
+    const [viewMode, setViewMode] = useState<'manage' | 'overview' | 'summary'>('manage');
   const [myTodaySchedules, setMyTodaySchedules] = useState<TeacherSchedule[]>([]);
   
   const daysOfWeek = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
   const periods = PERIODS;
 
-  useEffect(() => {
+    useEffect(() => {
     fetchTeachers();
-  }, []);
+    fetchAllData();
+  }, [systemSemester, systemAcademicYear]);
 
   useEffect(() => {
-    if (viewMode === 'manage') {
-      if (selectedTeacherId) {
-        fetchSchedules(selectedTeacherId);
-      } else {
-        setSchedules([]);
-      }
-    } else if (viewMode === 'overview') {
-      fetchAllSchedules();
+    if (selectedTeacherId) {
+      setSchedules(allSchedules.filter(s => s.teacherId === selectedTeacherId));
+    } else {
+      setSchedules([]);
     }
-  }, [selectedTeacherId, systemSemester, systemAcademicYear, viewMode]);
+  }, [selectedTeacherId, allSchedules]);
 
   // Fetch today's schedule for the current user
   useEffect(() => {
@@ -107,7 +105,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     }
   };
 
-  const fetchAllSchedules = async () => {
+    const fetchAllData = async () => {
     setIsLoading(true);
     try {
       const q = query(
@@ -117,30 +115,12 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
       );
       const snapshot = await getDocs(q);
       const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
-      setSchedules(scheduleList);
+      setAllSchedules(scheduleList);
+      if (selectedTeacherId) {
+        setSchedules(scheduleList.filter(s => s.teacherId === selectedTeacherId));
+      }
     } catch (error) {
       console.error("Error fetching all schedules:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchSchedules = async (teacherId: string) => {
-    setIsLoading(true);
-    try {
-      const q = query(collection(db, 'schedules'));
-      const snapshot = await getDocs(q);
-      const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
-      
-      // Filter by teacherId in memory
-      const filteredSchedules = scheduleList.filter(s => 
-        s.teacherId === teacherId &&
-        String(s.semester) === String(systemSemester) &&
-        String(s.academicYear) === String(systemAcademicYear)
-      );
-      setSchedules(filteredSchedules);
-    } catch (error) {
-      console.error("Error fetching schedules:", error);
     } finally {
       setIsLoading(false);
     }
@@ -154,8 +134,15 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
 
     // Check if already exists
     if (schedules.some(s => s.dayOfWeek === dayOfWeek && s.period === period)) {
-      console.warn('มีวิชาในคาบนี้แล้ว');
+      alert('ครูท่านนี้มีสอนในคาบนี้แล้ว');
       return;
+    }
+
+    // Check class collision
+    if (allSchedules.some(s => s.dayOfWeek === dayOfWeek && s.period === period && s.gradeLevel === GRADE_LEVELS[0])) {
+      if (!confirm(`ห้อง ${GRADE_LEVELS[0]} มีครูท่านอื่นสอนในคาบนี้แล้ว ต้องการจัดซ้อนกันหรือไม่?`)) {
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -172,7 +159,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         createdAt: new Date().toISOString()
       };
       const docRef = await addDoc(collection(db, 'schedules'), newSchedule);
-      setSchedules([...schedules, { id: docRef.id, ...newSchedule }]);
+      setAllSchedules([...allSchedules, { id: docRef.id, ...newSchedule }]);
     } catch (error) {
       console.error("Error adding schedule:", error);
     } finally {
@@ -180,10 +167,34 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     }
   };
 
-  const handleUpdateSchedule = async (id: string, field: keyof TeacherSchedule, value: string | number) => {
+    const handleUpdateSchedule = async (id: string, field: keyof TeacherSchedule, value: string | number) => {
+    const currentSchedule = allSchedules.find(s => s.id === id);
+    if (!currentSchedule) return;
+
+    // If changing grade level, check for collision
+    if (field === 'gradeLevel') {
+      const colliding = allSchedules.find(s => 
+        s.id !== id && 
+        s.dayOfWeek === currentSchedule.dayOfWeek && 
+        s.period === currentSchedule.period && 
+        s.gradeLevel === value
+      );
+      if (colliding) {
+        if (!confirm(`ห้อง ${value} มีครูท่านอื่นสอนในคาบนี้แล้ว ต้องการจัดซ้อนกันหรือไม่?`)) {
+          return; // Cancel update
+        }
+      }
+    }
     try {
       await setDoc(doc(db, 'schedules', id), { [field]: value }, { merge: true });
-      setSchedules(schedules.map(s => s.id === id ? { ...s, [field]: value } : s));
+      setAllSchedules(allSchedules.map(s => {
+        if (s.id === id) {
+          const updated = { ...s, [field]: value };
+          // If changing grade level or period, we should probably warn, but for now just update
+          return updated;
+        }
+        return s;
+      }));
     } catch (error) {
       console.error("Error updating schedule:", error);
     }
@@ -192,7 +203,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   const handleDeleteSchedule = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'schedules', id));
-      setSchedules(schedules.filter(s => s.id !== id));
+      setAllSchedules(allSchedules.filter(s => s.id !== id));
     } catch (error) {
       console.error("Error deleting schedule:", error);
     }
@@ -218,18 +229,24 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-indigo-600" /> จัดการตารางสอน
           </h3>
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setViewMode('manage')}
               className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${viewMode === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               จัดตารางสอนรายบุคคล
             </button>
-            <button
+                        <button
               onClick={() => setViewMode('overview')}
               className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${viewMode === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               ภาพรวมตารางสอน
+            </button>
+            <button
+              onClick={() => setViewMode('summary')}
+              className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${viewMode === 'summary' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              สรุปจำนวนคาบสอน
             </button>
           </div>
         </div>
@@ -314,6 +331,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                     </div>
                   ))}
                   
+                  
                   {schedules.filter(s => s.dayOfWeek === day).length === 0 && (
                     <div className="p-6 text-center text-slate-400 text-sm">
                       ไม่มีการสอนในวันนี้
@@ -327,6 +345,58 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
           </>
         )}
         
+                
+        {viewMode === 'summary' && (
+          <div className="space-y-6">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-500" />
+                สรุปจำนวนคาบสอนของครูแต่ละท่าน
+              </h3>
+              
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-700">
+                      <th className="p-3 font-bold">ลำดับ</th>
+                      <th className="p-3 font-bold">ชื่อ-นามสกุล</th>
+                      <th className="p-3 font-bold text-center">จำนวนคาบสอน (ต่อสัปดาห์)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teachers
+                      .map(t => ({
+                        ...t,
+                        totalPeriods: allSchedules.filter(s => s.teacherId === t.id).length
+                      }))
+                      .sort((a, b) => b.totalPeriods - a.totalPeriods)
+                      .map((t, index) => (
+                      <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="p-3 text-slate-500">{index + 1}</td>
+                        <td className="p-3 font-medium text-slate-800">{t.thaiName || t.displayName}</td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full text-xs font-bold ${
+                            t.totalPeriods === 0 ? 'bg-slate-100 text-slate-500' : 
+                            t.totalPeriods > 20 ? 'bg-rose-100 text-rose-700' : 
+                            'bg-indigo-100 text-indigo-700'
+                          }`}>
+                            {t.totalPeriods}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {teachers.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="p-4 text-center text-slate-500">ไม่มีข้อมูลครู</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {viewMode === 'overview' && (
           <div className="space-y-8">
             <p className="text-slate-500 mb-4">ภาพรวมตารางสอนของครูทั้งหมดในระบบ สำหรับภาคเรียนที่ {systemSemester}/{systemAcademicYear}</p>
@@ -354,7 +424,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                           {daysOfWeek[day]}
                         </td>
                         {periods.map(period => {
-                          const schedulesInPeriod = schedules.filter(s => s.dayOfWeek === day && s.period === period);
+                          const schedulesInPeriod = allSchedules.filter(s => s.dayOfWeek === day && s.period === period);
                           return (
                             <td key={period} className="p-2 border-r border-slate-200 align-top">
                               {schedulesInPeriod.length > 0 ? (
