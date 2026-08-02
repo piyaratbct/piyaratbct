@@ -19,6 +19,9 @@ import { ScheduleManager } from "./ScheduleManager";
 import { LearningHoursReport } from "./LearningHoursReport";
 
 import { Teacher } from "../types";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { useEffect } from "react";
 
 interface AcademicModuleProps {
   currentTeacher: Teacher;
@@ -33,6 +36,38 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   students,
 }) => {
   const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "learning_hours">("calendar");
+  const [upcomingEventCount, setUpcomingEventCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUpcomingEvents = async () => {
+      if (!currentTeacher) return;
+      try {
+        const q = query(collection(db, 'schoolEvents'), where('responsibleTeachers', 'array-contains', currentTeacher.id));
+        const snapshot = await getDocs(q);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const inThreeDays = new Date(today);
+        inThreeDays.setDate(today.getDate() + 3);
+        
+        let count = 0;
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const d = new Date(data.date);
+          if (d >= today && d <= inThreeDays) {
+            count++;
+          }
+        });
+        setUpcomingEventCount(count);
+      } catch (error) {
+        console.error("Error fetching upcoming events", error);
+      }
+    };
+    fetchUpcomingEvents();
+    
+    // Listen for custom event to refresh when calendar changes
+    window.addEventListener('app-custom-toast', fetchUpcomingEvents);
+    return () => window.removeEventListener('app-custom-toast', fetchUpcomingEvents);
+  }, [currentTeacher]);
 
 
 
@@ -63,13 +98,19 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 custom-scrollbar gap-1">
         <button
           onClick={() => setActiveTab("calendar")}
-          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+          className={`relative flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
             activeTab === "calendar"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <CalendarIcon className="h-4 w-4" /> ปฏิทินวิชาการ
+          <CalendarIcon className="h-4 w-4" /> 
+          ปฏิทินวิชาการ
+          {upcomingEventCount > 0 && (
+            <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white animate-bounce">
+              {upcomingEventCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("schedule")}
