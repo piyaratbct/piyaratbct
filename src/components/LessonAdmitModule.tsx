@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AdmissionPrintTemplate } from './AdmissionPrintTemplate';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
 import { collection, query, getDocs, addDoc, doc, updateDoc, deleteDoc, writeBatch, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -224,6 +225,7 @@ const AdmissionManager: React.FC<{
 }> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher, students }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [printingApplicant, setPrintingApplicant] = useState<AdmissionRecord | null>(null);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [gradeCapacities, setGradeCapacities] = useState<Record<string, number>>({});
   const [isSavingCapacity, setIsSavingCapacity] = useState(false);
@@ -273,9 +275,33 @@ const AdmissionManager: React.FC<{
     if (addr.road) parts.push(`ถ.${addr.road}`);
     if (addr.subDistrict) parts.push(`ต.${addr.subDistrict}`);
     if (addr.district) parts.push(`อ.${addr.district}`);
-    if (addr.province) parts.push(`จ.${addr.province}`);
+    if (addr.province) {
+      if (addr.province === 'กรุงเทพมหานคร') parts.push(`${addr.province}`);
+      else parts.push(`จ.${addr.province}`);
+    }
     if (addr.zipCode) parts.push(`${addr.zipCode}`);
     return parts.join(' ') || '-';
+  };
+
+  const formatWorkplaceProvince = (prov?: string) => {
+    if (!prov) return '';
+    return prov === 'กรุงเทพมหานคร' ? `(${prov})` : `(จ.${prov})`;
+  };
+
+  const getParentNationality = (firstName: string, lastName: string, name: string, nationality: string, ethnicity: string) => {
+    const hasData = firstName || lastName || name;
+    if (!hasData) return '-';
+    return `${nationality || '-'}/${ethnicity || '-'}`;
+  };
+
+  const getParentAddress = (parentAddr: any, studentAddr: any) => {
+    if (!parentAddr || (!parentAddr.houseNumber && !parentAddr.houseNo)) return '-';
+    const studentHNo = studentAddr?.houseNumber || studentAddr?.houseNo;
+    const parentHNo = parentAddr.houseNumber || parentAddr.houseNo;
+    if (studentHNo && parentHNo && studentHNo === parentHNo && studentAddr?.subDistrict === parentAddr.subDistrict) {
+      return 'ใช้ที่อยู่เดียวกันกับนักเรียน';
+    }
+    return formatAddress(parentAddr);
   };
 
   const [viewingApplicant, setViewingApplicant] = useState<AdmissionRecord | null>(null);
@@ -441,6 +467,17 @@ const AdmissionManager: React.FC<{
     
     let finalGrade = applicant.applyForGrade;
     if (newStatus === 'enrolled') {
+      const isDuplicate = students.some(s => {
+        if (applicant.nationalId && applicant.nationalId.length >= 13 && s.nationalId === applicant.nationalId) return true;
+        if (s.firstName === applicant.firstName && s.lastName === applicant.lastName) return true;
+        return false;
+      });
+
+      if (isDuplicate) {
+        const confirmDup = window.confirm(`ตรวจพบข้อมูลนักเรียน ${applicant.firstName} ${applicant.lastName} (หรือเลขบัตรประชาชนนี้) ในระบบฐานข้อมูลอยู่แล้ว\n\nการดำเนินการต่อจะสร้างข้อมูลนักเรียนซ้ำซ้อน คุณแน่ใจหรือไม่ที่ต้องการดำเนินการต่อ?`);
+        if (!confirmDup) return;
+      }
+
       const userChoice = window.prompt(
         "กรุณาระบุห้องเรียนที่ต้องการให้เข้าศึกษา (เช่น ประถมศึกษาปีที่ 1/1, ประถมศึกษาปีที่ 1/2)\nหากมีเพียงห้องเดียว สามารถกดยืนยันได้เลย",
         applicant.applyForGrade
@@ -466,12 +503,43 @@ const AdmissionManager: React.FC<{
           dob: applicant.birthDate || '',
           fatherFirstName: applicant.fatherFirstName || '',
           fatherLastName: applicant.fatherLastName || '',
+          fatherName: applicant.fatherName || `${applicant.fatherFirstName || ''} ${applicant.fatherLastName || ''}`.trim() || '',
+          fatherOccupation: applicant.fatherOccupation || '',
+          fatherIncome: applicant.fatherIncome || '',
           fatherPhone: applicant.fatherPhone || '',
+          fatherWorkplace: applicant.fatherWorkplace || '',
+          fatherWorkplaceProvince: applicant.fatherWorkplaceProvince || '',
+          motherPrefix: applicant.motherPrefix || '',
           motherFirstName: applicant.motherFirstName || '',
           motherLastName: applicant.motherLastName || '',
+          motherName: applicant.motherName || `${applicant.motherPrefix || ''} ${applicant.motherFirstName || ''} ${applicant.motherLastName || ''}`.trim() || '',
+          motherOccupation: applicant.motherOccupation || '',
+          motherIncome: applicant.motherIncome || '',
           motherPhone: applicant.motherPhone || '',
+          motherWorkplace: applicant.motherWorkplace || '',
+          motherWorkplaceProvince: applicant.motherWorkplaceProvince || '',
           guardianFirstName: applicant.guardianFirstName || '',
           guardianLastName: applicant.guardianLastName || '',
+          parentName: applicant.guardianName || `${applicant.guardianFirstName || ''} ${applicant.guardianLastName || ''}`.trim() || '',
+          guardianRelation: applicant.guardianRelation || '',
+          guardianOccupation: applicant.guardianOccupation || '',
+          guardianIncome: applicant.guardianIncome || '',
+          guardianWorkplace: applicant.guardianWorkplace || '',
+          guardianWorkplaceProvince: applicant.guardianWorkplaceProvince || '',
+          parentPhone: applicant.guardianPhone || '',
+          familyStatus: applicant.familyStatus || '',
+          address: applicant.addressObj ? `${applicant.addressObj.houseNumber || '-'} ม.${applicant.addressObj.moo || '-'} หมู่บ้าน${applicant.addressObj.village || '-'} ซ.${applicant.addressObj.soi || '-'} ถ.${applicant.addressObj.road || '-'} ต.${applicant.addressObj.subDistrict || '-'} อ.${applicant.addressObj.district || '-'} จ.${applicant.addressObj.province || '-'} ${applicant.addressObj.zipCode || '-'}` : (applicant.address || ''),
+          weight: applicant.weight || 0,
+          height: applicant.height || 0,
+          bloodGroup: applicant.bloodGroup || '',
+          ethnicity: applicant.ethnicity || '',
+          nationality: applicant.nationality || '',
+          religion: applicant.religion || '',
+          previousSchool: applicant.previousSchool || '',
+          previousSchoolProvince: applicant.previousSchoolProvince || '',
+          congenitalDisease: applicant.underlyingDisease || '',
+          allergicMedicine: applicant.drugAllergy || '',
+          allergicFood: applicant.foodAllergy || '',
           additionalNotes: applicant.underlyingDisease ? `โรคประจำตัว: ${applicant.underlyingDisease}` : '',
         };
         await addDoc(collection(db, 'students'), studentPayload);
@@ -725,14 +793,19 @@ const AdmissionManager: React.FC<{
 
   const incomeOptions = [
     { value: '', label: 'เลือกช่วงรายได้' },
-    { value: '<15000', label: 'ต่ำกว่า 15,000 บาท/เดือน' },
-    { value: '15000-30000', label: '15,000 - 30,000 บาท/เดือน' },
-    { value: '30001-50000', label: '30,001 - 50,000 บาท/เดือน' },
-    { value: '>50000', label: 'มากกว่า 50,000 บาท/เดือน' },
+    { value: 'ต่ำกว่า 150,000 บาท', label: 'ต่ำกว่า 150,000 บาท' },
+    { value: '150,000 - 300,000 บาท', label: '150,000 - 300,000 บาท' },
+    { value: 'มากกว่า 300,000 บาท', label: 'มากกว่า 300,000 บาท' },
   ];
 
   return (
     <div className="space-y-6">
+      {printingApplicant && (
+        <AdmissionPrintTemplate 
+          record={printingApplicant} 
+          onClose={() => setPrintingApplicant(null)} 
+        />
+      )}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-800">ข้อมูลการรับสมัคร ปีการศึกษา {targetAcademicYear}</h3>
@@ -937,7 +1010,7 @@ const AdmissionManager: React.FC<{
                     <input type="text" value={formData.fatherLastName || ''} onChange={(e) => setFormData({...formData, fatherLastName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">เชื้อชาติ</label>
                     <input type="text" value={formData.fatherEthnicity || ''} onChange={(e) => setFormData({...formData, fatherEthnicity: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
@@ -945,6 +1018,17 @@ const AdmissionManager: React.FC<{
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">สัญชาติ</label>
                     <input type="text" value={formData.fatherNationality || ''} onChange={(e) => setFormData({...formData, fatherNationality: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ศาสนา</label>
+                    <select value={formData.fatherReligion || ''} onChange={(e) => setFormData({...formData, fatherReligion: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+                      <option value="">เลือกศาสนา</option>
+                      <option value="พุทธ">พุทธ</option>
+                      <option value="คริสต์">คริสต์</option>
+                      <option value="อิสลาม">อิสลาม</option>
+                      <option value="ฮินดู">ฮินดู</option>
+                      <option value="ซิกข์">ซิกข์</option>
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -963,7 +1047,7 @@ const AdmissionManager: React.FC<{
                     <InputOrSelect options={occupationOptions} value={formData.fatherOccupation} onChange={(v: string) => setFormData({...formData, fatherOccupation: v})} placeholder="ระบุอาชีพ" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อเดือน</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
                     <select value={formData.fatherIncome || ''} onChange={(e) => setFormData({...formData, fatherIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                       {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
@@ -1016,7 +1100,7 @@ const AdmissionManager: React.FC<{
                     <input type="text" value={formData.motherLastName || ''} onChange={(e) => setFormData({...formData, motherLastName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">เชื้อชาติ</label>
                     <input type="text" value={formData.motherEthnicity || ''} onChange={(e) => setFormData({...formData, motherEthnicity: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
@@ -1024,6 +1108,17 @@ const AdmissionManager: React.FC<{
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">สัญชาติ</label>
                     <input type="text" value={formData.motherNationality || ''} onChange={(e) => setFormData({...formData, motherNationality: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ศาสนา</label>
+                    <select value={formData.motherReligion || ''} onChange={(e) => setFormData({...formData, motherReligion: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+                      <option value="">เลือกศาสนา</option>
+                      <option value="พุทธ">พุทธ</option>
+                      <option value="คริสต์">คริสต์</option>
+                      <option value="อิสลาม">อิสลาม</option>
+                      <option value="ฮินดู">ฮินดู</option>
+                      <option value="ซิกข์">ซิกข์</option>
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1042,7 +1137,7 @@ const AdmissionManager: React.FC<{
                     <InputOrSelect options={occupationOptions} value={formData.motherOccupation} onChange={(v: string) => setFormData({...formData, motherOccupation: v})} placeholder="ระบุอาชีพ" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อเดือน</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
                     <select value={formData.motherIncome || ''} onChange={(e) => setFormData({...formData, motherIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                       {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
@@ -1092,7 +1187,7 @@ const AdmissionManager: React.FC<{
                 </div>
               </div>
               <div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">เชื้อชาติ</label>
                     <input type="text" value={formData.guardianEthnicity || ''} onChange={(e) => setFormData({...formData, guardianEthnicity: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
@@ -1100,6 +1195,17 @@ const AdmissionManager: React.FC<{
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">สัญชาติ</label>
                     <input type="text" value={formData.guardianNationality || ''} onChange={(e) => setFormData({...formData, guardianNationality: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น ไทย" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ศาสนา</label>
+                    <select value={formData.guardianReligion || ''} onChange={(e) => setFormData({...formData, guardianReligion: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+                      <option value="">เลือกศาสนา</option>
+                      <option value="พุทธ">พุทธ</option>
+                      <option value="คริสต์">คริสต์</option>
+                      <option value="อิสลาม">อิสลาม</option>
+                      <option value="ฮินดู">ฮินดู</option>
+                      <option value="ซิกข์">ซิกข์</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1126,7 +1232,7 @@ const AdmissionManager: React.FC<{
                 <InputOrSelect options={occupationOptions} value={formData.guardianOccupation} onChange={(v: string) => setFormData({...formData, guardianOccupation: v})} placeholder="ระบุอาชีพ" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อเดือน</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
                 <select value={formData.guardianIncome || ''} onChange={(e) => setFormData({...formData, guardianIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -1378,6 +1484,13 @@ const AdmissionManager: React.FC<{
                     </td>
                     <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
                       <button 
+                        onClick={() => setPrintingApplicant(app)}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition-colors"
+                        title="พิมพ์ใบสมัคร"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </button>
+                      <button 
                         onClick={() => setViewingApplicant(app)}
                         className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition-colors"
                         title="ดูข้อมูล"
@@ -1428,7 +1541,10 @@ const AdmissionManager: React.FC<{
                     <li><span className="text-slate-500 w-28 inline-block">เพศ:</span> {viewingApplicant.gender === 'male' ? 'ชาย' : 'หญิง'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">ชั้นที่สมัคร:</span> {viewingApplicant.applyForGrade}</li>
                     <li className="col-span-2"><span className="text-slate-500 w-28 inline-block">เลข ปชช:</span> {viewingApplicant.nationalId || '-'}</li>
-                    <li><span className="text-slate-500 w-28 inline-block">วันเกิด:</span> {viewingApplicant.birthDate || '-'}</li>
+                    <li>
+                      <span className="text-slate-500 w-28 inline-block">วันเกิด:</span> {viewingApplicant.birthDate || '-'}
+                      {viewingApplicant.birthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.birthDate)})</span>}
+                    </li>
                     <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.addressObj)}</span></li>
                     <li><span className="text-slate-500 w-28 inline-block">รพ.ที่เกิด:</span> {viewingApplicant.birthHospital || '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">จังหวัดที่เกิด:</span> {viewingApplicant.birthProvince || '-'}</li>
@@ -1469,13 +1585,19 @@ const AdmissionManager: React.FC<{
                     <UserCheck className="h-4 w-4" /> ข้อมูลบิดา
                   </h4>
                   <ul className="space-y-2 text-sm">
-                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.fatherFirstName || ''} {viewingApplicant.fatherLastName || '-'}</li>
+                    <li>
+                      <span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.fatherFirstName || ''} {viewingApplicant.fatherLastName || '-'}
+                      {viewingApplicant.fatherBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.fatherBirthDate)})</span>}
+                    </li>
                     
-                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.fatherNationality || '-'}/{viewingApplicant.fatherEthnicity || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.fatherFirstName || '', viewingApplicant.fatherLastName || '', viewingApplicant.fatherName || '', viewingApplicant.fatherNationality || '', viewingApplicant.fatherEthnicity || '')}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ศาสนา:</span> {viewingApplicant.fatherFirstName || viewingApplicant.fatherLastName || viewingApplicant.fatherName ? (viewingApplicant.fatherReligion || '-') : '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.fatherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สถานที่ทำงาน:</span> {viewingApplicant.fatherWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.fatherWorkplaceProvince)}</li>
                     <li><span className="text-slate-500 w-28 inline-block">รายได้:</span> {viewingApplicant.fatherIncome || '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.fatherPhone || '-'}</li>
-                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.fatherAddressObj)}</span></li>
+                    <li><span className="text-slate-500 w-28 inline-block">Line ID:</span> {viewingApplicant.fatherLineId || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.fatherAddressObj, viewingApplicant.addressObj)}</span></li>
                   </ul>
                 </div>
 
@@ -1484,13 +1606,19 @@ const AdmissionManager: React.FC<{
                     <UserCheck className="h-4 w-4" /> ข้อมูลมารดา
                   </h4>
                   <ul className="space-y-2 text-sm">
-                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.motherPrefix || ''}{viewingApplicant.motherFirstName || ''} {viewingApplicant.motherLastName || '-'}</li>
+                    <li>
+                      <span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.motherPrefix || ''}{viewingApplicant.motherFirstName || ''} {viewingApplicant.motherLastName || '-'}
+                      {viewingApplicant.motherBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.motherBirthDate)})</span>}
+                    </li>
                     
-                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.motherNationality || '-'}/{viewingApplicant.motherEthnicity || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.motherFirstName || '', viewingApplicant.motherLastName || '', viewingApplicant.motherName || '', viewingApplicant.motherNationality || '', viewingApplicant.motherEthnicity || '')}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ศาสนา:</span> {viewingApplicant.motherFirstName || viewingApplicant.motherLastName || viewingApplicant.motherName ? (viewingApplicant.motherReligion || '-') : '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.motherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สถานที่ทำงาน:</span> {viewingApplicant.motherWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.motherWorkplaceProvince)}</li>
                     <li><span className="text-slate-500 w-28 inline-block">รายได้:</span> {viewingApplicant.motherIncome || '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.motherPhone || '-'}</li>
-                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.motherAddressObj)}</span></li>
+                    <li><span className="text-slate-500 w-28 inline-block">Line ID:</span> {viewingApplicant.motherLineId || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.motherAddressObj, viewingApplicant.addressObj)}</span></li>
                   </ul>
                 </div>
               </div>
@@ -1502,12 +1630,20 @@ const AdmissionManager: React.FC<{
                     <UserCheck className="h-4 w-4" /> ข้อมูลผู้ปกครอง
                   </h4>
                   <ul className="space-y-2 text-sm">
-                    <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.guardianFirstName || ''} {viewingApplicant.guardianLastName || '-'}</li>
+                    <li>
+                      <span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.guardianFirstName || ''} {viewingApplicant.guardianLastName || '-'}
+                      {viewingApplicant.guardianBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.guardianBirthDate)})</span>}
+                    </li>
                     <li><span className="text-slate-500 w-28 inline-block">เกี่ยวข้องเป็น:</span> {viewingApplicant.guardianRelation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.guardianFirstName || '', viewingApplicant.guardianLastName || '', viewingApplicant.guardianName || '', viewingApplicant.guardianNationality || '', viewingApplicant.guardianEthnicity || '')}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ศาสนา:</span> {viewingApplicant.guardianReligion || '-'}</li>
                     
                     <li><span className="text-slate-500 w-28 inline-block">อาชีพ:</span> {viewingApplicant.guardianOccupation || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">สถานที่ทำงาน:</span> {viewingApplicant.guardianWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.guardianWorkplaceProvince)}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">รายได้:</span> {viewingApplicant.guardianIncome || '-'}</li>
                     <li><span className="text-slate-500 w-28 inline-block">เบอร์โทรศัพท์:</span> {viewingApplicant.guardianPhone || '-'}</li>
-                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.guardianAddressObj)}</span></li>
+                    <li><span className="text-slate-500 w-28 inline-block">Line ID:</span> {viewingApplicant.guardianLineId || '-'}</li>
+                    <li><span className="text-slate-500 w-28 inline-block">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.guardianAddressObj, viewingApplicant.addressObj)}</span></li>
                   </ul>
                 </div>
 
@@ -1529,9 +1665,21 @@ const AdmissionManager: React.FC<{
                   <UserPlus className="h-4 w-4" /> ผู้ติดต่อฉุกเฉิน
                 </h4>
                 <ul className="space-y-2 text-sm">
-                  <li><span className="text-slate-500 w-28 inline-block">ชื่อ-นามสกุล:</span> {viewingApplicant.emergencyContactName || '-'}</li>
-                  <li><span className="text-slate-500 w-28 inline-block">ความสัมพันธ์:</span> {viewingApplicant.emergencyContactRelation || '-'}</li>
-                  <li><span className="text-slate-500 w-28 inline-block">เบอร์โทร:</span> {viewingApplicant.emergencyContactPhone || '-'}</li>
+                  {viewingApplicant.fatherPhone && (
+                    <li><span className="text-slate-500 w-28 inline-block">บิดา:</span> {viewingApplicant.fatherName || `${viewingApplicant.fatherFirstName || ''} ${viewingApplicant.fatherLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.fatherPhone}</span></li>
+                  )}
+                  {viewingApplicant.motherPhone && (
+                    <li><span className="text-slate-500 w-28 inline-block">มารดา:</span> {viewingApplicant.motherName || `${viewingApplicant.motherPrefix || ''} ${viewingApplicant.motherFirstName || ''} ${viewingApplicant.motherLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.motherPhone}</span></li>
+                  )}
+                  {viewingApplicant.guardianPhone && (
+                    <li><span className="text-slate-500 w-28 inline-block">ผู้ปกครอง:</span> {viewingApplicant.guardianName || `${viewingApplicant.guardianFirstName || ''} ${viewingApplicant.guardianLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.guardianPhone}</span></li>
+                  )}
+                  {viewingApplicant.emergencyContactName && (
+                    <li><span className="text-slate-500 w-28 inline-block">{viewingApplicant.emergencyContactRelation || 'อื่นๆ'}:</span> {viewingApplicant.emergencyContactName} <span className="font-bold text-red-600 ml-2">{viewingApplicant.emergencyContactPhone || '-'}</span></li>
+                  )}
+                  {(!viewingApplicant.fatherPhone && !viewingApplicant.motherPhone && !viewingApplicant.guardianPhone && !viewingApplicant.emergencyContactName) && (
+                    <li className="text-slate-500 italic">- ไม่มีข้อมูลเบอร์โทรศัพท์ติดต่อฉุกเฉิน -</li>
+                  )}
                 </ul>
               </div>
 

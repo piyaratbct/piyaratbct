@@ -61,16 +61,38 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
     try {
       const studentsCollection = collection(db, 'students');
       
-      // Fetch existing students in this grade to match by studentId for upserting
-      const q = query(studentsCollection, where('gradeLevel', '==', selectedGrade));
-      const existingSnapshot = await getDocs(q);
-      const existingMap: Record<string, string> = {};
+      // Fetch all existing students to match by studentId for upserting and prevent duplicates globally
+      const existingSnapshot = await getDocs(studentsCollection);
+      const existingMapById: Record<string, string> = {};
+      const existingMapByName: Record<string, string> = {};
+      const existingMapByNationalId: Record<string, string> = {};
+      
       existingSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.studentId) {
-          existingMap[data.studentId] = doc.id;
+        if (data.studentId) existingMapById[data.studentId] = doc.id;
+        if (data.firstName && data.lastName) existingMapByName[`${data.firstName}_${data.lastName}`] = doc.id;
+        if (data.nationalId) existingMapByNationalId[data.nationalId] = doc.id;
+      });
+
+      // Pre-check for missing student IDs
+      const missingIdRows: number[] = [];
+      allData.forEach((row, index) => {
+        const rowKey = Object.keys(row).find(k => ['รหัสนักเรียน', 'studentid', 'รหัส'].some(search => k.replace(/\s+/g, '').toLowerCase().includes(search.toLowerCase())));
+        const sId = rowKey ? String(row[rowKey] || '').trim() : '';
+        const fNameKey = Object.keys(row).find(k => ['ชื่อ', 'firstname'].some(search => k.replace(/\s+/g, '').toLowerCase().includes(search.toLowerCase())));
+        const fName = fNameKey ? String(row[fNameKey] || '').trim() : '';
+        
+        // Only count missing ID if there is a first name (valid row)
+        if (fName && !sId) {
+          missingIdRows.push(index + 1);
         }
       });
+
+      if (missingIdRows.length > 0) {
+        alert(`พบข้อมูลนักเรียนที่ไม่มีรหัสนักเรียนในแถวที่: ${missingIdRows.slice(0, 10).join(', ')}${missingIdRows.length > 10 ? ' และอื่นๆ' : ''}\n\nกรุณาระบุรหัสนักเรียนให้ครบถ้วนก่อนทำการนำเข้าข้อมูลเพื่อป้องกันการสร้างข้อมูลซ้ำ`);
+        setIsProcessing(false);
+        return;
+      }
 
       // Process in batches of 500 (Firestore limit)
       const batch = writeBatch(db);
@@ -137,17 +159,20 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         const congenitalDisease = String(row['โรคประจำตัว'] || row['congenitalDisease'] || '').trim();
 
         // Skip rows without minimum required data
-        if (!studentId || !firstName) continue;
+        if (!firstName || !studentId) continue;
 
         const gender = (rawGender === 'ชาย' || rawGender === 'male' || rawGender === 'm') ? 'male' : 'female';
         
-        const existingDocId = existingMap[studentId];
+        let existingDocId = studentId ? existingMapById[studentId] : undefined;
+        if (!existingDocId && nationalId && nationalId.length >= 13) existingDocId = existingMapByNationalId[nationalId];
+        if (!existingDocId && firstName && lastName) existingDocId = existingMapByName[`${firstName}_${lastName}`];
+
         const docRef = existingDocId ? doc(db, 'students', existingDocId) : doc(studentsCollection);
         
         // Build data object, omitting empty fields to avoid overwriting existing data with blanks
         const studentData: Partial<Student> = {
           id: docRef.id,
-          studentId,
+          studentId: studentId,
           gradeLevel: selectedGrade,
           status: 'active',
         };

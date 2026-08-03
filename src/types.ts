@@ -134,18 +134,33 @@ export interface Student {
   guardianLastName?: string;
   additionalNotes?: string;
   fatherName?: string;
+  fatherOccupation?: string;
+  fatherIncome?: string;
   fatherWorkplace?: string;
   fatherWorkplaceProvince?: string;
   fatherPhone?: string;
   motherName?: string;
+  motherOccupation?: string;
+  motherIncome?: string;
   motherWorkplace?: string;
   motherWorkplaceProvince?: string;
   motherPhone?: string;
+  guardianOccupation?: string;
+  guardianIncome?: string;
+  guardianWorkplace?: string;
+  guardianWorkplaceProvince?: string;
+  guardianRelation?: string;
   familyStatus?: string;
   address?: string;
   medicalInfo?: string;
   weight?: number;
   height?: number;
+  bloodGroup?: string;
+  ethnicity?: string;
+  nationality?: string;
+  religion?: string;
+  previousSchool?: string;
+  previousSchoolProvince?: string;
   allergicMedicine?: string;
   allergicFood?: string;
   congenitalDisease?: string;
@@ -436,14 +451,17 @@ export interface AdmissionRecord {
 
   fatherEthnicity?: string;
   fatherNationality?: string;
+  fatherReligion?: string;
   fatherBirthDate?: string;
 
   motherEthnicity?: string;
   motherNationality?: string;
+  motherReligion?: string;
   motherBirthDate?: string;
 
   guardianEthnicity?: string;
   guardianNationality?: string;
+  guardianReligion?: string;
   guardianBirthDate?: string;
   address?: string; // legacy flat string
   addressObj?: Address;

@@ -65,71 +65,71 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2 flex flex-col md:flex-row gap-4 justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  <User className="h-4 w-4" />
+                  <span className="text-xs font-bold">เลขประจำตัวประชาชน</span>
+                </div>
+                <p className="font-semibold text-slate-800 font-mono">{student.nationalId || '-'}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-xs font-bold">วันเกิด</span>
+                </div>
+                <p className="font-semibold text-slate-800">{formatThaiDate(student.dob)}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  <User className="h-4 w-4" />
+                  <span className="text-xs font-bold">สัญชาติ / เชื้อชาติ</span>
+                </div>
+                <p className="font-semibold text-slate-800">{student.nationality || '-'} / {student.ethnicity || '-'}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  <User className="h-4 w-4" />
+                  <span className="text-xs font-bold">ศาสนา</span>
+                </div>
+                <p className="font-semibold text-slate-800">{student.religion || '-'}</p>
+              </div>
+            </div>
+
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
+              <div className="flex items-center gap-2 text-slate-500 mb-3 border-b border-slate-200 pb-2">
                 <User className="h-4 w-4" />
-                <span className="text-xs font-bold">เลขประจำตัวประชาชน</span>
+                <span className="font-bold text-slate-700">ข้อมูลครอบครัว (สถานภาพ: {student.familyStatus || '-'})</span>
               </div>
-              <p className="font-semibold text-slate-800 font-mono">{student.nationalId || '-'}</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <Calendar className="h-4 w-4" />
-                <span className="text-xs font-bold">วันเกิด</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Father Info */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-indigo-600">ข้อมูลบิดา</h4>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.fatherName || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.fatherOccupation || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.fatherIncome || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.fatherWorkplace || '-'} {student.fatherWorkplaceProvince ? `(จ.${student.fatherWorkplaceProvince})` : ''}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.fatherPhone || '-'}</p>
+                </div>
+                {/* Mother Info */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-pink-600">ข้อมูลมารดา</h4>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.motherName || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.motherOccupation || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.motherIncome || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.motherWorkplace || '-'} {student.motherWorkplaceProvince ? `(จ.${student.motherWorkplaceProvince})` : ''}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.motherPhone || '-'}</p>
+                </div>
+                {/* Guardian Info */}
+                <div className="space-y-2 md:col-span-2 border-t border-slate-200 pt-3">
+                  <h4 className="text-sm font-bold text-amber-600">ข้อมูลผู้ปกครอง (เกี่ยวข้องเป็น: {student.guardianRelation || '-'})</h4>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.parentName || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.guardianOccupation || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.guardianIncome || '-'}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.guardianWorkplace || '-'} {student.guardianWorkplaceProvince ? `(จ.${student.guardianWorkplaceProvince})` : ''}</p>
+                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.parentPhone || '-'}</p>
+                </div>
               </div>
-              <p className="font-semibold text-slate-800">{formatThaiDate(student.dob)}</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <User className="h-4 w-4" />
-                <span className="text-xs font-bold">สถานภาพครอบครัว</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.familyStatus || '-'}</p>
-            </div>
-            
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <User className="h-4 w-4" />
-                <span className="text-xs font-bold">ชื่อ-นามสกุลบิดา</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.fatherName || '-'}</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <Phone className="h-4 w-4" />
-                <span className="text-xs font-bold">เบอร์โทรศัพท์บิดา</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.fatherPhone || '-'}</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <User className="h-4 w-4" />
-                <span className="text-xs font-bold">ชื่อ-นามสกุลมารดา</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.motherName || '-'}</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <Phone className="h-4 w-4" />
-                <span className="text-xs font-bold">เบอร์โทรศัพท์มารดา</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.motherPhone || '-'}</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <User className="h-4 w-4" />
-                <span className="text-xs font-bold">ผู้ปกครอง (ถ้าไม่ใช่บิดา/มารดา)</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.parentName || '-'}</p>
-            </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-2 text-slate-500 mb-1">
-                <Phone className="h-4 w-4" />
-                <span className="text-xs font-bold">เบอร์โทรศัพท์ผู้ปกครอง</span>
-              </div>
-              <p className="font-semibold text-slate-800">{student.parentPhone || '-'}</p>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2">

@@ -330,6 +330,20 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     studentData: Omit<Student, "id">,
     id?: string,
   ) => {
+    if (!studentData.studentId || studentData.studentId.trim() === '') {
+      window.alert('กรุณาระบุรหัสนักเรียน ข้อมูลนี้ไม่สามารถเว้นว่างได้');
+      return;
+    }
+
+    const isDuplicate = students.some(
+      (s) => s.studentId === studentData.studentId && s.id !== id
+    );
+
+    if (isDuplicate) {
+      window.alert(`มีนักเรียนที่ใช้รหัส "${studentData.studentId}" อยู่ในระบบแล้ว กรุณาใช้รหัสอื่นเพื่อป้องกันการสร้างข้อมูลซ้ำ`);
+      return;
+    }
+
     try {
       if (id) {
         await setDoc(
