@@ -139,12 +139,14 @@ export interface Student {
   fatherWorkplace?: string;
   fatherWorkplaceProvince?: string;
   fatherPhone?: string;
+  fatherDob?: string;
   motherName?: string;
   motherOccupation?: string;
   motherIncome?: string;
   motherWorkplace?: string;
   motherWorkplaceProvince?: string;
   motherPhone?: string;
+  motherDob?: string;
   guardianOccupation?: string;
   guardianIncome?: string;
   guardianWorkplace?: string;

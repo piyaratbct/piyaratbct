@@ -23,14 +23,21 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
       const month = thaiMonths[d.getMonth()];
       const year = d.getFullYear() + 543;
       
-      return `${day} ${month} ${year}`;
+      const today = new Date();
+      let age = today.getFullYear() - d.getFullYear();
+      const m = today.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+        age--;
+      }
+      
+      return `${day} ${month} ${year} (อายุ ${age} ปี)`;
     } catch {
       return dateString;
     }
   };
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50">
           <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
             <User className="h-5 w-5 text-indigo-500" />
@@ -65,7 +72,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2 flex flex-col md:flex-row gap-4 justify-between">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2 flex flex-col md:flex-row flex-wrap gap-4 justify-between">
               <div>
                 <div className="flex items-center gap-2 text-slate-500 mb-1">
                   <User className="h-4 w-4" />
@@ -78,7 +85,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                   <Calendar className="h-4 w-4" />
                   <span className="text-xs font-bold">วันเกิด</span>
                 </div>
-                <p className="font-semibold text-slate-800">{formatThaiDate(student.dob)}</p>
+                <p className="font-semibold text-slate-800 whitespace-nowrap">{formatThaiDate(student.dob)}</p>
               </div>
               <div>
                 <div className="flex items-center gap-2 text-slate-500 mb-1">
@@ -94,6 +101,13 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                 </div>
                 <p className="font-semibold text-slate-800">{student.religion || '-'}</p>
               </div>
+              <div>
+                <div className="flex items-center gap-2 text-slate-500 mb-1">
+                  <User className="h-4 w-4" />
+                  <span className="text-xs font-bold">สถานศึกษาเดิม</span>
+                </div>
+                <p className="font-semibold text-slate-800">{student.previousSchool || '-'}</p>
+              </div>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2">
@@ -105,29 +119,56 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                 {/* Father Info */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-bold text-indigo-600">ข้อมูลบิดา</h4>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.fatherName || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.fatherOccupation || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.fatherIncome || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.fatherWorkplace || '-'} {student.fatherWorkplaceProvince ? `(จ.${student.fatherWorkplaceProvince})` : ''}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.fatherPhone || '-'}</p>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm">
+                    <span className="text-slate-500 font-bold whitespace-nowrap">ชื่อ-นามสกุล:</span> 
+                    <span className="">{student.fatherName || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">วันเกิด:</span> 
+                    <span className="whitespace-nowrap">{formatThaiDate(student.fatherDob)}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">อาชีพ:</span> 
+                    <span className="">{student.fatherOccupation || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">รายได้:</span> 
+                    <span className="">{student.fatherIncome || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">สถานที่ทำงาน:</span> 
+                    <span className="">{student.fatherWorkplace || '-'} {student.fatherWorkplaceProvince ? `(จ.${student.fatherWorkplaceProvince})` : ''}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">เบอร์โทรศัพท์:</span> 
+                    <span className="">{student.fatherPhone || '-'}</span>
+                  </div>
                 </div>
                 {/* Mother Info */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-bold text-pink-600">ข้อมูลมารดา</h4>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.motherName || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.motherOccupation || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.motherIncome || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.motherWorkplace || '-'} {student.motherWorkplaceProvince ? `(จ.${student.motherWorkplaceProvince})` : ''}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.motherPhone || '-'}</p>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-sm">
+                    <span className="text-slate-500 font-bold whitespace-nowrap">ชื่อ-นามสกุล:</span> 
+                    <span className="">{student.motherName || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">วันเกิด:</span> 
+                    <span className="whitespace-nowrap">{formatThaiDate(student.motherDob)}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">อาชีพ:</span> 
+                    <span className="">{student.motherOccupation || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">รายได้:</span> 
+                    <span className="">{student.motherIncome || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">สถานที่ทำงาน:</span> 
+                    <span className="">{student.motherWorkplace || '-'} {student.motherWorkplaceProvince ? `(จ.${student.motherWorkplaceProvince})` : ''}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">เบอร์โทรศัพท์:</span> 
+                    <span className="">{student.motherPhone || '-'}</span>
+                  </div>
                 </div>
                 {/* Guardian Info */}
                 <div className="space-y-2 md:col-span-2 border-t border-slate-200 pt-3">
                   <h4 className="text-sm font-bold text-amber-600">ข้อมูลผู้ปกครอง (เกี่ยวข้องเป็น: {student.guardianRelation || '-'})</h4>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">ชื่อ-นามสกุล:</span> {student.parentName || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">อาชีพ:</span> {student.guardianOccupation || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">รายได้:</span> {student.guardianIncome || '-'}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">สถานที่ทำงาน:</span> {student.guardianWorkplace || '-'} {student.guardianWorkplaceProvince ? `(จ.${student.guardianWorkplaceProvince})` : ''}</p>
-                  <p className="text-sm"><span className="text-slate-500 font-bold">เบอร์โทรศัพท์:</span> {student.parentPhone || '-'}</p>
+                  <div className="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1 text-sm">
+                    <span className="text-slate-500 font-bold whitespace-nowrap">ชื่อ-นามสกุล:</span> 
+                    <span className="">{student.parentName || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">อาชีพ:</span> 
+                    <span className="">{student.guardianOccupation || '-'}</span>
+                    
+                    <span className="text-slate-500 font-bold whitespace-nowrap">รายได้:</span> 
+                    <span className="">{student.guardianIncome || '-'}</span>
+                    <span className="text-slate-500 font-bold whitespace-nowrap">เบอร์โทรศัพท์:</span> 
+                    <span className="">{student.parentPhone || '-'}</span>
+                    
+                    <span className="text-slate-500 font-bold whitespace-nowrap">สถานที่ทำงาน:</span> 
+                    <span className="md:col-span-3">{student.guardianWorkplace || '-'} {student.guardianWorkplaceProvince ? `(จ.${student.guardianWorkplaceProvince})` : ''}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -147,7 +188,11 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
               <HeartPulse className="h-5 w-5" />
               <span className="font-black text-sm uppercase tracking-wider">ข้อมูลสุขภาพ / โรคประจำตัว / การแพ้</span>
             </div>
-            <div className="relative z-10 space-y-3">
+            <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <span className="block text-xs font-bold text-rose-700/70 mb-1">หมู่โลหิต</span>
+                <p className="font-semibold text-rose-800">{student.bloodGroup || '-'}</p>
+              </div>
               <div>
                 <span className="block text-xs font-bold text-rose-700/70 mb-1">การแพ้ยา</span>
                 <p className="font-semibold text-rose-800">{student.allergicMedicine || '-'}</p>
@@ -160,7 +205,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                 <span className="block text-xs font-bold text-rose-700/70 mb-1">โรคประจำตัว</span>
                 <p className="font-semibold text-rose-800">{student.congenitalDisease || '-'}</p>
               </div>
-              <div>
+              <div className="col-span-2 md:col-span-4">
                 <span className="block text-xs font-bold text-rose-700/70 mb-1">ข้อมูลอื่นๆ</span>
                 <p className="font-semibold text-rose-800 whitespace-pre-wrap">{student.medicalInfo || '-'}</p>
               </div>

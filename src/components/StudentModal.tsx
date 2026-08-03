@@ -25,8 +25,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     parentPhone: '',
     fatherName: '',
     fatherPhone: '',
+    fatherOccupation: '',
+    fatherIncome: '',
+    fatherWorkplace: '',
     motherName: '',
     motherPhone: '',
+    motherOccupation: '',
+    motherIncome: '',
+    motherWorkplace: '',
     familyStatus: 'สมรส',
     address: '',
     medicalInfo: '',
@@ -34,7 +40,12 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     allergicFood: '',
     congenitalDisease: '',
     weight: '',
-    height: ''
+    height: '',
+    bloodGroup: '',
+    religion: '',
+    fatherDob: '',
+    motherDob: '',
+    previousSchool: ''
   });
 
   useEffect(() => {
@@ -54,8 +65,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         parentPhone: student.parentPhone || '',
         fatherName: student.fatherName || '',
         fatherPhone: student.fatherPhone || '',
+        fatherOccupation: student.fatherOccupation || '',
+        fatherIncome: student.fatherIncome || '',
+        fatherWorkplace: student.fatherWorkplace || '',
         motherName: student.motherName || '',
         motherPhone: student.motherPhone || '',
+        motherOccupation: student.motherOccupation || '',
+        motherIncome: student.motherIncome || '',
+        motherWorkplace: student.motherWorkplace || '',
         familyStatus: student.familyStatus || 'สมรส',
         address: student.address || '',
         medicalInfo: student.medicalInfo || '',
@@ -63,7 +80,12 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         allergicFood: student.allergicFood || '',
         congenitalDisease: student.congenitalDisease || '',
         weight: student.weight || '',
-        height: student.height || ''
+        height: student.height || '',
+        bloodGroup: student.bloodGroup || '',
+        religion: student.religion || '',
+        fatherDob: student.fatherDob || '',
+        motherDob: student.motherDob || '',
+        previousSchool: student.previousSchool || ''
       });
     } else {
       setFormData(prev => ({ ...prev, gradeLevel: selectedGrade }));
@@ -192,16 +214,46 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">ศาสนา</label>
+              <input
+                type="text"
+                value={formData.religion}
+                onChange={e => setFormData({ ...formData, religion: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">สถานศึกษาเดิม</label>
+              <input
+                type="text"
+                value={formData.previousSchool}
+                onChange={e => setFormData({ ...formData, previousSchool: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+              />
+            </div>
+          </div>
+
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
             <h4 className="font-bold text-slate-800 text-sm border-b border-slate-200 pb-2">ข้อมูลครอบครัว</h4>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุลบิดา</label>
                 <input
                   type="text"
                   value={formData.fatherName}
                   onChange={e => setFormData({ ...formData, fatherName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">วันเกิดบิดา</label>
+                <input
+                  type="date"
+                  value={formData.fatherDob}
+                  onChange={e => setFormData({ ...formData, fatherDob: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
                 />
               </div>
@@ -214,9 +266,36 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">อาชีพบิดา</label>
+                <input
+                  type="text"
+                  value={formData.fatherOccupation}
+                  onChange={e => setFormData({ ...formData, fatherOccupation: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">รายได้บิดา (บาท/เดือน)</label>
+                <input
+                  type="text"
+                  value={formData.fatherIncome}
+                  onChange={e => setFormData({ ...formData, fatherIncome: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">สถานที่ทำงานบิดา</label>
+                <input
+                  type="text"
+                  value={formData.fatherWorkplace}
+                  onChange={e => setFormData({ ...formData, fatherWorkplace: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-200 pt-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุลมารดา</label>
                 <input
@@ -227,11 +306,47 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                 />
               </div>
               <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">วันเกิดมารดา</label>
+                <input
+                  type="date"
+                  value={formData.motherDob}
+                  onChange={e => setFormData({ ...formData, motherDob: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์มารดา</label>
                 <input
                   type="tel"
                   value={formData.motherPhone}
                   onChange={e => setFormData({ ...formData, motherPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">อาชีพมารดา</label>
+                <input
+                  type="text"
+                  value={formData.motherOccupation}
+                  onChange={e => setFormData({ ...formData, motherOccupation: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">รายได้มารดา (บาท/เดือน)</label>
+                <input
+                  type="text"
+                  value={formData.motherIncome}
+                  onChange={e => setFormData({ ...formData, motherIncome: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">สถานที่ทำงานมารดา</label>
+                <input
+                  type="text"
+                  value={formData.motherWorkplace}
+                  onChange={e => setFormData({ ...formData, motherWorkplace: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
                 />
               </div>
@@ -289,6 +404,21 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
           <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 space-y-4">
             <h4 className="font-bold text-rose-800 text-sm border-b border-rose-200 pb-2">ข้อมูลสุขภาพ</h4>
             
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">หมู่โลหิต</label>
+              <select
+                value={formData.bloodGroup}
+                onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none bg-white"
+              >
+                <option value="">ไม่ระบุ</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="AB">AB</option>
+                <option value="O">O</option>
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-rose-700 mb-1">การแพ้ยา</label>
               <input

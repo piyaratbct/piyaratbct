@@ -144,19 +144,57 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
             }
           }
         }
-        const dob = parsedDob;
+        
+        const parseDate = (dateStr) => {
+          if (!dateStr) return '';
+          let parsed = dateStr;
+          const sep = parsed.includes('/') ? '/' : (parsed.includes('-') ? '-' : null);
+          if (sep) {
+            const parts = parsed.split(sep);
+            if (parts.length === 3) {
+              let day, month, year;
+              if (parts[0].length <= 2 && parts[2].length === 4) {
+                day = parts[0].padStart(2, '0');
+                month = parts[1].padStart(2, '0');
+                year = parseInt(parts[2], 10);
+              } else if (parts[0].length === 4 && parts[2].length <= 2) {
+                year = parseInt(parts[0], 10);
+                month = parts[1].padStart(2, '0');
+                day = parts[2].padStart(2, '0');
+              }
+              if (year !== undefined) {
+                if (year > 2400) year -= 543;
+                parsed = `${year}-${month}-${day}`;
+              }
+            }
+          }
+          return parsed;
+        };
+
+        const dob = parseDate(findKey(['วันเกิด', 'dob', 'วันเดือนปีเกิด']) || parsedDob);
         const parentName = findKey(['ชื่อผู้ปกครอง', 'parentName', 'ผู้ปกครอง']);
         const parentPhone = findKey(['เบอร์โทรผู้ปกครอง', 'เบอร์ผู้ปกครอง', 'parentPhone', 'โทรผู้ปกครอง']);
         const fatherName = findKey(['ชื่อบิดา', 'fatherName', 'บิดา']);
         const fatherPhone = findKey(['เบอร์โทรบิดา', 'เบอร์บิดา', 'fatherPhone']);
         const motherName = findKey(['ชื่อมารดา', 'motherName', 'มารดา']);
         const motherPhone = findKey(['เบอร์โทรมารดา', 'เบอร์มารดา', 'motherPhone']);
+        const fatherOccupation = findKey(['อาชีพบิดา', 'fatherOccupation']);
+        const fatherIncome = findKey(['รายได้บิดา', 'fatherIncome']);
+        const fatherWorkplace = findKey(['สถานที่ทำงานบิดา', 'fatherWorkplace']);
+        const motherOccupation = findKey(['อาชีพมารดา', 'motherOccupation']);
+        const motherIncome = findKey(['รายได้มารดา', 'motherIncome']);
+        const motherWorkplace = findKey(['สถานที่ทำงานมารดา', 'motherWorkplace']);
         const familyStatus = String(row['สถานภาพครอบครัว'] || row['familyStatus'] || 'สมรส').trim();
         const address = String(row['ที่อยู่'] || row['address'] || '').trim();
         const medicalInfo = String(row['ข้อมูลสุขภาพ'] || row['medicalInfo'] || '').trim();
         const allergicMedicine = String(row['การแพ้ยา'] || row['allergicMedicine'] || '').trim();
         const allergicFood = String(row['การแพ้อาหาร'] || row['allergicFood'] || '').trim();
         const congenitalDisease = String(row['โรคประจำตัว'] || row['congenitalDisease'] || '').trim();
+        const bloodGroup = findKey(['หมู่โลหิต', 'กรุ๊ปเลือด', 'bloodGroup', 'bloodType']);
+        const religion = findKey(['ศาสนา', 'religion']);
+        const previousSchool = findKey(['สถานศึกษาเดิม', 'โรงเรียนเดิม', 'previousSchool']);
+        const fatherDob = parseDate(findKey(['วันเกิดบิดา', 'วันเดือนปีเกิดบิดา', 'fatherDob']));
+        const motherDob = parseDate(findKey(['วันเกิดมารดา', 'วันเดือนปีเกิดมารดา', 'motherDob']));
 
         // Skip rows without minimum required data
         if (!firstName || !studentId) continue;
@@ -188,14 +226,25 @@ export const ImportStudentData: React.FC<ImportStudentDataProps> = ({ selectedGr
         if (parentPhone) studentData.parentPhone = parentPhone;
         if (fatherName) studentData.fatherName = fatherName;
         if (fatherPhone) studentData.fatherPhone = fatherPhone;
+        if (fatherOccupation) studentData.fatherOccupation = fatherOccupation;
+        if (fatherIncome) studentData.fatherIncome = fatherIncome;
+        if (fatherWorkplace) studentData.fatherWorkplace = fatherWorkplace;
         if (motherName) studentData.motherName = motherName;
         if (motherPhone) studentData.motherPhone = motherPhone;
+        if (motherOccupation) studentData.motherOccupation = motherOccupation;
+        if (motherIncome) studentData.motherIncome = motherIncome;
+        if (motherWorkplace) studentData.motherWorkplace = motherWorkplace;
         if (familyStatus) studentData.familyStatus = familyStatus;
         if (address) studentData.address = address;
         if (medicalInfo) studentData.medicalInfo = medicalInfo;
         if (allergicMedicine) studentData.allergicMedicine = allergicMedicine;
         if (allergicFood) studentData.allergicFood = allergicFood;
         if (congenitalDisease) studentData.congenitalDisease = congenitalDisease;
+        if (bloodGroup) studentData.bloodGroup = bloodGroup;
+        if (religion) studentData.religion = religion;
+        if (previousSchool) studentData.previousSchool = previousSchool;
+        if (fatherDob) studentData.fatherDob = fatherDob;
+        if (motherDob) studentData.motherDob = motherDob;
 
         batch.set(docRef, studentData, { merge: true });
         count++;
