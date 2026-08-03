@@ -3,20 +3,38 @@ import re
 with open('src/components/SchoolEventCalendar.tsx', 'r') as f:
     content = f.read()
 
-# Remove the broken part
-broken_part = """  const upcomingMyEvents = getUpcomingMyEvents();
+# 1. Interface
+content = content.replace("  date: string;\n  title: string;", "  date: string;\n  endDate?: string;\n  title: string;")
 
-    switch (type) {
-      case 'meeting': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'exam': return 'bg-rose-50 text-rose-700 border-rose-200';
-      default: return 'bg-pink-50 text-pink-700 border-pink-200';
-    }
-  };"""
+# 2. State
+content = content.replace(
+    "const [newEvent, setNewEvent] = useState<{date: string, title: string, timeRange: string, type: string, responsibleTeachers: string[]}>({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });",
+    "const [newEvent, setNewEvent] = useState<{date: string, endDate: string, title: string, timeRange: string, type: string, responsibleTeachers: string[]}>({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });"
+)
 
-fixed_part = """  const upcomingMyEvents = getUpcomingMyEvents();"""
+# 3. reset in handleAddEvent
+content = content.replace(
+    "setNewEvent({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });",
+    "setNewEvent({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });"
+)
 
-content = content.replace(broken_part, fixed_part)
+# 4. handleEdit
+old_handle_edit = """    setNewEvent({
+      date: event.date,
+      title: event.title,
+      timeRange: event.timeRange || '08:00 - 16:00',
+      type: event.type || 'activity',
+      responsibleTeachers: event.responsibleTeachers || []
+    });"""
+new_handle_edit = """    setNewEvent({
+      date: event.date,
+      endDate: event.endDate || '',
+      title: event.title,
+      timeRange: event.timeRange || '08:00 - 16:00',
+      type: event.type || 'activity',
+      responsibleTeachers: event.responsibleTeachers || []
+    });"""
+content = content.replace(old_handle_edit, new_handle_edit)
 
 with open('src/components/SchoolEventCalendar.tsx', 'w') as f:
     f.write(content)
-

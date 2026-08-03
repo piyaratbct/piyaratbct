@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, AlertCircle } from 'lucide-react';
 import { collection, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher, TeacherSchedule } from '../types';
@@ -174,15 +174,32 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
             <div className="space-y-4">
               {upcomingEvents.map(event => {
                 const d = new Date(event.date);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const diffTime = d.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const isVeryUrgent = diffDays >= 0 && diffDays <= 3;
+                const isUrgent = diffDays > 3 && diffDays <= 7;
+                
                 return (
-                  <div key={event.id} className={`p-4 rounded-xl border ${getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-pointer`}>
+                  <div key={event.id} className={`p-4 rounded-xl border ${getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden`}>
+                    {(isVeryUrgent || isUrgent) && (
+                      <div className={`absolute top-0 right-0 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1 shadow-sm ${isVeryUrgent ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`}>
+                        <AlertCircle className="h-3 w-3" /> {isVeryUrgent ? 'เร่งด่วนมาก' : 'ใกล้ถึงแล้ว'}
+                      </div>
+                    )}
                     <div className="flex gap-4 items-center">
-                      <div className="flex flex-col items-center justify-center bg-white/60 rounded-lg p-2 min-w-[3.5rem] backdrop-blur-sm">
+                      <div className="flex flex-col items-center justify-center bg-white/60 rounded-lg p-2 min-w-[3.5rem] backdrop-blur-sm shadow-sm">
                         <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
                         <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-base leading-tight mb-1">{event.title}</h4>
+                      <div className="flex-1 mt-2 sm:mt-0">
+                        <div className="flex items-start gap-2 mb-1">
+                          {(isVeryUrgent || isUrgent) && (
+                            <div className={`mt-0.5 w-1.5 h-4 rounded-full shrink-0 ${isVeryUrgent ? 'bg-rose-500' : 'bg-amber-400'}`} title={isVeryUrgent ? 'เร่งด่วนมาก' : 'ที่ต้องดำเนินการ'}></div>
+                          )}
+                          <h4 className="font-bold text-base leading-tight pr-16">{event.title}</h4>
+                        </div>
                         <p className="text-sm font-medium opacity-80 flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" /> {event.timeRange} น.
                         </p>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, Plus, Trash2, CheckCircle2, Users, Bell, AlertCircle, Edit2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, Plus, Trash2, CheckCircle2, Users, Bell, AlertCircle, Edit2, LayoutGrid, List } from 'lucide-react';
 import { collection, query, orderBy, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher } from '../types';
@@ -10,6 +10,7 @@ const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
 interface SchoolEvent {
   id: string;
   date: string;
+  endDate?: string;
   title: string;
   type: string;
   timeRange: string;
@@ -25,8 +26,10 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [newEvent, setNewEvent] = useState<{date: string, title: string, timeRange: string, type: string, responsibleTeachers: string[]}>({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
+  const [newEvent, setNewEvent] = useState<{date: string, endDate: string, title: string, timeRange: string, type: string, responsibleTeachers: string[]}>({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'timeline'>('grid');
+
   const canManageEvents = currentTeacher?.role === 'admin' || currentTeacher?.role === 'academic';
 
   const fetchData = async () => {
@@ -36,8 +39,10 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
         getDocs(query(collection(db, 'schoolEvents'), orderBy('date', 'asc'))),
         getDocs(collection(db, 'teachers'))
       ]);
+
       const fetchedEvents = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SchoolEvent));
       const fetchedTeachers = teachersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Teacher));
+
       setEvents(fetchedEvents);
       setTeachers(fetchedTeachers);
     } catch (error) {
@@ -53,6 +58,7 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEvent.date || !newEvent.title) return;
+
     try {
       if (editingEventId) {
         await updateDoc(doc(db, 'schoolEvents', editingEventId), newEvent);
@@ -61,7 +67,7 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
         await addDoc(collection(db, 'schoolEvents'), newEvent);
         window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เพิ่มกิจกรรมเรียบร้อยแล้ว', type: 'success' }}));
       }
-      setNewEvent({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
+      setNewEvent({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
       setIsAdding(false);
       setEditingEventId(null);
       fetchData();
@@ -73,6 +79,7 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
   const handleEdit = (event: SchoolEvent) => {
     setNewEvent({
       date: event.date,
+      endDate: event.endDate || '',
       title: event.title,
       timeRange: event.timeRange || '08:00 - 16:00',
       type: event.type || 'activity',
@@ -83,7 +90,7 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
   };
   
   const handleCancelForm = () => {
-    setNewEvent({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
+    setNewEvent({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
     setIsAdding(false);
     setEditingEventId(null);
   };
@@ -135,18 +142,36 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
             <p className="text-sm font-medium text-slate-500">จัดการและติดตามกิจกรรมสำคัญตลอดปีการศึกษา</p>
           </div>
         </div>
-        {canManageEvents && !isAdding && (
-          <button 
-            onClick={() => {
-              setNewEvent({ date: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
-              setEditingEventId(null);
-              setIsAdding(true);
-            }}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" /> เพิ่มกิจกรรม
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+              title="แบบกริด"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${viewMode === 'timeline' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+              title="แบบไทม์ไลน์"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          {canManageEvents && !isAdding && (
+            <button 
+              onClick={() => {
+                setNewEvent({ date: '', endDate: '', title: '', timeRange: '08:00 - 16:00', type: 'activity', responsibleTeachers: [] });
+                setEditingEventId(null);
+                setIsAdding(true);
+              }}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" /> เพิ่มกิจกรรม
+            </button>
+          )}
+        </div>
       </div>
       
       <div className="p-6">
@@ -175,8 +200,12 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
             <h4 className="font-bold text-slate-700">{editingEventId ? "แก้ไขกิจกรรม" : "เพิ่มกิจกรรมใหม่"}</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">วันที่</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">วันที่เริ่ม</label>
                 <input required type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">วันที่สิ้นสุด (ไม่บังคับ)</label>
+                <input type="date" value={newEvent.endDate || ''} min={newEvent.date} onChange={e => setNewEvent({...newEvent, endDate: e.target.value})} className="w-full p-2 text-sm border border-slate-200 rounded-lg" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">ชื่อกิจกรรม</label>
@@ -196,7 +225,13 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-2">ครูผู้รับผิดชอบ (เลือกได้หลายคน)</label>
+              <div className="flex justify-between items-end mb-2">
+                <label className="block text-xs font-medium text-slate-600">ครูผู้รับผิดชอบ (เลือกได้หลายคน)</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setNewEvent({...newEvent, responsibleTeachers: teachers.map(t => t.id)})} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold hover:bg-indigo-100">เลือกทั้งหมด</button>
+                  <button type="button" onClick={() => setNewEvent({...newEvent, responsibleTeachers: []})} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold hover:bg-slate-200">ล้างทั้งหมด</button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-white">
                 {teachers.map(teacher => (
                   <label key={teacher.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 hover:bg-slate-50 rounded">
@@ -229,12 +264,95 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
         ) : events.length === 0 ? (
           <div className="py-12 text-center text-slate-500 text-sm">ยังไม่มีข้อมูลกิจกรรมวิชาการในขณะนี้</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "relative border-l-2 border-indigo-100 ml-4 md:ml-6 space-y-8 pb-8 mt-4"}>
             {events.map((event) => {
               const d = new Date(event.date);
               const today = new Date();
               today.setHours(0,0,0,0);
               const isPast = d < today;
+              const diffTime = d.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              const isUrgent = diffDays >= 0 && diffDays <= 7;
+              
+              if (viewMode === 'timeline') {
+                return (
+                  <div key={event.id} className="relative pl-6 md:pl-8">
+                    <div className={`absolute -left-[9px] top-6 h-4 w-4 rounded-full border-4 border-white ${isPast ? 'bg-slate-300' : isUrgent ? 'bg-rose-500 animate-pulse shadow-[0_0_0_4px_rgba(244,63,94,0.1)]' : 'bg-indigo-500'}`}></div>
+                    <div className={`p-5 rounded-2xl border ${isPast ? 'bg-slate-50 border-slate-200 opacity-60 grayscale' : getColorByType(event.type)} transition-all hover:shadow-md flex flex-col sm:flex-row justify-between gap-4 relative overflow-hidden`}>
+                      {isPast && (
+                        <div className="absolute top-0 right-0 bg-slate-200 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> ผ่านไปแล้ว
+                        </div>
+                      )}
+                      {currentTeacher && !isPast && event.responsibleTeachers?.includes(currentTeacher.id) && (
+                        <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1 shadow-sm animate-pulse">
+                          <Bell className="h-3 w-3" /> ของคุณ
+                        </div>
+                      )}
+                      {isUrgent && !isPast && (
+                        <div className="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1 shadow-sm animate-pulse">
+                          <AlertCircle className="h-3 w-3" /> ใกล้ถึงแล้ว
+                        </div>
+                      )}
+                      
+                      <div className="flex gap-4 items-start w-full">
+                        <div className={`flex flex-col items-center justify-center ${isPast ? 'bg-slate-100/80 text-slate-500' : 'bg-white/80'} rounded-xl p-3 min-w-[4rem] backdrop-blur-sm shadow-sm`}>
+                          {event.endDate && event.endDate !== event.date ? (
+                            <>
+                              <span className="text-[10px] font-bold uppercase opacity-80 leading-tight text-center pb-0.5 border-b border-black/10 w-full">{d.getDate()} {MONTH_ABBR[d.getMonth()]}</span>
+                              <span className="text-[10px] font-bold uppercase opacity-80 leading-tight text-center pt-0.5 w-full">{new Date(event.endDate).getDate()} {MONTH_ABBR[new Date(event.endDate).getMonth()]}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
+                              <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <h4 className={`font-bold text-base leading-tight ${isPast ? 'text-slate-600 line-through' : ''}`}>{event.title}</h4>
+                            <div className={`inline-flex w-fit items-center px-2 py-0.5 rounded text-[10px] font-bold ${isPast ? 'bg-slate-200 text-slate-500' : getColorByType(event.type)}`}>
+                              {event.type === 'exam' ? 'สอบวัดผล' : event.type === 'meeting' ? 'ประชุม' : 'กิจกรรม'}
+                            </div>
+                          </div>
+                          
+                          <p className={`text-sm font-medium flex items-center gap-1.5 ${isPast ? 'text-slate-400' : 'opacity-80'}`}>
+                            <Clock className="h-3.5 w-3.5" /> {event.timeRange} น.
+                          </p>
+                          {event.responsibleTeachers && event.responsibleTeachers.length > 0 && (
+                            <div className="mt-2 flex items-start gap-1.5">
+                              <Users className="h-3.5 w-3.5 mt-0.5 opacity-70" />
+                              <div className="flex flex-wrap gap-1">
+                                {event.responsibleTeachers.map(tid => {
+                                  const t = teachers.find(x => x.id === tid);
+                                  if (!t) return null;
+                                  return (
+                                    <span key={tid} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isPast ? 'bg-slate-200 text-slate-500' : 'bg-white/60 text-slate-700'}`}>
+                                      {t.thaiName || t.displayName}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {canManageEvents && (
+                          <div className="flex flex-col gap-1 ml-2">
+                            <button onClick={() => handleEdit(event)} className="p-1.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 transition-colors" title="แก้ไข">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(event.id)} className="p-1.5 bg-white text-rose-600 hover:bg-rose-50 rounded-lg shadow-sm border border-rose-100 transition-colors" title="ลบ">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
               
               return (
                 <div key={event.id} className={`p-5 rounded-2xl border ${isPast ? 'bg-slate-50 border-slate-200 opacity-60 grayscale' : getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-default flex flex-col justify-between relative overflow-hidden`}>
@@ -248,10 +366,24 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
                       <Bell className="h-3 w-3" /> ของคุณ
                     </div>
                   )}
+                  {isUrgent && !isPast && (
+                    <div className="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1 shadow-sm animate-pulse">
+                      <AlertCircle className="h-3 w-3" /> ใกล้ถึงแล้ว
+                    </div>
+                  )}
                   <div className="flex gap-4 items-start">
                     <div className={`flex flex-col items-center justify-center ${isPast ? 'bg-slate-100/80 text-slate-500' : 'bg-white/80'} rounded-xl p-3 min-w-[4rem] backdrop-blur-sm shadow-sm`}>
-                      <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
-                      <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
+                      {event.endDate && event.endDate !== event.date ? (
+                        <>
+                          <span className="text-[10px] font-bold uppercase opacity-80 leading-tight text-center pb-0.5 border-b border-black/10 w-full">{d.getDate()} {MONTH_ABBR[d.getMonth()]}</span>
+                          <span className="text-[10px] font-bold uppercase opacity-80 leading-tight text-center pt-0.5 w-full">{new Date(event.endDate).getDate()} {MONTH_ABBR[new Date(event.endDate).getMonth()]}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs font-bold uppercase opacity-80">{MONTH_ABBR[d.getMonth()]}</span>
+                          <span className="text-2xl font-black leading-none mt-1">{d.getDate()}</span>
+                        </>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h4 className={`font-bold text-base leading-tight mb-2 ${isPast ? 'text-slate-600 line-through' : ''}`}>{event.title}</h4>
@@ -263,25 +395,30 @@ export function SchoolEventCalendar({ currentTeacher }: SchoolEventCalendarProps
                           <Users className="h-3.5 w-3.5 mt-0.5 opacity-70" />
                           <div className="flex flex-wrap gap-1">
                             {event.responsibleTeachers.map(tid => {
-                              const t = teachers.find(t => t.id === tid);
+                              const t = teachers.find(x => x.id === tid);
                               if (!t) return null;
-                              return <span key={tid} className={`text-[10px] px-1.5 py-0.5 rounded-md ${isPast ? 'bg-slate-200 text-slate-500' : 'bg-black/5'}`}>{t.thaiName || t.displayName}</span>
+                              return (
+                                <span key={tid} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isPast ? 'bg-slate-200 text-slate-500' : 'bg-white/60 text-slate-700'}`}>
+                                  {t.thaiName || t.displayName}
+                                </span>
+                              )
                             })}
                           </div>
                         </div>
                       )}
                     </div>
+                    
+                    {canManageEvents && (
+                      <div className="flex flex-col gap-1 ml-2">
+                        <button onClick={() => handleEdit(event)} className="p-1.5 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg shadow-sm border border-indigo-100 transition-colors" title="แก้ไข">
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(event.id)} className="p-1.5 bg-white text-rose-600 hover:bg-rose-50 rounded-lg shadow-sm border border-rose-100 transition-colors" title="ลบ">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {canManageEvents && (
-                    <div className="mt-4 pt-4 border-t border-black/5 flex justify-end gap-3 relative z-10">
-                      <button onClick={() => handleEdit(event)} className="text-xs font-bold flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-indigo-700 transition-colors">
-                        <Edit2 className="h-3.5 w-3.5" /> แก้ไข
-                      </button>
-                      <button onClick={() => handleDelete(event.id)} className="text-xs font-bold flex items-center gap-1 opacity-70 hover:opacity-100 hover:text-red-700 transition-colors">
-                        <Trash2 className="h-3.5 w-3.5" /> ลบ
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}

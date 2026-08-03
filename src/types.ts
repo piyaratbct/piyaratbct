@@ -10,6 +10,7 @@ export interface Teacher {
   password?: string;
   role?: 'teacher' | 'academic' | 'deputy' | 'admin' | 'discipline' | 'staff';
   hasSeeded?: boolean;
+  lastActiveAt?: string;
   homeroomClass?: string;
   coHomeroomClass?: string;
 }

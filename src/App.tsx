@@ -19,6 +19,8 @@ import { AdminMonitoringDashboard } from "./components/AdminMonitoringDashboard"
 import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
 import { OverviewCalendar } from "./components/OverviewCalendar";
 import { AcademicModule } from "./components/AcademicModule";
+import { DailyNotificationPopup } from "./components/DailyNotificationPopup";
+import { OnlineUsersIndicator } from "./components/OnlineUsersIndicator";
 import { DisciplineModule } from "./components/DisciplineModule";
 import { LessonAdmitModule } from './components/LessonAdmitModule';
 
@@ -708,6 +710,9 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      if (currentTeacher) {
+        try { sessionStorage.removeItem('daily_popup_' + currentTeacher.id); } catch(e) {}
+      }
       await signOut(auth);
       setCurrentTeacher(null);
       setRecords([]);
@@ -1247,6 +1252,7 @@ export default function App() {
 
             {/* Profile Dropdown / Actions */}
             <div className="flex items-center space-x-3">
+              <OnlineUsersIndicator currentTeacher={currentTeacher} teachers={teachers} />
               {/* User badge */}
               <button
                 onClick={() => setShowProfileModal(true)}
@@ -1480,7 +1486,7 @@ export default function App() {
               <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">
                 ภาพรวมระบบ LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
               </h2>
-              <p className="text-slate-500 text-sm max-w-lg mx-auto">
+              <p className="text-slate-500 text-sm max-w-lg mx-auto mb-4">
                 ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน
                 ข้อมูลสรุปสถิติภาพรวมทั้งหมด
               </p>
