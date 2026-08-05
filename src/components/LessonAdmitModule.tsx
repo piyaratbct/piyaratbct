@@ -572,6 +572,15 @@ const AdmissionManager: React.FC<{
     return Object.entries(stats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
   }, [applicants]);
 
+  const currentStudentSchoolStats = React.useMemo(() => {
+    const stats: Record<string, number> = {};
+    students.forEach(student => {
+      const school = student.previousSchool || 'ไม่ระบุโรงเรียนเดิม';
+      stats[school] = (stats[school] || 0) + 1;
+    });
+    return Object.entries(stats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+  }, [students]);
+
   const COLORS = ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#6366f1'];
 
 
