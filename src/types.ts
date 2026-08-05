@@ -29,6 +29,7 @@ export interface LessonRecord {
   customSubject?: string;
   gradeLevel: string;
   academicYear?: string;
+  lessonPlanId?: string;
   date: string;
   content: string;      // สาระการจัดการเรียนรู้
   activities: string;   // กิจกรรมการเรียนการสอน
@@ -77,6 +78,9 @@ export interface LessonPlan {
   customSubject?: string;
   gradeLevel: string;
   title: string;          // ชื่อหน่วยการเรียนรู้ / เรื่อง
+  coreIndicators?: string;  // ตัวชี้วัดต้องรู้ (ต้นทาง)
+  targetIndicators?: string; // ตัวชี้วัดควรรู้ (ปลายทาง)
+  competencies?: string;
   objectives: string;     // จุดประสงค์การเรียนรู้
   activities: string;     // กิจกรรมการเรียนรู้
   materials: string;      // สื่อการเรียนรู้ / แหล่งเรียนรู้
@@ -522,4 +526,27 @@ export interface AdmissionRecord {
   
   status: 'pending' | 'approved' | 'rejected' | 'enrolled';
   appliedAt: string;
+}
+
+
+export interface CurriculumIndicator {
+  id: string;
+  code: string;
+  description: string;
+  type: 'core' | 'terminal';
+}
+
+export interface CurriculumStandard {
+  id: string;
+  title: string;
+  indicators: CurriculumIndicator[];
+}
+
+export interface CurriculumSubject {
+  id: string;
+  subjectName: string;
+  gradeLevel: string;
+  standards: CurriculumStandard[];
+  createdAt: string;
+  updatedAt: string;
 }

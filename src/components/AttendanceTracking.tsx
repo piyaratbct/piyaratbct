@@ -11,11 +11,14 @@ interface AttendanceTrackingProps {
   teacherName?: string;
   semester: string;
   academicYear: string;
+  initialDate?: string;
+  initialPeriod?: string;
+  onClose?: () => void;
 }
 
-export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear }: AttendanceTrackingProps) {
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [period, setPeriod] = useState<string>(PERIODS[1]);
+export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear, initialDate, initialPeriod, onClose }: AttendanceTrackingProps) {
+  const [date, setDate] = useState<string>(initialDate || new Date().toISOString().slice(0, 10));
+  const [period, setPeriod] = useState<string>(initialPeriod || PERIODS[1]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'>>({});
@@ -50,6 +53,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
 
   // Automatically select a matching period if one exists for the current date's day of week
   useEffect(() => {
+    if (initialPeriod) return; // Do not auto-select if editing an existing session
     if (schedules.length > 0 && date) {
       const parts = date.split('-');
       const dayOfWeek = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])).getDay();
@@ -58,7 +62,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         setPeriod(matchingSchedule.period);
       }
     }
-  }, [schedules, date]);
+  }, [schedules, date, initialPeriod]);
 
   const fetchSession = async () => {
     setIsLoading(true);
@@ -168,7 +172,10 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         }
       }));
 
-      setTimeout(() => setSaveStatus(null), 3000);
+      setTimeout(() => {
+        setSaveStatus(null);
+        if (onClose) onClose();
+      }, 1500);
     } catch (error) {
       console.error('Error saving attendance:', error);
       setSaveStatus({ type: 'error', message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
@@ -197,6 +204,12 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
       {/* Header Controls */}
+      {onClose && (
+        <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b border-slate-200">
+          <span className="font-bold text-slate-700">แก้ไขการเช็กชื่อนักเรียน</span>
+          <button onClick={onClose} className="text-slate-500 hover:bg-slate-200 p-1 rounded-full"><XCircle className="h-5 w-5" /></button>
+        </div>
+      )}
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-end">
         <div className="flex flex-wrap gap-4 items-end">
           <div>

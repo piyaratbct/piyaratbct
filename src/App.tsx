@@ -1975,6 +1975,7 @@ export default function App() {
                     editingPlan ? () => setEditingPlan(null) : undefined
                   }
                   currentUserRole={currentTeacher.role}
+                  currentUserName={currentTeacher.name}
                   systemAcademicYear={systemAcademicYear}
                   systemSemester={systemSemester}
                 />
@@ -1983,6 +1984,7 @@ export default function App() {
               {activeTab === "plan-list" && (
                 <LessonPlanList
                   plans={plans}
+                  records={records}
                   teachers={teachers}
                   showTeacherFilter={
                     currentTeacher.role === "admin" ||
@@ -2119,8 +2121,8 @@ export default function App() {
               : DEFAULT_TEACHER)
           }
           academicHead={
-            teachers.find((t) => t.role !== "teacher") ||
-            (currentTeacher?.role !== "teacher" ? currentTeacher : null)
+            teachers.find((t) => t.role === "academic" || t.role === "deputy" || t.role === "admin") ||
+            ((currentTeacher?.role === "academic" || currentTeacher?.role === "deputy" || currentTeacher?.role === "admin") ? currentTeacher : null)
           }
           currentUser={currentTeacher}
           customLogo={customLogo}
@@ -2197,8 +2199,8 @@ export default function App() {
               : DEFAULT_TEACHER)
           }
           academicHead={
-            teachers.find((t) => t.role !== "teacher") ||
-            (currentTeacher?.role !== "teacher" ? currentTeacher : null)
+            teachers.find((t) => t.role === "academic" || t.role === "deputy" || t.role === "admin") ||
+            ((currentTeacher?.role === "academic" || currentTeacher?.role === "deputy" || currentTeacher?.role === "admin") ? currentTeacher : null)
           }
           currentUser={currentTeacher}
           onUpdatePlan={(updated: any) => {

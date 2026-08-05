@@ -30,6 +30,8 @@ export function LessonPlanPrintTemplate({
     null,
   );
   const [isCompact, setIsCompact] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectComment, setRejectComment] = useState("");
 
   const subjectName = plan.subject.replace(/[\/\\:*?"<>|\s]/g, "_");
   const teacherIdentifier = (
@@ -77,12 +79,6 @@ export function LessonPlanPrintTemplate({
     onUpdatePlan(updatedPlan);
   };
 
-  const handleRejectPlan = () => {
-    if (!onUpdatePlan) return;
-    if (confirm("ต้องการตีกลับให้แก้ไขแผนการสอนนี้ใช่หรือไม่?")) {
-      onUpdatePlan({ ...plan, status: "rejected" });
-    }
-  };
 
   const thaiFormatDate = (dateString: string) => {
     const months = [
@@ -152,7 +148,7 @@ export function LessonPlanPrintTemplate({
                 onClick={() => setSigningRole("teacher")}
                 className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 font-medium hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-2"
               >
-                <Edit3 className="h-4 w-4" /> ลงนามผู้แต่ง
+                <Edit3 className="h-4 w-4" /> ลงนามผู้เขียน
               </button>
             )}
 
@@ -178,7 +174,7 @@ export function LessonPlanPrintTemplate({
                 {plan.status !== "approved" ? (
                   <>
                     <button
-                      onClick={handleRejectPlan}
+                      onClick={() => setRejectModalOpen(true)}
                       className="px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 font-medium hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-2"
                     >
                       <XCircle className="h-4 w-4" /> ตีกลับให้แก้ (Reject)
@@ -313,11 +309,50 @@ export function LessonPlanPrintTemplate({
             </p>
           </div>
 
+          {(plan.coreIndicators || plan.targetIndicators) && (
+            <div>
+              <h3
+                className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
+              >
+                2. มาตรฐานการเรียนรู้และตัวชี้วัด (Indicators)
+              </h3>
+              <div className={`pl-4 space-y-3 bg-white ${isCompact ? "text-sm" : "text-base"}`}>
+                {plan.coreIndicators && (
+                  <div>
+                    <span className="font-bold text-emerald-700 block mb-1">ตัวชี้วัดต้องรู้ (ต้นทาง):</span>
+                    <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">{plan.coreIndicators}</div>
+                  </div>
+                )}
+                {plan.targetIndicators && (
+                  <div>
+                    <span className="font-bold text-amber-700 block mb-1">ตัวชี้วัดควรรู้ (ปลายทาง):</span>
+                    <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">{plan.targetIndicators}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {plan.competencies && (
+            <div>
+              <h3
+                className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
+              >
+                {(plan.coreIndicators || plan.targetIndicators) ? '3.' : '2.'} สมรรถนะสำคัญของผู้เรียน (Competencies)
+              </h3>
+              <div
+                className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
+              >
+                {plan.competencies}
+              </div>
+            </div>
+          )}
+
           <div>
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              2. จุดประสงค์การเรียนรู้ (Objectives)
+              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '4.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '3.' : '2.'} จุดประสงค์การเรียนรู้ (Objectives)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
@@ -330,7 +365,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              3. กิจกรรมการเรียนรู้ (Learning Activities)
+              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '5.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '4.' : '3.'} กิจกรรมการเรียนรู้ (Learning Activities)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm min-h-[80px]" : "text-base min-h-[120px]"}`}
@@ -343,7 +378,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              4. สื่อการเรียนรู้ / แหล่งเรียนรู้ (Materials)
+              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '6.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '5.' : '4.'} สื่อการเรียนรู้ / แหล่งเรียนรู้ (Materials)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
@@ -356,7 +391,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              5. การวัดและประเมินผล (Evaluation)
+              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '7.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '6.' : '5.'} การวัดและประเมินผล (Evaluation)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
@@ -414,6 +449,55 @@ export function LessonPlanPrintTemplate({
           </div>
         </div>
       </PrintPageContainer>
+
+      {rejectModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+              <div className="bg-rose-100 text-rose-600 p-2 rounded-full">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold text-lg text-slate-800">ตีกลับให้แก้ไข</h3>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-slate-600 mb-3">ต้องการตีกลับให้แก้ไขแผนการสอนนี้ใช่หรือไม่? โปรดระบุข้อเสนอแนะ:</p>
+              <textarea
+                value={rejectComment}
+                onChange={(e) => setRejectComment(e.target.value)}
+                placeholder="ระบุข้อเสนอแนะ / ความคิดเห็นเพิ่มเติมสำหรับผู้ตรวจ (ถ้ามี)"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 h-24 text-sm"
+              />
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectComment("");
+                }}
+                className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  if (onUpdatePlan) {
+                    onUpdatePlan({ 
+                      ...plan, 
+                      status: "rejected",
+                      approverComment: rejectComment || ""
+                    });
+                  }
+                  setRejectModalOpen(false);
+                  setRejectComment("");
+                }}
+                className="px-4 py-2 font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors"
+              >
+                ยืนยันตีกลับ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {signingRole && onUpdatePlan && (
         <SignaturePadModal

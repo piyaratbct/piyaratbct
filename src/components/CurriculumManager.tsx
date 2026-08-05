@@ -1,0 +1,908 @@
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
+import { BookOpen, Search, Plus, Edit, Trash2, Upload, CheckCircle2, Circle, Loader2, Save, X, ChevronDown, ChevronRight, Download, AlertTriangle, CheckCircle } from 'lucide-react';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { CurriculumSubject, CurriculumStandard, CurriculumIndicator, GRADE_LEVELS, SUBJECTS } from '../types';
+
+export const CurriculumManager: React.FC = () => {
+  const [curriculums, setCurriculums] = useState<CurriculumSubject[]>([]);
+  const [selectedCurriculumId, setSelectedCurriculumId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' } | null>(null);
+
+  const downloadTemplate = () => {
+    const data = [
+      {
+        'ชื่อรายวิชา': 'คณิตศาสตร์พื้นฐาน (ค11101)',
+        'ระดับชั้น': 'ประถมศึกษาปีที่ 1',
+        'มาตรฐาน': 'มาตรฐาน ค 1.1',
+        'รหัสตัวชี้วัด': 'ค 1.1 ป.1/1',
+        'คำอธิบายตัวชี้วัด': 'บอกจำนวนของสิ่งต่าง ๆ แสดงสิ่งต่าง ๆ ตามจำนวนที่กำหนด อ่านและเขียนตัวเลขฮินดูอารบิก ตัวเลขไทยแสดงจำนวนนับไม่เกิน 100 และ 0',
+        'ประเภท': 'ตัวชี้วัดระหว่างทาง'
+      },
+      {
+        'ชื่อรายวิชา': 'คณิตศาสตร์พื้นฐาน (ค11101)',
+        'ระดับชั้น': 'ประถมศึกษาปีที่ 1',
+        'มาตรฐาน': 'มาตรฐาน ค 1.1',
+        'รหัสตัวชี้วัด': 'ค 1.1 ป.1/2',
+        'คำอธิบายตัวชี้วัด': 'เปรียบเทียบจำนวนนับไม่เกิน 100 และ 0 โดยใช้เครื่องหมาย = ≠ > <',
+        'ประเภท': 'ตัวชี้วัดปลายทาง'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "ตัวชี้วัด");
+
+    // Adjust column widths
+    const wscols = [
+      { wch: 25 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 60 },
+      { wch: 15 }
+    ];
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, "แบบฟอร์มนำเข้าตัวชี้วัด.xlsx");
+  };
+
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [previewData, setPreviewData] = useState<Map<string, CurriculumSubject> | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Structure expectation:
+      // SubjectName | GradeLevel | StandardTitle | IndicatorCode | IndicatorDescription | IndicatorType
+      // Types: ต้องรู้ (core) / ควรรู้ (terminal)
+      
+      const newCurriculums = new Map<string, CurriculumSubject>();
+
+      for (const row of jsonData as any[]) {
+        const subjectName = String(row['ชื่อรายวิชา'] || row['SubjectName'] || '').trim();
+        const gradeLevel = String(row['ระดับชั้น'] || row['GradeLevel'] || '').trim();
+        const standardTitle = String(row['มาตรฐาน'] || row['StandardTitle'] || '').trim();
+        const indicatorCode = String(row['รหัสตัวชี้วัด'] || row['IndicatorCode'] || '').trim();
+        const indicatorDesc = String(row['คำอธิบายตัวชี้วัด'] || row['IndicatorDescription'] || row['คำอธิบาย'] || '').trim();
+        let indicatorTypeRaw = String(row['ประเภท'] || row['IndicatorType'] || '').trim();
+        
+        let type: 'core' | 'terminal' = 'core';
+        if (indicatorTypeRaw.includes('ควรรู้') || indicatorTypeRaw.toLowerCase().includes('terminal') || indicatorTypeRaw.includes('ปลายทาง')) {
+          type = 'terminal';
+        }
+
+        if (!subjectName || !gradeLevel) continue;
+
+        const subjectKey = `${subjectName}-${gradeLevel}`;
+        
+        let curr = newCurriculums.get(subjectKey);
+        if (!curr) {
+          curr = {
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+            subjectName,
+            gradeLevel,
+            standards: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          newCurriculums.set(subjectKey, curr);
+        }
+
+        if (standardTitle) {
+          let standard = curr.standards.find(s => s.title === standardTitle);
+          if (!standard) {
+            standard = {
+              id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+              title: standardTitle,
+              indicators: []
+            };
+            curr.standards.push(standard);
+          }
+
+          if (indicatorCode && indicatorDesc) {
+            const existingInd = standard.indicators.find(i => i.code === indicatorCode);
+            if (!existingInd) {
+              standard.indicators.push({
+                id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                code: indicatorCode,
+                description: indicatorDesc,
+                type
+              });
+            }
+          }
+        }
+      }
+
+      setPreviewData(newCurriculums);
+    } catch (error) {
+      console.error('Error parsing excel:', error);
+      setAlertModal({ isOpen: true, title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการนำเข้าไฟล์ Excel โปรดตรวจสอบรูปแบบไฟล์ให้ตรงกับแบบฟอร์ม', type: 'error' });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!previewData) return;
+    setIsImporting(true);
+    try {
+      let successCount = 0;
+      for (const [_, curr] of previewData) {
+        const existing = curriculums.find(c => c.subjectName === curr.subjectName && c.gradeLevel === curr.gradeLevel);
+        if (existing) {
+          const merged = { ...existing };
+          curr.standards.forEach(newStd => {
+            const extStd = merged.standards.find(s => s.title === newStd.title);
+            if (extStd) {
+              newStd.indicators.forEach(newInd => {
+                const extInd = extStd.indicators.find(i => i.code === newInd.code);
+                if (!extInd) {
+                  extStd.indicators.push(newInd);
+                }
+              });
+            } else {
+              merged.standards.push(newStd);
+            }
+          });
+          merged.updatedAt = new Date().toISOString();
+          await setDoc(doc(db, 'curriculums', merged.id), merged);
+        } else {
+          await setDoc(doc(db, 'curriculums', curr.id), curr);
+        }
+        successCount++;
+      }
+      
+      setAlertModal({ isOpen: true, title: 'นำเข้าข้อมูลสำเร็จ', message: `นำเข้าข้อมูลตัวชี้วัดจำนวน ${successCount} รายวิชาเรียบร้อยแล้ว`, type: 'success' });
+      setPreviewData(null);
+      await fetchCurriculums();
+    } catch (error) {
+      console.error('Error saving imported data:', error);
+      setAlertModal({ isOpen: true, title: 'เกิดข้อผิดพลาด', message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูลตัวชี้วัด', type: 'error' });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const clearIndicators = async (subjectId: string) => {
+    setConfirmModal({ isOpen: true, title: 'ล้างข้อมูลตัวชี้วัด', message: 'ยืนยันการล้างข้อมูลตัวชี้วัดทั้งหมดในรายวิชานี้?', onConfirm: async () => {
+      setConfirmModal(null);
+      try {
+        const curr = curriculums.find(c => c.id === subjectId);
+        if (!curr) return;
+        const updated = { ...curr, standards: [], updatedAt: new Date().toISOString() };
+        await setDoc(doc(db, 'curriculums', subjectId), updated);
+        await fetchCurriculums();
+        if (selectedCurriculumId === subjectId) {
+          const refreshed = curriculums.find(c => c.id === subjectId);
+          if (refreshed) {
+             refreshed.standards = [];
+          }
+        }
+        setAlertModal({ isOpen: true, title: 'ล้างข้อมูลสำเร็จ', message: 'ล้างข้อมูลตัวชี้วัดเรียบร้อยแล้ว', type: 'success' });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, 'curriculums');
+      }
+    }});
+  };
+
+
+
+  // Modals / Forms state
+  const [showSubjectForm, setShowSubjectForm] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Partial<CurriculumSubject>>({});
+
+  const [showStandardForm, setShowStandardForm] = useState(false);
+  const [editingStandard, setEditingStandard] = useState<{ id?: string; title: string }>({ title: '' });
+
+  const [showIndicatorForm, setShowIndicatorForm] = useState(false);
+  const [targetStandardId, setTargetStandardId] = useState<string | null>(null);
+  const [editingIndicator, setEditingIndicator] = useState<Partial<CurriculumIndicator>>({});
+
+  useEffect(() => {
+    fetchCurriculums();
+  }, []);
+
+  const fetchCurriculums = async () => {
+    setIsLoading(true);
+    try {
+      const q = query(collection(db, 'curriculums'), orderBy('gradeLevel'), orderBy('subjectName'));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as CurriculumSubject));
+      setCurriculums(data);
+      if (data.length > 0 && !selectedCurriculumId) {
+        setSelectedCurriculumId(data[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching curriculums:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectedCurriculum = curriculums.find(c => c.id === selectedCurriculumId);
+
+  const filteredCurriculums = curriculums.filter(c => 
+    c.subjectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.gradeLevel.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const saveSubject = async () => {
+    if (!editingSubject.subjectName || !editingSubject.gradeLevel) return;
+    setIsSaving(true);
+    try {
+      const isNew = !editingSubject.id;
+      const id = isNew ? Date.now().toString() : editingSubject.id!;
+      const payload: CurriculumSubject = {
+        id,
+        subjectName: editingSubject.subjectName,
+        gradeLevel: editingSubject.gradeLevel,
+        standards: editingSubject.standards || [],
+        createdAt: isNew ? new Date().toISOString() : (editingSubject.createdAt || new Date().toISOString()),
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'curriculums', id), payload);
+      await fetchCurriculums();
+      setShowSubjectForm(false);
+      setSelectedCurriculumId(id);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'curriculums');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteSubject = async (id: string) => {
+    setConfirmModal({ isOpen: true, title: 'ลบรายวิชา', message: 'ยืนยันการลบรายวิชานี้? ข้อมูลมาตรฐานและตัวชี้วัดทั้งหมดจะถูกลบด้วย และไม่สามารถกู้คืนได้', onConfirm: async () => { setConfirmModal(null);
+    try {
+      await deleteDoc(doc(db, 'curriculums', id));
+      if (selectedCurriculumId === id) setSelectedCurriculumId(null);
+      await fetchCurriculums();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'curriculums');
+    }
+  }});
+  };
+
+  const saveStandard = async () => {
+    if (!selectedCurriculum || !editingStandard.title) return;
+    setIsSaving(true);
+    try {
+      const updatedCurriculum = { ...selectedCurriculum };
+      const isNew = !editingStandard.id;
+      
+      if (isNew) {
+        const newStandard: CurriculumStandard = {
+          id: Date.now().toString(),
+          title: editingStandard.title,
+          indicators: []
+        };
+        updatedCurriculum.standards = [...(updatedCurriculum.standards || []), newStandard];
+      } else {
+        updatedCurriculum.standards = updatedCurriculum.standards.map(s => 
+          s.id === editingStandard.id ? { ...s, title: editingStandard.title } : s
+        );
+      }
+      updatedCurriculum.updatedAt = new Date().toISOString();
+
+      await setDoc(doc(db, 'curriculums', updatedCurriculum.id), updatedCurriculum);
+      
+      setCurriculums(prev => prev.map(c => c.id === updatedCurriculum.id ? updatedCurriculum : c));
+      setShowStandardForm(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'curriculums');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteStandard = async (standardId: string) => {
+    if (!selectedCurriculum) return;
+    setConfirmModal({ isOpen: true, title: 'ลบมาตรฐานการเรียนรู้', message: 'ยืนยันการลบมาตรฐานการเรียนรู้นี้พร้อมตัวชี้วัดทั้งหมดภายใต้มาตรฐานนี้?', onConfirm: async () => { setConfirmModal(null);
+    try {
+      const updatedCurriculum = { ...selectedCurriculum };
+      updatedCurriculum.standards = updatedCurriculum.standards.filter(s => s.id !== standardId);
+      updatedCurriculum.updatedAt = new Date().toISOString();
+      await setDoc(doc(db, 'curriculums', updatedCurriculum.id), updatedCurriculum);
+      setCurriculums(prev => prev.map(c => c.id === updatedCurriculum.id ? updatedCurriculum : c));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'curriculums');
+    }
+  }});
+  };
+
+  const saveIndicator = async () => {
+    if (!selectedCurriculum || !targetStandardId || !editingIndicator.code || !editingIndicator.description || !editingIndicator.type) return;
+    setIsSaving(true);
+    try {
+      const updatedCurriculum = { ...selectedCurriculum };
+      const standardIndex = updatedCurriculum.standards.findIndex(s => s.id === targetStandardId);
+      if (standardIndex === -1) return;
+
+      const standard = updatedCurriculum.standards[standardIndex];
+      const isNew = !editingIndicator.id;
+
+      const indicatorPayload: CurriculumIndicator = {
+        id: isNew ? Date.now().toString() : editingIndicator.id!,
+        code: editingIndicator.code,
+        description: editingIndicator.description,
+        type: editingIndicator.type as 'core' | 'terminal'
+      };
+
+      if (isNew) {
+        standard.indicators = [...(standard.indicators || []), indicatorPayload];
+      } else {
+        standard.indicators = standard.indicators.map(ind => ind.id === indicatorPayload.id ? indicatorPayload : ind);
+      }
+
+      updatedCurriculum.standards[standardIndex] = standard;
+      updatedCurriculum.updatedAt = new Date().toISOString();
+
+      await setDoc(doc(db, 'curriculums', updatedCurriculum.id), updatedCurriculum);
+      setCurriculums(prev => prev.map(c => c.id === updatedCurriculum.id ? updatedCurriculum : c));
+      setShowIndicatorForm(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'curriculums');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteIndicator = async (standardId: string, indicatorId: string) => {
+    if (!selectedCurriculum) return;
+    setConfirmModal({ isOpen: true, title: 'ลบตัวชี้วัด', message: 'ยืนยันการลบตัวชี้วัดนี้?', onConfirm: async () => { setConfirmModal(null);
+    try {
+      const updatedCurriculum = { ...selectedCurriculum };
+      const standardIndex = updatedCurriculum.standards.findIndex(s => s.id === standardId);
+      if (standardIndex === -1) return;
+
+      updatedCurriculum.standards[standardIndex].indicators = updatedCurriculum.standards[standardIndex].indicators.filter(ind => ind.id !== indicatorId);
+      updatedCurriculum.updatedAt = new Date().toISOString();
+
+      await setDoc(doc(db, 'curriculums', updatedCurriculum.id), updatedCurriculum);
+      setCurriculums(prev => prev.map(c => c.id === updatedCurriculum.id ? updatedCurriculum : c));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'curriculums');
+    }
+  }});
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+          <BookOpen className="h-6 w-6 text-indigo-500" />
+          ระบบจัดการหลักสูตรและรายวิชา
+        </h2>
+        <div className="flex gap-2">
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".xlsx, .xls" 
+            className="hidden" 
+          />
+          <button 
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg font-bold shadow-sm hover:bg-indigo-100 transition-colors"
+          >
+            <Download className="h-4 w-4" /> โหลดไฟล์ตัวอย่าง (Excel)
+          </button>
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} 
+            {isImporting ? 'กำลังนำเข้า...' : 'นำเข้าตัวชี้วัด (Excel)'}
+          </button>
+
+          <button 
+            onClick={() => {
+              setEditingSubject({ gradeLevel: GRADE_LEVELS[0], subjectName: SUBJECTS[0] });
+              setShowSubjectForm(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" /> เพิ่มรายวิชา
+          </button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Sidebar - Subject List */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col h-[calc(100vh-200px)]">
+            <h3 className="font-bold text-slate-800 mb-3">รายวิชาทั้งหมด</h3>
+            <div className="relative mb-3 flex-shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="ค้นหารายวิชา..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="space-y-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+              {isLoading ? (
+                <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+              ) : filteredCurriculums.length > 0 ? (
+                filteredCurriculums.map(c => (
+                  <div key={c.id} className="group relative">
+                    <button 
+                      onClick={() => setSelectedCurriculumId(c.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        selectedCurriculumId === c.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="line-clamp-1">{c.subjectName}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{c.gradeLevel}</div>
+                    </button>
+                    {selectedCurriculumId === c.id && (
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 bg-indigo-50 pl-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setEditingSubject(c); setShowSubjectForm(true); }}
+                          className="p-1 text-indigo-400 hover:text-indigo-600 rounded"
+                        ><Edit className="h-3.5 w-3.5" /></button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteSubject(c.id); }}
+                          className="p-1 text-rose-400 hover:text-rose-600 rounded"
+                        ><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center p-4 text-slate-400 text-sm">ไม่พบรายวิชา</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Content - Indicators */}
+        <div className="lg:col-span-3 space-y-4">
+          {selectedCurriculum ? (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 min-h-[calc(100vh-200px)]">
+              <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800">{selectedCurriculum.subjectName}</h3>
+                  <p className="text-slate-500 text-sm mt-1">{selectedCurriculum.gradeLevel}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button 
+                    onClick={() => {
+                      setEditingSubject(selectedCurriculum);
+                      setShowSubjectForm(true);
+                    }}
+                    className="px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" /> แก้ไขรายวิชา
+                  </button>
+                  <button 
+                    onClick={() => deleteSubject(selectedCurriculum.id)}
+                    className="px-3 py-2 bg-white border border-rose-200 text-rose-600 rounded-lg text-sm font-bold hover:bg-rose-50 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" /> ลบรายวิชา
+                  </button>
+                  <button 
+                    onClick={() => clearIndicators(selectedCurriculum.id)}
+                    className="px-3 py-2 bg-white border border-amber-200 text-amber-600 rounded-lg text-sm font-bold hover:bg-amber-50 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" /> ล้างตัวชี้วัดทั้งหมด
+                  </button>
+                  <div className="w-px h-8 bg-slate-200 mx-1"></div>
+                  <button 
+                    onClick={() => {
+                      setEditingStandard({ title: '' });
+                      setShowStandardForm(true);
+                    }}
+                    className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> เพิ่มมาตรฐาน
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {selectedCurriculum.standards && selectedCurriculum.standards.length > 0 ? (
+                  selectedCurriculum.standards.map((standard) => (
+                    <div key={standard.id} className="border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                      <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-800 text-sm sm:text-base">{standard.title}</h4>
+                          <span className="text-[10px] font-bold bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-full">
+                            {standard.indicators?.length || 0} ตัวชี้วัด
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setTargetStandardId(standard.id);
+                              setEditingIndicator({ code: '', description: '', type: 'core' });
+                              setShowIndicatorForm(true);
+                            }}
+                            className="text-xs font-bold text-indigo-600 bg-white border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" /> เพิ่มตัวชี้วัด
+                          </button>
+                          <div className="h-4 w-px bg-slate-300 mx-1"></div>
+                          <button onClick={() => { setEditingStandard({ id: standard.id, title: standard.title }); setShowStandardForm(true); }} className="text-slate-400 hover:text-indigo-600"><Edit className="h-4 w-4" /></button>
+                          <button onClick={() => deleteStandard(standard.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                      
+                      <div className="divide-y divide-slate-100">
+                        {standard.indicators && standard.indicators.length > 0 ? (
+                          standard.indicators.map((ind) => (
+                            <div key={ind.id} className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                              <div className="mt-1 flex-shrink-0" title={ind.type === 'core' ? "ตัวชี้วัดต้องรู้ (ต้นทาง)" : "ตัวชี้วัดควรรู้ (ปลายทาง)"}>
+                                {ind.type === 'core' ? (
+                                  <CheckCircle2 className="h-5 w-5 text-rose-500" />
+                                ) : (
+                                  <Circle className="h-5 w-5 text-amber-500" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                  <span className="font-bold text-slate-800">{ind.code}</span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    ind.type === 'core' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                  }`}>
+                                    {ind.type === 'core' ? 'ตัวชี้วัดต้องรู้ (ต้นทาง)' : 'ตัวชี้วัดควรรู้ (ปลายทาง)'}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-600 whitespace-pre-line">{ind.description}</p>
+                              </div>
+                              <div className="flex gap-2 text-slate-400">
+                                <button onClick={() => { setTargetStandardId(standard.id); setEditingIndicator(ind); setShowIndicatorForm(true); }} className="hover:text-indigo-600"><Edit className="h-4 w-4" /></button>
+                                <button onClick={() => deleteIndicator(standard.id, ind.id)} className="hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-8 text-center text-slate-400 text-sm">ยังไม่มีตัวชี้วัดในมาตรฐานนี้</div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
+                    <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-slate-700 mb-1">ยังไม่มีมาตรฐานการเรียนรู้</h3>
+                    <p className="text-slate-500 text-sm">เพิ่มมาตรฐานการเรียนรู้เพื่อเริ่มต้นจัดการตัวชี้วัด</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-full flex flex-col items-center justify-center text-slate-400 min-h-[400px]">
+              <BookOpen className="h-16 w-16 mb-4 text-slate-200" />
+              <p>เลือกรายวิชาทางด้านซ้าย หรือเพิ่มรายวิชาใหม่</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+
+      
+      {/* Import Preview Modal */}
+      {previewData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h3 className="text-xl font-black text-slate-800">ตัวอย่างข้อมูลก่อนนำเข้า</h3>
+                <p className="text-sm text-slate-500 mt-1">ตรวจสอบความถูกต้องของข้อมูลตัวชี้วัดก่อนบันทึกลงระบบ</p>
+              </div>
+              <button onClick={() => setPreviewData(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+              {Array.from(previewData.values()).map((subject: CurriculumSubject, idx: number) => (
+                <div key={idx} className="mb-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100">
+                    <h4 className="font-bold text-indigo-900">{subject.subjectName} ({subject.gradeLevel})</h4>
+                  </div>
+                  
+                  <div className="p-4 space-y-6">
+                    {subject.standards.map((std, sIdx) => (
+                      <div key={sIdx} className="space-y-3">
+                        <div className="font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-lg inline-block">
+                          {std.title}
+                        </div>
+                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                          <table className="w-full text-left text-sm whitespace-nowrap">
+                            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="px-4 py-3 w-32">รหัส</th>
+                                <th className="px-4 py-3 min-w-[300px]">คำอธิบาย</th>
+                                <th className="px-4 py-3 w-40 text-center">ประเภท</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {std.indicators.map((ind, iIdx) => (
+                                <tr key={iIdx} className="hover:bg-slate-50/50">
+                                  <td className="px-4 py-3 font-medium text-slate-700">{ind.code}</td>
+                                  <td className="px-4 py-3 text-slate-600 whitespace-pre-wrap">{ind.description}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${ind.type === 'core' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                      {ind.type === 'core' ? 'ตัวชี้วัดระหว่างทาง' : 'ตัวชี้วัดปลายทาง'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-white flex justify-end gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] z-10">
+              <button
+                onClick={() => setPreviewData(null)}
+                className="px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmImport}
+                disabled={isImporting}
+                className="px-6 py-2.5 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {isImporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                ยืนยันการนำเข้าข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Alert Modal */}
+      {alertModal && alertModal.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 text-center p-6">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 mb-4">
+              {alertModal.type === 'success' ? (
+                <CheckCircle className="h-6 w-6 text-emerald-500" />
+              ) : (
+                <AlertTriangle className="h-6 w-6 text-rose-500" />
+              )}
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{alertModal.title}</h3>
+            <p className="text-sm text-slate-600 mb-6">{alertModal.message}</p>
+            <button
+              onClick={() => setAlertModal(null)}
+              className="w-full px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-rose-500" />
+                {confirmModal.title}
+              </h3>
+              <p className="text-sm text-slate-600">{confirmModal.message}</p>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="px-4 py-2 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg transition-colors"
+              >
+                ยืนยันการลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSubjectForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-indigo-500" />
+                {editingSubject.id ? 'แก้ไขรายวิชา' : 'เพิ่มรายวิชาใหม่'}
+              </h3>
+              <button onClick={() => setShowSubjectForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ระดับชั้น</label>
+                <select 
+                  value={editingSubject.gradeLevel || ''} 
+                  onChange={e => setEditingSubject({...editingSubject, gradeLevel: e.target.value})}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                >
+                  {GRADE_LEVELS.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อรายวิชา (พร้อมรหัส)</label>
+                <input 
+                  type="text" 
+                  value={editingSubject.subjectName || ''}
+                  onChange={e => setEditingSubject({...editingSubject, subjectName: e.target.value})}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  placeholder="เช่น คณิตศาสตร์พื้นฐาน (ค11101)"
+                  list="subject-options"
+                />
+                <datalist id="subject-options">
+                  {SUBJECTS.map(s => <option key={s} value={s} />)}
+                </datalist>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setShowSubjectForm(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                ยกเลิก
+              </button>
+              <button onClick={saveSubject} disabled={isSaving || !editingSubject.subjectName} className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50">
+                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStandardForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 text-lg">
+                {editingStandard.id ? 'แก้ไขมาตรฐาน' : 'เพิ่มมาตรฐานการเรียนรู้'}
+              </h3>
+              <button onClick={() => setShowStandardForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อมาตรฐาน</label>
+              <input 
+                type="text" 
+                value={editingStandard.title}
+                onChange={e => setEditingStandard({...editingStandard, title: e.target.value})}
+                className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                placeholder="เช่น มาตรฐาน ค 1.1"
+                autoFocus
+              />
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setShowStandardForm(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                ยกเลิก
+              </button>
+              <button onClick={saveStandard} disabled={isSaving || !editingStandard.title} className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50">
+                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIndicatorForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 text-lg">
+                {editingIndicator.id ? 'แก้ไขตัวชี้วัด' : 'เพิ่มตัวชี้วัด'}
+              </h3>
+              <button onClick={() => setShowIndicatorForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">รหัสตัวชี้วัด</label>
+                <input 
+                  type="text" 
+                  value={editingIndicator.code || ''}
+                  onChange={e => setEditingIndicator({...editingIndicator, code: e.target.value})}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
+                  placeholder="เช่น ค 1.1 ป.1/1"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">ประเภทตัวชี้วัด</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setEditingIndicator({...editingIndicator, type: 'core'})}
+                    className={`flex items-center gap-2 p-3 rounded-lg border text-sm font-bold transition-all text-left ${
+                      editingIndicator.type === 'core' 
+                        ? 'border-rose-500 bg-rose-50 text-rose-700 shadow-sm' 
+                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
+                    }`}
+                  >
+                    <CheckCircle2 className={`h-5 w-5 ${editingIndicator.type === 'core' ? 'text-rose-500' : 'text-slate-400'}`} />
+                    <div>
+                      <div>ตัวชี้วัดต้องรู้</div>
+                      <div className="text-[10px] font-normal opacity-80">(ต้นทาง)</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setEditingIndicator({...editingIndicator, type: 'terminal'})}
+                    className={`flex items-center gap-2 p-3 rounded-lg border text-sm font-bold transition-all text-left ${
+                      editingIndicator.type === 'terminal' 
+                        ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-sm' 
+                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
+                    }`}
+                  >
+                    <Circle className={`h-5 w-5 ${editingIndicator.type === 'terminal' ? 'text-amber-500' : 'text-slate-400'}`} />
+                    <div>
+                      <div>ตัวชี้วัดควรรู้</div>
+                      <div className="text-[10px] font-normal opacity-80">(ปลายทาง)</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">คำอธิบายตัวชี้วัด</label>
+                <textarea 
+                  value={editingIndicator.description || ''}
+                  onChange={e => setEditingIndicator({...editingIndicator, description: e.target.value})}
+                  className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm leading-relaxed"
+                  placeholder="รายละเอียดตัวชี้วัด..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setShowIndicatorForm(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                ยกเลิก
+              </button>
+              <button onClick={saveIndicator} disabled={isSaving || !editingIndicator.code || !editingIndicator.description} className="px-4 py-2 text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50">
+                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};

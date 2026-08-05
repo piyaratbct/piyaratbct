@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS } from '../types';
-import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2 } from 'lucide-react';
+import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2 } from 'lucide-react';
 import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
+import { AttendanceTracking } from './AttendanceTracking';
 
 import { Student } from '../types';
 
@@ -19,6 +20,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'daily' | 'cumulative'>('daily');
+  const [editingSession, setEditingSession] = useState<AttendanceSession | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const uniqueGrades = React.useMemo(() => {
     const dbGrades = new Set(students.map(s => s.gradeLevel));
@@ -66,7 +69,26 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
     };
 
     fetchAttendance();
-  }, [selectedGrade, selectedDate, systemAcademicYear, systemSemester, viewMode]);
+  }, [selectedGrade, selectedDate, systemAcademicYear, systemSemester, viewMode, refreshTrigger]);
+
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteDoc(doc(db, 'attendanceSessions', sessionId));
+      setRefreshTrigger(prev => prev + 1);
+      setSessionToDelete(null);
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          message: 'ลบข้อมูลการเช็กชื่อเรียบร้อยแล้ว',
+          type: 'success',
+          title: 'ลบสำเร็จ'
+        }
+      }));
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  };
 
   // Compute daily totals across all sessions for the selected grade and date
   const totalStudents = sessions.length > 0 ? Object.keys(sessions[0].attendanceData || {}).length : 0;
@@ -240,6 +262,22 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
                       <XCircle className="h-3.5 w-3.5" /> ขาด: {stats.absent}
                     </div>
                   </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end gap-2">
+                    <button
+                      onClick={() => setEditingSession(session)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="แก้ไข"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setSessionToDelete(session.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="ลบ"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -247,6 +285,53 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
         </div>
       )}
       </>
+      )}
+
+      {sessionToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-black text-slate-800 mb-2">ยืนยันการลบข้อมูล</h3>
+            <p className="text-sm text-slate-500 mb-6">คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการเช็กชื่อของคาบเรียนนี้? การดำเนินการนี้ไม่สามารถเรียกคืนได้</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSessionToDelete(null)}
+                className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => handleDeleteSession(sessionToDelete)}
+                className="flex-1 px-4 py-2 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-colors"
+              >
+                ลบข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingSession && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <AttendanceTracking
+              students={students}
+              gradeLevel={editingSession.gradeLevel}
+              teacherId={editingSession.teacherId}
+              teacherName={editingSession.teacherName}
+              semester={systemSemester || ''}
+              academicYear={systemAcademicYear || ''}
+              initialDate={editingSession.date}
+              initialPeriod={editingSession.period}
+              onClose={() => {
+                setEditingSession(null);
+                setRefreshTrigger(prev => prev + 1);
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

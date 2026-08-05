@@ -99,7 +99,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const pendingApprovals = records.filter(r => r.teacherSigned && !r.deptHeadApproved);
   
   const pendingCount = pendingApprovals.length;
-  const isAcademic = currentTeacher?.role && currentTeacher.role !== 'teacher';
+  const isAcademic = currentTeacher?.role && (currentTeacher.role === 'admin' || currentTeacher.role === 'academic' || currentTeacher.role === 'deputy');
 
   const pendingTeachers = Array.from(
     new Set(

@@ -193,5 +193,10 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
+
+    match /curriculums/{curriculumId} {
+      allow read: if isSignedIn();
+      allow write: if isAcademic();
+    }
   }
 }

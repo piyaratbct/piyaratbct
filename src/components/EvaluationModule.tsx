@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle } from 'lucide-react';
 import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
+import { LearningHoursReport } from './LearningHoursReport';
 import { SubjectSettingsModal } from './SubjectSettingsModal';
 import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
 import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
@@ -20,7 +21,7 @@ interface EvaluationModuleProps {
 }
 
 export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
   
@@ -345,6 +346,14 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               }`}
             >
               <CalendarDays className="h-4 w-4" /> สรุปการเช็กชื่อ
+            </button>
+            <button
+              onClick={() => setActiveTab('learning_hours')}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'learning_hours' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <BookOpen className="h-4 w-4" /> รายงานเวลาเรียน
             </button>
           </div>
 
@@ -752,6 +761,17 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               </p>
             </div>
           )}
+
+          {activeTab === 'learning_hours' && (
+            <div className="p-6 bg-slate-50">
+              <LearningHoursReport 
+                systemAcademicYear={systemAcademicYear}
+                systemSemester={systemSemester}
+                students={students}
+              />
+            </div>
+          )}
+
           {activeTab === 'attendance' && (
             <AttendanceSummary 
               systemAcademicYear={systemAcademicYear}

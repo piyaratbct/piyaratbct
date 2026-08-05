@@ -16,7 +16,9 @@ import { AcademicSettings } from "./AcademicSettings";
 import { StaffManager } from "./StaffManager";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
-import { LearningHoursReport } from "./LearningHoursReport";
+import { CurriculumManager } from "./CurriculumManager";
+import { FileSpreadsheet, FileText } from "lucide-react";
+
 
 import { Teacher } from "../types";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -35,7 +37,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   systemSemester,
   students,
 }) => {
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "learning_hours">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum">("calendar");
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 
   useEffect(() => {
@@ -158,15 +160,16 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
             <ArrowRight className="h-4 w-4" /> เลื่อนชั้น/จบการศึกษา
           </button>
         )}
+
         <button
-          onClick={() => setActiveTab("learning_hours")}
+          onClick={() => setActiveTab("curriculum")}
           className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
-            activeTab === "learning_hours"
+            activeTab === "curriculum"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <BookOpen className="h-4 w-4" /> รายงานเวลาเรียน
+          <BookOpen className="h-4 w-4" /> จัดการหลักสูตร
         </button>
       </div>
 
@@ -195,12 +198,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         />
       )}
 
-      {activeTab === "learning_hours" && (
-        <LearningHoursReport 
-          systemAcademicYear={systemAcademicYear}
-          systemSemester={systemSemester}
-          students={students}
-        />
+
+
+      {activeTab === "curriculum" && (
+        <CurriculumManager />
       )}
     </div>
   );

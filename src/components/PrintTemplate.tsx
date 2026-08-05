@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { LessonRecord, Teacher } from '../types';
-import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle } from 'lucide-react';
+import { Printer, X, Eye, HelpCircle, Lock, ShieldCheck, ShieldAlert, User, CheckCircle, Edit3, XCircle } from 'lucide-react';
 import { PDFPrintHelper, PrintPageContainer, PrintHeader } from './PDFPrintHelper';
 
 export function SchoolLogo({ className = "h-24 w-24" }: { className?: string }) {
@@ -307,7 +307,44 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 w-full sm:w-auto">
+        <div className="flex items-center space-x-2 w-full sm:w-auto flex-wrap justify-end gap-y-2">
+          {/* Signature Actions */}
+          {currentUser?.id === record.teacherId && !record.deptHeadApproved && (
+            record.teacherSigned && (record as any).teacherSignature ? (
+              <button 
+                onClick={() => handleResetSignature('teacher')}
+                className="flex items-center space-x-1.5 px-3 py-2 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 border border-rose-500/30 font-bold rounded-xl text-xs transition-colors"
+              >
+                <XCircle className="h-4 w-4" /> ล้างลายมือชื่อ
+              </button>
+            ) : (
+              <button 
+                onClick={() => setSigningRole('teacher')}
+                className="flex items-center space-x-1.5 px-3 py-2 bg-blue-500/20 text-blue-200 hover:bg-blue-500/30 border border-blue-500/30 font-bold rounded-xl text-xs transition-colors"
+              >
+                <Edit3 className="h-4 w-4" /> ลงนามผู้เขียน
+              </button>
+            )
+          )}
+
+          {allowAcademicSignature && (currentUser?.role === 'admin' || currentUser?.role === 'academic' || currentUser?.role === 'deputy') && (
+            isDeptHeadApproved && record.deptHeadSignature ? (
+              <button 
+                onClick={() => handleResetSignature('deptHead')}
+                className="flex items-center space-x-1.5 px-3 py-2 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 border border-rose-500/30 font-bold rounded-xl text-xs transition-colors"
+              >
+                <XCircle className="h-4 w-4" /> ยกเลิกการอนุมัติ
+              </button>
+            ) : (
+              <button 
+                onClick={() => setSigningRole('deptHead')}
+                className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 border border-emerald-500/30 font-bold rounded-xl text-xs transition-colors"
+              >
+                <Edit3 className="h-4 w-4" /> เซ็นอนุมัติ (Approve)
+              </button>
+            )
+          )}
+
           {/* Fit to A4 Single Page Toggle */}
           <button
             onClick={() => setIsCompact(!isCompact)}
@@ -644,30 +681,11 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 {record.teacherSigned && (record as any).teacherSignature ? (
                   <div className={`relative flex items-center justify-center ${isCompact ? 'h-14' : 'h-20'}`}>
                     <img src={(record as any).teacherSignature} alt="Teacher Electronic Signature" className={`${isCompact ? 'max-h-12' : 'max-h-18'} object-contain`} referrerPolicy="no-referrer" />
-                    {currentUser?.id === record.teacherId && currentUser?.role === 'teacher' && !record.deptHeadApproved && (
-                      <button 
-                        type="button" 
-                        onClick={() => handleResetSignature('teacher')}
-                        className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-200 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md print:hidden transition"
-                      >
-                        ล้างลายเซ็น
-                      </button>
-                    )}
                   </div>
                 ) : (
-                  currentUser?.id === record.teacherId && currentUser?.role === 'teacher' ? (
-                    <button 
-                      type="button"
-                      onClick={() => setSigningRole('teacher')}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] border border-slate-300 shadow-xs cursor-pointer print:hidden transition"
-                    >
-                      ✍️ ลงชื่อครูอิเล็กทรอนิกส์
-                    </button>
-                  ) : (
-                    <div className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-100 print:hidden select-none">
-                      ⏳ รอครูผู้สอนลงชื่อ
-                    </div>
-                  )
+                  <div className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-100 print:hidden select-none">
+                    ⏳ รอครูผู้สอนลงชื่อ
+                  </div>
                 )}
               </div>
 
@@ -686,30 +704,11 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                 {isDeptHeadApproved && record.deptHeadSignature ? (
                   <div className={`relative flex items-center justify-center ${isCompact ? 'h-14' : 'h-20'}`}>
                     <img src={record.deptHeadSignature} alt="Academic Supervisor Signature" className={`${isCompact ? 'max-h-12' : 'max-h-18'} object-contain`} referrerPolicy="no-referrer" />
-                    {allowAcademicSignature && currentUser?.role !== 'teacher' && (
-                      <button 
-                        type="button" 
-                        onClick={() => handleResetSignature('deptHead')}
-                        className="absolute -top-3 -right-3 bg-red-100 hover:bg-red-200 text-red-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md print:hidden transition"
-                      >
-                        ล้างลายเซ็น
-                      </button>
-                    )}
                   </div>
                 ) : (
-                  allowAcademicSignature && currentUser?.role !== 'teacher' ? (
-                    <button 
-                      type="button"
-                      onClick={() => setSigningRole('deptHead')}
-                      className="px-3 py-1.5 bg-indigo-100 hover:bg-indigo-150 text-indigo-700 font-bold rounded-lg text-[10px] border border-indigo-200 shadow-xs cursor-pointer print:hidden transition animate-pulse"
-                    >
-                      ✍️ ลงชื่อตรรวจรับรองฝ่ายวิชาการ
-                    </button>
-                  ) : (
-                    <div className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-100 print:hidden select-none" title="ผู้มีสิทธิ์ตรวจรับรองสามารถตรวจสอบและอนุมัติรับรองได้ทันที">
-                      ⏳ รอตรวจรับรองอนุมัติ
-                    </div>
-                  )
+                  <div className="text-[11px] text-slate-400 italic bg-slate-50 px-2 py-1 rounded-md border border-slate-100 print:hidden select-none" title="ผู้มีสิทธิ์ตรวจรับรองสามารถตรวจสอบและอนุมัติรับรองได้ทันที">
+                    ⏳ รอตรวจรับรองอนุมัติ
+                  </div>
                 )}
               </div>
 
@@ -718,7 +717,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               </p>
               <div>
                 <p className="font-semibold">
-                  (&nbsp;&nbsp;{record.deptHeadName || academicHead?.thaiName || '..........................................................'}&nbsp;&nbsp;)
+                  {isDeptHeadApproved && record.deptHeadName ? `(\u00A0\u00A0${record.deptHeadName}\u00A0\u00A0)` : '(\u00A0\u00A0..........................................................\u00A0\u00A0)'}
                 </p>
                 <p className={`text-slate-400 mt-1 font-sans ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>
                    หัวหน้าฝ่ายวิชาการ / ผู้ตรวจสอบ {isDeptHeadApproved && record.deptHeadDate ? `(ลงนามตรวจเมื่อ: ${formatThaiDateFull(record.deptHeadDate)})` : ''}
