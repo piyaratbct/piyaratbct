@@ -14,6 +14,7 @@ interface LessonPlanPrintTemplateProps {
   teacher: Teacher;
   academicHead?: Teacher | null;
   currentUser?: Teacher | null;
+  allTeachers?: Teacher[];
   onUpdatePlan?: (plan: LessonPlan) => void;
   onClose: () => void;
 }
@@ -25,6 +26,7 @@ export function LessonPlanPrintTemplate({
   currentUser,
   onUpdatePlan,
   onClose,
+  allTeachers = [],
 }: LessonPlanPrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<"teacher" | "deptHead" | null>(
     null,
@@ -270,7 +272,7 @@ export function LessonPlanPrintTemplate({
             <p
               className={`font-bold text-sky-800 ${isCompact ? "text-[11px] mb-0.5" : "text-xs mb-1"}`}
             >
-              สัปดาห์/วันที่สอน (Date)
+              คาบที่
             </p>
             <p
               className={`font-medium text-slate-900 ${isCompact ? "text-sm" : "text-base"}`}

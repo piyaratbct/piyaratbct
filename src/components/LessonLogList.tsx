@@ -359,6 +359,12 @@ export function LessonLogList({
                       : record.subject}
                   </span>
 
+                  {record.isIntegrated && (
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full" title={`บูรณาการ: ${record.integratedSubjects || 'อื่นๆ'}`}>
+                      บูรณาการ
+                    </span>
+                  )}
+
                   <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                     {record.gradeLevel}
                   </span>

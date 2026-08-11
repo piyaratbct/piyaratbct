@@ -89,3 +89,32 @@ export const formatThaiMonthYear = (dateString?: string) => {
     return dateString;
   }
 };
+
+export const generateTeachingWeeksOptions = (academicYearStr: string) => {
+  const academicYear = parseInt(academicYearStr) || (new Date().getFullYear() + 543);
+  
+  const months = [
+    { name: "พฤษภาคม", yearOffset: 0 },
+    { name: "มิถุนายน", yearOffset: 0 },
+    { name: "กรกฎาคม", yearOffset: 0 },
+    { name: "สิงหาคม", yearOffset: 0 },
+    { name: "กันยายน", yearOffset: 0 },
+    { name: "ตุลาคม", yearOffset: 0 },
+    { name: "พฤศจิกายน", yearOffset: 0 },
+    { name: "ธันวาคม", yearOffset: 0 },
+    { name: "มกราคม", yearOffset: 1 },
+    { name: "กุมภาพันธ์", yearOffset: 1 },
+    { name: "มีนาคม", yearOffset: 1 },
+    { name: "เมษายน", yearOffset: 1 }
+  ];
+  
+  const options: string[] = [];
+  months.forEach(m => {
+    const year = academicYear + m.yearOffset;
+    for (let w = 1; w <= 5; w++) {
+      options.push(`สัปดาห์ที่ ${w} เดือน ${m.name} ${year}`);
+    }
+  });
+  
+  return options;
+};

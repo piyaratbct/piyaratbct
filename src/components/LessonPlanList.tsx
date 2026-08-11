@@ -64,7 +64,8 @@ export function LessonPlanList({
     const teacherMatch =
       !showTeacherFilter ||
       selectedTeacherId === "ทั้งหมด" ||
-      plan.teacherId === selectedTeacherId;
+      plan.teacherId === selectedTeacherId ||
+      (plan.coTeachers && plan.coTeachers.includes(selectedTeacherId));
     const statusMatch =
       selectedStatus === "ทั้งหมด" || plan.status === selectedStatus;
 
@@ -241,7 +242,9 @@ export function LessonPlanList({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPlans.map((plan) => {
               const isOwner = plan.teacherId === currentTeacherId;
-              const isApproved = plan.status === "approved";
+              const isCoTeacher = plan.coTeachers ? plan.coTeachers.includes(currentTeacherId || '') : false;
+              const currentTeacher = teachers?.find(t => t.id === currentTeacherId);
+                            const isApproved = plan.status === "approved";
               const isRejected = plan.status === "rejected";
 
               let canEdit = false;
@@ -256,9 +259,9 @@ export function LessonPlanList({
               ) {
                 canEdit = true;
               } else {
-                if (isOwner && !isApproved) {
+                if ((isOwner || isCoTeacher) && !isApproved) {
                   canEdit = true;
-                  canDelete = true;
+                  canDelete = isOwner; // Only owner can delete
                 }
               }
 
@@ -278,6 +281,11 @@ export function LessonPlanList({
                           ? plan.customSubject
                           : plan.subject}
                       </span>
+                      {plan.isIntegrated && (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title={`บูรณาการ: ${plan.integratedSubjects || 'อื่นๆ'}`}>
+                          บูรณาการ
+                        </span>
+                      )}
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${
                           isApproved
@@ -332,10 +340,15 @@ export function LessonPlanList({
 
                     {showTeacherFilter && (
                       <div className="mt-auto pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
-                        <User className="h-3.5 w-3.5" />
-                        <span className="truncate">
-                          {getTeacherName(plan.teacherId)}
-                        </span>
+                        <User className="h-3.5 w-3.5 flex-shrink-0" />
+                        <div className="flex flex-wrap gap-1 items-center">
+                          <span className="font-medium text-slate-700">{getTeacherName(plan.teacherId)}</span>
+                          {plan.coTeachers && plan.coTeachers.length > 0 && (
+                            <span className="text-slate-400 text-[10px]">
+                              (+ ร่วมกับ {plan.coTeachers.map(id => getTeacherName(id)).join(', ')})
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

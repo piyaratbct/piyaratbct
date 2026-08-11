@@ -84,6 +84,23 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-8">
+          {/* Assessment Month Section */}
+          <section>
+            <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">
+              การประเมินประจำเดือน
+            </h4>
+            <div className="w-full max-w-xs">
+              <input
+                type="month"
+                value={formData.month || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, month: e.target.value }))
+                }
+                className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-pink-500 bg-white"
+              />
+            </div>
+          </section>
+
           {/* Health Data Section */}
           <section>
             <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">

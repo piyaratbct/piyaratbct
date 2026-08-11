@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-Teacher, LessonRecord, LessonPlan, SUBJECTS, Student } from "./types";
+Teacher, LessonRecord, LessonPlan, SUBJECTS, Student, AppNotification } from "./types";
 import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
 import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
@@ -8,6 +8,8 @@ import { StudentStatsModal } from "./components/StudentStatsModal";
 import { TeacherListModal } from "./components/TeacherListModal";
 import { LessonLogForm } from "./components/LessonLogForm";
 import { LessonLogList } from "./components/LessonLogList";
+import { PBLLessonPlanForm } from "./components/PBLLessonPlanForm";
+import { PBLLessonLogForm } from "./components/PBLLessonLogForm";
 import { LessonPlanForm } from "./components/LessonPlanForm";
 import { LessonPlanList } from "./components/LessonPlanList";
 import { ClassroomModule } from "./components/ClassroomModule";
@@ -74,12 +76,14 @@ import {
   collection,
   query,
   where,
+  or,
   doc,
   getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
+  writeBatch,
 } from "firebase/firestore";
 
 // Safe localStorage helper to avoid SecurityError in restricted sandboxed iframes
@@ -173,11 +177,13 @@ export default function App() {
   const [studentsCount, setStudentsCount] = useState<number>(0);
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
     "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission"
   >("home");
   const [activeTab, setActiveTab] = useState<
-    "form" | "dashboard" | "plan-form" | "plan-list"
+    "form" | "dashboard" | "plan-form" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
   >("form");
   const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] =
     useState<string>("all");
@@ -349,7 +355,23 @@ export default function App() {
       setSysDashboardPassword(savedPassword);
     }
 
+    
+    let unsubNotifications = () => {};
+    if (currentTeacher) {
+      const qNotif = query(
+        collection(db, "notifications"),
+        where("userId", "==", currentTeacher.id)
+      );
+      unsubNotifications = onSnapshot(qNotif, (snapshot) => {
+        const fetchedNotifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppNotification));
+        // Sort by createdAt descending
+        fetchedNotifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setNotifications(fetchedNotifs);
+      });
+    }
+
     return () => {
+
       unsubAuth();
       unsubConfig();
       window.removeEventListener("app-safe-alert", handleSafeAlert);
@@ -512,7 +534,10 @@ export default function App() {
       } else {
         plansQuery = query(
           collection(db, "lessonPlans"),
-          where("teacherId", "==", currentTeacher.id),
+          or(
+            where("teacherId", "==", currentTeacher.id),
+            where("coTeachers", "array-contains", currentTeacher.id)
+          )
         );
       }
     } catch (e) {
@@ -555,11 +580,39 @@ export default function App() {
       },
     );
 
+    let unsubNotifications = () => {};
+    if (currentTeacher) {
+      try {
+        const qNotif = query(
+          collection(db, "notifications"),
+          where("userId", "==", currentTeacher.id)
+        );
+        unsubNotifications = onSnapshot(
+          qNotif,
+          (snapshot) => {
+            const fetchedNotifs = snapshot.docs.map(
+              (doc) => ({ id: doc.id, ...doc.data() } as AppNotification)
+            );
+            fetchedNotifs.sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            setNotifications(fetchedNotifs);
+          },
+          (err) => {
+            handleFirestoreError(err, OperationType.GET, "notifications");
+          }
+        );
+      } catch (e) {
+        console.warn("Could not setup notifications listener", e);
+      }
+    }
+
     return () => {
       unsubRecords();
       unsubTeachers();
       unsubPlans();
       unsubStudents();
+      unsubNotifications();
     };
   }, [currentTeacher]);
 
@@ -975,9 +1028,14 @@ export default function App() {
     }
   };
 
-  const handleSavePlan = async (plan: LessonPlan) => {
+    const handleSavePlan = async (plan: LessonPlan) => {
     try {
-      const isEdit = plans.some((p) => p.id === plan.id);
+      const existingPlan = plans.find((p) => p.id === plan.id);
+      const isEdit = !!existingPlan;
+
+      const oldCoTeachers = existingPlan?.coTeachers || [];
+      const newCoTeachers = plan.coTeachers || [];
+      const newlyAdded = newCoTeachers.filter(id => !oldCoTeachers.includes(id));
 
       const payload = {
         ...plan,
@@ -989,6 +1047,24 @@ export default function App() {
       );
 
       await setDoc(doc(db, "lessonPlans", plan.id), cleanPayload);
+      
+      if (newlyAdded.length > 0 && currentTeacher) {
+        const batch = writeBatch(db);
+        for (const userId of newlyAdded) {
+           const notifRef = doc(collection(db, "notifications"));
+           batch.set(notifRef, {
+             id: notifRef.id,
+             userId: userId,
+             type: 'co_teacher_invite',
+             message: `คุณได้รับเชิญให้เป็นครูผู้ร่วมสอนในแผนการสอน "${plan.title}" โดยครู${currentTeacher.thaiName || currentTeacher.displayName}`,
+             planId: plan.id,
+             read: false,
+             createdAt: new Date().toISOString()
+           });
+        }
+        await batch.commit();
+      }
+
       setEditingPlan(null);
       setShowFormOnMobile(false);
       addToast(
@@ -1135,7 +1211,7 @@ export default function App() {
     // CSV headers
     const headers = [
       "ลำดับ",
-      "วันที่สอน_บันทึก",
+      "คาบที่_ครั้งที่",
       "ระดับชั้น",
       "วิชา",
       "สาระการจัดกิจกรรมการเรียนรู้",
@@ -1291,41 +1367,25 @@ export default function App() {
             <div className="flex items-center space-x-3">
               <OnlineUsersIndicator currentTeacher={currentTeacher} teachers={teachers} />
               {/* User badge */}
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="flex items-center space-x-2.5 px-3 py-1.5 hover:bg-sky-50/50 active:bg-sky-100 rounded-xl border border-sky-100 transition text-left cursor-pointer"
-              >
-                <div className="h-7 w-7 bg-sky-50 text-sky-600 border border-sky-150 rounded-lg flex items-center justify-center text-xs font-bold font-mono">
-                  {currentTeacher.displayName.charAt(0)}
-                </div>
-                <div className="hidden md:block">
-                  <span className="block text-xs font-bold text-slate-800 leading-none">
-                    {currentTeacher.displayName}
-                  </span>
-                  <span className="block text-[10px] text-slate-400 font-medium mt-0.5">
-                    {currentTeacher.employeeId}
-                  </span>
-                </div>
-                <ChevronDown className="h-3 w-3 text-slate-400 hidden sm:block" />
-              </button>
+              
 
-              {/* Settings profile button */}
-              <button
+          
+              <button 
                 onClick={() => setShowProfileModal(true)}
-                className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition sm:block hidden"
-                title="ตั้งค่าข้อมูลคุณครู"
+                className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 hover:bg-slate-100 transition-colors"
               >
-                <Settings className="h-4.5 w-4.5" />
+                <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                  {currentTeacher.thaiName.charAt(0)}
+                </div>
+                <span className="text-sm font-bold text-slate-700 truncate max-w-[150px]">{currentTeacher.thaiName}</span>
               </button>
-
-              {/* Logout button */}
+              
               <button
                 onClick={handleLogout}
-                className="p-2 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold"
-                title="ออกจากระบบ"
+                className="flex items-center gap-2 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 px-3 py-2 rounded-xl transition-all border border-rose-100 shadow-sm"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">ออกจากระบบ</span>
+                <span className="hidden sm:inline text-sm font-bold">ออกจากระบบ</span>
               </button>
             </div>
           </div>
@@ -1350,7 +1410,6 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(Overview)</span>
             </div>
           </button>
-
           <button
             onClick={() => setActiveModule("teaching")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1365,7 +1424,6 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonTeach)</span>
             </div>
           </button>
-
           <button
             onClick={() => setActiveModule("classroom")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1380,7 +1438,6 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonClass)</span>
             </div>
           </button>
-
           <button
             onClick={() => setActiveModule("analytics")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1395,7 +1452,6 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonAchieve)</span>
             </div>
           </button>
-
           <button
             onClick={() => setActiveModule("academic")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1410,7 +1466,6 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonAcad)</span>
             </div>
           </button>
-
           <button
             onClick={() => setActiveModule("discipline")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
@@ -1439,7 +1494,7 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonAdmit)</span>
             </div>
           </button>
-          
+
           {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
             <button
               onClick={() => setActiveModule("admin" as any)}
@@ -1864,6 +1919,8 @@ export default function App() {
             <div className={currentTeacher.role !== "admin" ? "opacity-40 pointer-events-none space-y-6" : "space-y-6"}>
               {/* Module Header with attractive display */}
               <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden print:hidden">
+                
+                
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-violet-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
                 
@@ -1929,6 +1986,30 @@ export default function App() {
                     <History className="h-4 w-4" />
                     คลังแผนการสอน
                   </button>
+                  <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block"></div>
+                  <button
+                    onClick={() => setActiveTab("pbl-plan-form")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "pbl-plan-form"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
+                    }`}
+                  >
+                    <FileText className="h-4 w-4" />
+                    สร้างแผนการสอน (PBL)
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("pbl-log-form")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      activeTab === "pbl-log-form"
+                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
+                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
+                    }`}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    บันทึกหลังสอน (PBL)
+                  </button>
+
                 </div>
               </div>
 
@@ -1969,10 +2050,42 @@ export default function App() {
               {activeTab === "plan-form" && (
                 <LessonPlanForm
                   teacherId={currentTeacher.id}
+                  teachers={teachers}
                   onSave={handleSavePlan}
                   initialPlan={editingPlan}
                   onCancel={
                     editingPlan ? () => setEditingPlan(null) : undefined
+                  }
+                  currentUserRole={currentTeacher.role}
+                  currentUserName={currentTeacher.name}
+                  systemAcademicYear={systemAcademicYear}
+                  systemSemester={systemSemester}
+                />
+              )}
+
+              
+              {activeTab === "pbl-plan-form" && (
+                <PBLLessonPlanForm
+                  teacherId={currentTeacher.id}
+                  teachers={teachers}
+                  onSave={handleSavePlan}
+                  initialPlan={editingPlan}
+                  onCancel={
+                    editingPlan ? () => setEditingPlan(null) : undefined
+                  }
+                  currentUserRole={currentTeacher.role}
+                  currentUserName={currentTeacher.name}
+                  systemAcademicYear={systemAcademicYear}
+                  systemSemester={systemSemester}
+                />
+              )}
+              {activeTab === "pbl-log-form" && (
+                <PBLLessonLogForm
+                  teacherId={currentTeacher.id}
+                  onSave={handleSaveRecord}
+                  initialRecord={editingRecord}
+                  onCancel={
+                    editingRecord ? () => setEditingRecord(null) : undefined
                   }
                   currentUserRole={currentTeacher.role}
                   currentUserName={currentTeacher.name}
@@ -2048,6 +2161,8 @@ export default function App() {
               students={students}
             />
           </div>
+
+        
         ) : activeModule === "admin" ? (
           <UserManagementModule
             teachers={teachers}
@@ -2192,6 +2307,7 @@ export default function App() {
       {activePlanPrintPreview && (
         <LessonPlanPrintTemplate
           plan={activePlanPrintPreview}
+          allTeachers={teachers}
           teacher={
             teachers.find((t) => t.id === activePlanPrintPreview.teacherId) ||
             (currentTeacher?.role === "teacher"

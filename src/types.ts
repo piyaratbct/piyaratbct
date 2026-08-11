@@ -1,3 +1,14 @@
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: 'co_teacher_invite' | 'plan_approved' | 'plan_rejected' | 'system' | string;
+  message: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface Teacher {
   id: string;
   email: string;
@@ -27,6 +38,12 @@ export interface LessonRecord {
   teacherId: string;
   subject: string;
   customSubject?: string;
+  isIntegrated?: boolean;
+  integratedSubjects?: string;
+  isPBL?: boolean;
+  pblDrivingQuestion?: string;
+  pblInvestigationSteps?: string;
+  pblPresentation?: string;
   gradeLevel: string;
   academicYear?: string;
   lessonPlanId?: string;
@@ -74,8 +91,16 @@ export interface LessonRecord {
 export interface LessonPlan {
   id: string;
   teacherId: string;
+  coTeachers?: string[];
+  coTeacherNames?: string[];
   subject: string;
   customSubject?: string;
+  isIntegrated?: boolean;
+  integratedSubjects?: string;
+  isPBL?: boolean;
+  pblDrivingQuestion?: string;
+  pblInvestigationSteps?: string;
+  pblPresentation?: string;
   gradeLevel: string;
   title: string;          // ชื่อหน่วยการเรียนรู้ / เรื่อง
   coreIndicators?: string;  // ตัวชี้วัดต้องรู้ (ต้นทาง)
@@ -85,7 +110,7 @@ export interface LessonPlan {
   activities: string;     // กิจกรรมการเรียนรู้
   materials: string;      // สื่อการเรียนรู้ / แหล่งเรียนรู้
   evaluation: string;     // การวัดและประเมินผล
-  date: string;           // วันที่สอน (หรือ สัปดาห์ที่สอน)
+  date: string;           // วันที่สอน (หรือ คาบที่)
   semester?: string;
   attachments?: Attachment[];
   
@@ -215,6 +240,7 @@ export interface KindergartenAssessment {
   standard11: number;
   standard12: number;
   
+  month?: string;
   teacherNotes?: string;
   updatedAt: string;
 }
@@ -550,3 +576,5 @@ export interface CurriculumSubject {
   createdAt: string;
   updatedAt: string;
 }
+
+export const PERIOD_OPTIONS = Array.from({length: 60}, (_, i) => `ครั้งที่ ${i + 1}`);

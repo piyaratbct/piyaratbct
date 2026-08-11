@@ -512,7 +512,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
             )}
 
             <div className="flex items-baseline gap-1.5">
-              <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วันที่ทำการสอน:</span>
+              <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">คาบที่:</span>
               <span className={`font-bold text-slate-900 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>{formatThaiDateFull(record.date)}</span>
             </div>
 
@@ -646,6 +646,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
                       <div className="flex justify-between text-[8px] text-slate-600"><span>2. เชื่อมโยงเข้าสู่เนื้อหาฯ</span><span className="font-bold">{record.evaluations.teacher.th2 || record.evaluations.teacher.t2 || 0}/5</span></div>
                       <div className="flex justify-between text-[8px] text-slate-600"><span>3. ประเมินผลตรงสภาพจริงฯ</span><span className="font-bold">{record.evaluations.teacher.th3 || record.evaluations.teacher.t3 || 0}/5</span></div>
                       <div className="flex justify-between text-[8px] text-slate-600"><span>4. ซ่อมเสริม/พัฒนาผู้เรียนฯ</span><span className="font-bold">{record.evaluations.teacher.th4 || record.evaluations.teacher.t4 || 0}/5</span></div>
+                      <div className="flex justify-between text-[8px] text-slate-600"><span>5. จัดบรรยากาศส่งเสริมเรียนรู้ฯ</span><span className="font-bold">{record.evaluations.teacher.th5 || record.evaluations.teacher.t5 || 0}/5</span></div>
                     </div>
                   </div>
                 )}
@@ -694,7 +695,7 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               </p>
               <div>
                 <p className="font-semibold">(&nbsp;&nbsp;{teacher.thaiName}&nbsp;&nbsp;)</p>
-                <p className={`text-slate-400 mt-1 ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>วันที่รายงาน: {formatThaiDateFull(record.date)}</p>
+                <p className={`text-slate-400 mt-1 ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}>วันที่รายงาน: {formatThaiDateFull(record.createdAt || record.date)}</p>
               </div>
             </div>
 

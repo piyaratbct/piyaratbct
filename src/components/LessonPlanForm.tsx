@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-  LessonPlan,
-  SUBJECTS,
-  GRADE_LEVELS,
-  SubjectType,
-  Attachment,
-  SEMESTERS,
-} from "../types";
-import {
+import { LessonPlan, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, PERIOD_OPTIONS, SEMESTERS, CurriculumSubject } from "../types";
+
+import { User, 
   Save,
   AlertCircle,
   Link2,
@@ -26,12 +20,12 @@ import {
   Lightbulb,
   CheckCircle,
   CalendarDays,
-} from "lucide-react";
+ } from 'lucide-react';
 import { SignaturePadModal } from "./PrintTemplate";
 import { ChevronDown, ChevronUp, Check } from "lucide-react";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { CurriculumSubject } from '../types';
+
 import { AttachmentManager } from './AttachmentManager';
 import { formatThaiDate } from '../lib/dateUtils';
 
@@ -46,6 +40,7 @@ export function LessonPlanForm({
   currentUserName,
   systemAcademicYear,
   systemSemester,
+  teachers = [],
 }: {
   teacherId: string;
   onSave: (plan: Omit<LessonPlan, "id" | "createdAt" | "updatedAt">) => void;
@@ -55,7 +50,9 @@ export function LessonPlanForm({
   currentUserName?: string;
   systemAcademicYear: string;
   systemSemester: string;
+  teachers?: any[];
 }) {
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>(SUBJECTS);
   const [subject, setSubject] = useState<string>(initialPlan?.subject || SUBJECTS[0]);
   const [customSubject, setCustomSubject] = useState(initialPlan?.customSubject || "");
   const [selectedGrades, setSelectedGrades] = useState<string[]>(
@@ -65,8 +62,12 @@ export function LessonPlanForm({
   );
   const defaultSemester = systemSemester === '1' || systemSemester === '2' ? `${systemSemester}/${systemAcademicYear}` : `1/${systemAcademicYear}`;
   const [semester, setSemester] = useState(initialPlan?.semester || defaultSemester);
-  const [date, setDate] = useState(initialPlan?.date || new Date().toISOString().slice(0, 10));
+    const [date, setDate] = useState(initialPlan?.date || "");
   const [title, setTitle] = useState(initialPlan?.title || "");
+  const [coTeachers, setCoTeachers] = useState<string[]>(initialPlan?.coTeachers || []);
+    const [showCoTeacherDropdown, setShowCoTeacherDropdown] = useState(false);
+  const [isIntegrated, setIsIntegrated] = useState(initialPlan?.isIntegrated || false);
+  const [integratedSubjects, setIntegratedSubjects] = useState(initialPlan?.integratedSubjects || "");
   const [coreIndicators, setCoreIndicators] = useState(initialPlan?.coreIndicators || "");
   const [targetIndicators, setTargetIndicators] = useState(initialPlan?.targetIndicators || "");
   const [objectives, setObjectives] = useState(initialPlan?.objectives || "");
@@ -74,6 +75,7 @@ export function LessonPlanForm({
   
   // New states for curriculum integration
   const [curriculums, setCurriculums] = useState<any[]>([]);
+  const [showSubjectsDropdown, setShowSubjectsDropdown] = useState(false);
   const [usedIndicators, setUsedIndicators] = useState<Set<string>>(new Set());
   const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
   
@@ -108,6 +110,27 @@ export function LessonPlanForm({
     setAttachments((prev) => prev.filter((att) => att.id !== id));
   };
 
+
+  useEffect(() => {
+    const fetchAvailableSubjects = async () => {
+      try {
+        const q = query(collection(db, 'curriculums'));
+        const snapshot = await getDocs(q);
+        const subjects = new Set(SUBJECTS);
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.subjectName) {
+            subjects.add(data.subjectName);
+          }
+        });
+        setAvailableSubjects(Array.from(subjects));
+      } catch (error) {
+        console.error("Error fetching available subjects", error);
+      }
+    };
+    fetchAvailableSubjects();
+  }, []);
+
   useEffect(() => {
     const fetchCurriculumData = async () => {
       if (!subject || selectedGrades.length === 0) {
@@ -117,9 +140,17 @@ export function LessonPlanForm({
       setIsLoadingIndicators(true);
       try {
         // Fetch curriculums for the selected subject
-        const qCurriculums = query(collection(db, 'curriculums'), where('subjectName', '==', subject));
+        // Modified to support fuzzy matching
+        const qCurriculums = query(collection(db, 'curriculums'));
         const snapshotCurriculums = await getDocs(qCurriculums);
-        const fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
+        let fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
+        
+        const activeSubject = subject === 'อื่นๆ' ? customSubject : subject;
+        fetchedCurriculums = fetchedCurriculums.filter(c => {
+          const cName = c.subjectName || '';
+          if (!activeSubject) return false;
+          return cName === activeSubject || cName.includes(activeSubject) || activeSubject.includes(cName);
+        });
         
         // Filter by selected grades (exact match, or if grade is "ป.1/1" but curriculum is "ป.1" we might want to be smart, but let's stick to exact match first. Actually, standard practice in Thai schools is curriculum per grade level (e.g. "ประถมศึกษาปีที่ 1"). The selectedGrades might have sub-rooms. Let's normalize).
         const normalizedSelectedGrades = selectedGrades.map(g => g.split('/')[0].trim());
@@ -160,7 +191,7 @@ export function LessonPlanForm({
       }
     };
     fetchCurriculumData();
-  }, [subject, selectedGrades, semester, teacherId, initialPlan]);
+  }, [subject, customSubject, selectedGrades, semester, teacherId, initialPlan]);
 
   useEffect(() => {
     if (initialPlan) {
@@ -177,6 +208,8 @@ export function LessonPlanForm({
       setSemester(initialPlan.semester || defaultSemester);
       setDate(initialPlan.date);
       setTitle(initialPlan.title);
+      setIsIntegrated(initialPlan.isIntegrated || false);
+      setIntegratedSubjects(initialPlan.integratedSubjects || "");
       setCoreIndicators(initialPlan.coreIndicators || "");
       setTargetIndicators(initialPlan.targetIndicators || "");
       setObjectives(initialPlan.objectives);
@@ -193,8 +226,10 @@ export function LessonPlanForm({
     setSubject("ภาษาไทย");
     setSelectedGrades([GRADE_LEVELS[0]]);
     setSemester(defaultSemester);
-    setDate(getTodayString());
+    setDate("");
     setTitle("");
+    setIsIntegrated(false);
+    setIntegratedSubjects("");
     setCoreIndicators("");
     setTargetIndicators("");
     setObjectives("");
@@ -228,10 +263,12 @@ export function LessonPlanForm({
       ...(initialPlan || {}),
       id: initialPlan ? initialPlan.id : Date.now().toString(),
       teacherId: initialPlan ? initialPlan.teacherId : teacherId,
-      subject,
+      subject: isIntegrated ? 'บูรณาการ' : subject,
       customSubject: undefined, // Handled implicitly via subject string
       gradeLevel: selectedGrades.join(", "),
       title,
+      isIntegrated,
+      integratedSubjects,
       coreIndicators,
       targetIndicators,
       competencies,
@@ -242,6 +279,7 @@ export function LessonPlanForm({
       date,
       semester,
       attachments,
+      coTeachers,
       status: currentStatus,
       approverComment: isApproverSave ? approverComment : (initialPlan?.status === "rejected" ? "" : (initialPlan?.approverComment || "")),
       approverId: (isApproverSave && (status === "approved" || status === "rejected")) ? (teacherId) : initialPlan?.approverId, // NOTE: wait, we only have teacherId passed from App as current user? NO, we just passed currentTeacherId in App.tsx?
@@ -290,7 +328,7 @@ export function LessonPlanForm({
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs font-semibold px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+            className="text-xs font-semibold px-3 py-1 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-colors"
           >
             ยกเลิกแก้ไข
           </button>
@@ -301,7 +339,7 @@ export function LessonPlanForm({
         {errorMsg && (
           <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-start gap-3 border border-red-200">
             <AlertCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-medium">{errorMsg}</p>
+            <p className="text-xs font-semibold">{errorMsg}</p>
           </div>
         )}
 
@@ -317,73 +355,121 @@ export function LessonPlanForm({
 
         {/* 1. Basic Metadata Grid (subject, semester, date) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              วิชา (Subject)
-            </label>
-            <input
-              type="text"
-              list="plan-subject-list"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="เลือกหรือพิมพ์รายวิชา..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            />
-            <datalist id="plan-subject-list">
-              {SUBJECTS.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </datalist>
-          </div>
+          {!isIntegrated && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                วิชา (Subject)
+              </label>
+              <input
+                type="text"
+                list="plan-subject-list"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="เลือกหรือพิมพ์รายวิชา..."
+                className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              />
+              <datalist id="plan-subject-list">
+                {availableSubjects.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+          )}
 
-          <div>
+          <div className={`col-span-1 ${isIntegrated ? 'md:col-span-full' : 'sm:col-span-2'} p-4 rounded-xl border border-slate-200`}>
+            <label className="flex items-center gap-2 cursor-pointer mb-3">
+              <input type="checkbox" checked={isIntegrated} onChange={(e) => setIsIntegrated(e.target.checked)} className="w-4 h-4 rounded text-slate-800 focus:ring-blue-500 border-slate-300" />
+              <span className="text-sm font-bold text-slate-800">จัดการเรียนรู้แบบบูรณาการ (Integrated Learning)</span>
+            </label>
+            {isIntegrated && (
+              <div>
+                <label className="block text-xs font-semibold text-indigo-700 mb-1">บูรณาการร่วมกับวิชา/สาระการเรียนรู้อื่น (เลือกได้มากกว่า 1)</label>
+                <div className="relative">
+                  <div 
+                    className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 bg-white cursor-pointer flex justify-between items-center"
+                    onClick={() => setShowSubjectsDropdown(!showSubjectsDropdown)}
+                  >
+                    <span className={integratedSubjects ? "text-slate-800" : "text-slate-400"}>
+                      {integratedSubjects || "คลิกเพื่อเลือกรายวิชาที่บูรณาการ..."}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </div>
+                  
+                  {showSubjectsDropdown && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
+                      {SUBJECTS.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj) => {
+                        const isSelected = integratedSubjects.includes(subj);
+                        return (
+                          <label key={subj} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-slate-100 text-slate-700 font-medium' : 'hover:bg-slate-50 text-slate-700'}`}>
+                            <input 
+                              type="checkbox" 
+                              checked={isSelected}
+                              onChange={() => {
+                                let arr = integratedSubjects.split(',').map(s => s.trim()).filter(Boolean);
+                                if (arr.includes(subj)) {
+                                  arr = arr.filter(s => s !== subj);
+                                } else {
+                                  arr.push(subj);
+                                }
+                                setIntegratedSubjects(arr.join(', '));
+                              }}
+                              className="rounded text-slate-800 focus:ring-blue-500 w-3.5 h-3.5"
+                            />
+                            <span className="text-xs">{subj}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+                    <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              ภาคเรียน (Semester)
+              ภาคเรียนพร้อมปีการศึกษา
             </label>
             <select
+              required
               value={semester}
               onChange={(e) => setSemester(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white font-sans"
+              className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              {[
-                `ภาคเรียนที่ 1/${systemAcademicYear}`,
-                `ภาคเรียนที่ 2/${systemAcademicYear}`,
-                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 1}`,
-                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 1}`,
-                `ภาคเรียนที่ 1/${parseInt(systemAcademicYear) - 2}`,
-                `ภาคเรียนที่ 2/${parseInt(systemAcademicYear) - 2}`
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+              <option value="" disabled>เลือกภาคเรียน</option>
+              {SEMESTERS.map(s => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              สัปดาห์/วันที่สอน (Date)
+              คาบที่ (ระบุเป็นครั้ง)
             </label>
-            <input
-              type="date"
+            <select
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              title="วันที่สอน"
-            />
+              className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              title="คาบที่ (ระบุเป็นครั้ง)"
+            >
+              <option value="" disabled>เลือกคาบที่</option>
+              {PERIOD_OPTIONS.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* 1.5 Multi-grade level selection grid */}
-        <div className="bg-slate-50/40 p-5 rounded-2xl border border-slate-100">
+        <div className="bg-transparent p-5 rounded-2xl border border-slate-100">
           <label className="block text-xs font-bold text-slate-700 mb-3 flex items-center justify-between">
             <span>
               ระดับชั้น (Grade Level) <span className="text-red-500">*</span>
             </span>
-            <span className="text-[10.5px] text-blue-600 font-bold bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/50">
+            <span className="text-[10.5px] text-slate-600 font-bold bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-200">
               {selectedGrades.length === 0
                 ? "ยังไม่ได้เลือก"
                 : `เลือกแล้ว ${selectedGrades.length} ระดับชั้น`}
@@ -395,15 +481,15 @@ export function LessonPlanForm({
                 key={grade}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border sm:cursor-pointer transition-all duration-200 ${
                   selectedGrades.includes(grade)
-                    ? "bg-blue-50/80 border-blue-300 text-blue-700 shadow-sm"
-                    : "bg-white border-slate-200 text-slate-600 hover:border-blue-200 hover:bg-slate-50"
+                    ? "bg-slate-50/80 border-blue-300 text-blue-700 shadow-sm"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={selectedGrades.includes(grade)}
                   onChange={() => handleGradeToggle(grade)}
-                  className="rounded text-blue-600 focus:ring-blue-500 border-slate-300 h-4 w-4"
+                  className="rounded text-slate-600 focus:ring-blue-500 border-slate-300 h-4 w-4"
                 />
                 <span className="text-xs font-semibold">{grade}</span>
               </label>
@@ -428,9 +514,78 @@ export function LessonPlanForm({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400"
               placeholder="ตัวอย่าง: สิ่งมีชีวิตและสิ่งแวดล้อม"
             />
+          
+          </div>
+          
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <User className="h-4 w-4 text-emerald-500" />
+                ครูผู้ร่วมสอน (Co-teachers)
+              </span>
+              <span className="text-[10px] text-slate-500 font-normal">เลือกได้มากกว่า 1 ท่าน (ไม่บังคับ)</span>
+            </label>
+            <div 
+              className="w-full p-3 min-h-[44px] text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white cursor-pointer flex flex-wrap gap-2 items-center"
+              onClick={() => setShowCoTeacherDropdown(!showCoTeacherDropdown)}
+            >
+              {coTeachers.length === 0 ? (
+                <span className="text-slate-400">คลิกเพื่อเลือกครูผู้ร่วมสอน...</span>
+              ) : (
+                coTeachers.map(id => {
+                  const t = teachers.find(t => t.id === id);
+                  return (
+                    <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg font-medium border border-emerald-100">
+                      {t ? (t.thaiName || t.displayName) : id}
+                      <button 
+                        type="button" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCoTeachers(prev => prev.filter(tid => tid !== id));
+                        }}
+                        className="hover:text-emerald-900 focus:outline-none"
+                      >
+                        <XCircle className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+            
+            {showCoTeacherDropdown && (
+              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-2 flex flex-col gap-1">
+                {teachers.filter(t => t.id !== teacherId && ['teacher', 'academic', 'deputy', 'admin'].includes(t.role || '')).length === 0 ? (
+                  <p className="text-[10px] text-center text-slate-500 p-2">ไม่มีครูท่านอื่นในระบบ</p>
+                ) : (
+                  teachers
+                    .filter(t => t.id !== teacherId && ['teacher', 'academic', 'deputy', 'admin'].includes(t.role || ''))
+                    .map(t => {
+                      const isSelected = coTeachers.includes(t.id);
+                      return (
+                        <label key={t.id} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-emerald-50 text-emerald-700 font-bold' : 'hover:bg-slate-50 text-slate-700'}`}>
+                          <input 
+                            type="checkbox" 
+                            className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 transition-all cursor-pointer"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCoTeachers(prev => [...prev, t.id]);
+                              } else {
+                                setCoTeachers(prev => prev.filter(id => id !== t.id));
+                              }
+                            }}
+                          />
+                          <span className="text-xs truncate">{t.thaiName || t.displayName}</span>
+                        </label>
+                      );
+                    })
+                )}
+              </div>
+            )}
           </div>
 
           
@@ -455,7 +610,7 @@ export function LessonPlanForm({
                   <select 
                     value={tableGradeFilter}
                     onChange={(e) => setTableGradeFilter(e.target.value)}
-                    className="text-xs p-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[120px]"
+                    className="text-xs p-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
                   >
                     <option value="all">ทุกระดับชั้น</option>
                     {curriculums.map(c => (
@@ -467,7 +622,7 @@ export function LessonPlanForm({
             </div>
 
             {curriculums.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-bold text-amber-800">ไม่สามารถเลือกตัวชี้วัดได้</p>
@@ -477,13 +632,13 @@ export function LessonPlanForm({
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <div className="max-h-80 overflow-y-auto custom-scrollbar p-3 space-y-4">
                   {curriculums
                     .filter(c => tableGradeFilter === 'all' || c.gradeLevel === tableGradeFilter)
                     .map((curr, cIdx) => (
                     <div key={cIdx}>
-                      <div className="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2 py-1 rounded mb-2 border border-indigo-100 inline-block">
+                      <div className="text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-1 rounded mb-2 border border-slate-200 inline-block">
                         {curr.gradeLevel}
                       </div>
                       {curr.standards.map((std: any, sIdx: number) => {
@@ -523,20 +678,20 @@ export function LessonPlanForm({
                                 return (
                                   <label 
                                     key={iIdx} 
-                                    className={`flex items-start gap-2 p-2.5 rounded-lg border sm:cursor-pointer transition-colors ${selected ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                                    className={`flex items-start gap-2 p-2.5 rounded-xl border sm:cursor-pointer transition-colors ${selected ? 'bg-slate-100 border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300'}`}
                                   >
                                     <div className="mt-0.5">
                                       <input 
                                         type="checkbox"
                                         checked={selected}
                                         onChange={toggleCombinedIndicator}
-                                        className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 h-4 w-4 transition-all"
+                                        className="rounded text-slate-800 focus:ring-blue-500 border-slate-300 h-4 w-4 transition-all"
                                       />
                                     </div>
                                     <div className="flex-1">
                                       <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-slate-800">
                                         <span>{ind.code}</span>
-                                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${ind.type === 'core' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
+                                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold ${ind.type === 'core' ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
                                           {ind.type === 'core' ? 'ต้นทาง' : 'ปลายทาง'}
                                         </span>
                                         {used ? (
@@ -569,7 +724,7 @@ export function LessonPlanForm({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-              <Target className="h-4 w-4 text-emerald-600" />
+              <Target className="h-4 w-4 text-slate-700" />
               ตัวชี้วัดต้องรู้ (ต้นทาง) ที่เลือกไว้
             </label>
             <p className="text-[10px] text-slate-400 mb-2">
@@ -579,7 +734,7 @@ export function LessonPlanForm({
               value={coreIndicators}
               onChange={(e) => setCoreIndicators(e.target.value)}
               rows={2}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="คลิกเลือกจากรายการด้านบน หรือพิมพ์เพิ่ม..."
             />
           </div>
@@ -596,7 +751,7 @@ export function LessonPlanForm({
               value={targetIndicators}
               onChange={(e) => setTargetIndicators(e.target.value)}
               rows={2}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="คลิกเลือกจากรายการด้านบน หรือพิมพ์เพิ่ม..."
             />
           </div>
@@ -614,7 +769,7 @@ export function LessonPlanForm({
               value={objectives}
               onChange={(e) => setObjectives(e.target.value)}
               rows={3}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="1. อธิบาย...&#10;2. วิเคราะห์..."
             />
           </div>
@@ -633,7 +788,7 @@ export function LessonPlanForm({
               value={activities}
               onChange={(e) => setActivities(e.target.value)}
               rows={5}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="ขั้นตอนนำเข้าสู่บทเรียน / ขั้นสอน / ขั้นสรุป..."
             />
           </div>
@@ -650,7 +805,7 @@ export function LessonPlanForm({
               value={materials}
               onChange={(e) => setMaterials(e.target.value)}
               rows={2}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="เช่น หนังสือเรียน, สไลด์ Powerpoint, ใบงาน..."
             />
           </div>
@@ -667,7 +822,7 @@ export function LessonPlanForm({
               value={evaluation}
               onChange={(e) => setEvaluation(e.target.value)}
               rows={3}
-              className="w-full p-3 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
               placeholder="เช่น วิธีการวัด / เครื่องมือที่ใช้ / เกณฑ์การผ่าน..."
             />
           </div>
@@ -694,7 +849,7 @@ export function LessonPlanForm({
                         e.preventDefault();
                         setSigningRole("deptHead");
                       }}
-                      className="px-4 py-2 text-sm font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 rounded-lg flex items-center gap-2"
+                      className="px-4 py-2 text-sm font-bold bg-emerald-50 text-slate-700 border border-slate-200 hover:bg-emerald-100 rounded-2xl flex items-center gap-2"
                     >
                       <Edit3 className="h-4 w-4" /> อนุมัติและเซ็นชื่อ
                     </button>
@@ -720,7 +875,7 @@ export function LessonPlanForm({
                           onSave(updatedPlan as any);
                         }
                       }}
-                      className="px-4 py-2 text-sm font-bold bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 rounded-lg flex items-center gap-2"
+                      className="px-4 py-2 text-sm font-bold bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 rounded-xl flex items-center gap-2"
                     >
                       <XCircle className="h-4 w-4" /> ยกเลิกการอนุมัติแผน
                     </button>
@@ -734,7 +889,7 @@ export function LessonPlanForm({
                           e.preventDefault();
                           setRejectModalOpen(true);
                         }}
-                        className="px-4 py-2 text-sm font-bold rounded-lg border bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 flex items-center gap-2"
+                        className="px-4 py-2 text-sm font-bold rounded-xl border bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 flex items-center gap-2"
                       >
                         <XCircle className="h-4 w-4" /> ตีกลับให้แก้
                       </button>
@@ -744,8 +899,8 @@ export function LessonPlanForm({
           </div>
           {/* Approval Section for Academic Head / Admin */}
           {(currentUserRole === "academic" || currentUserRole === "admin" || currentUserRole === "deputy") && initialPlan && (
-            <div className="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100">
-              <h3 className="text-sm font-black text-indigo-700 flex items-center gap-2 mb-4">
+            <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-200">
+              <h3 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-4">
                 <Check className="h-4 w-4" />
                 การตรวจประเมินและอนุมัติ (สำหรับหัวหน้าวิชาการ)
               </h3>
@@ -771,7 +926,7 @@ export function LessonPlanForm({
                     <button
                       type="button"
                       onClick={() => setStatus("approved")}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${status === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-300" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${status === "approved" ? "bg-slate-100 text-slate-700 border-emerald-300" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}
                     >
                       อนุมัติ / ผ่าน (Approved)
                     </button>
@@ -791,7 +946,7 @@ export function LessonPlanForm({
                     value={approverComment}
                     onChange={(e) => setApproverComment(e.target.value)}
                     placeholder="พิมพ์ความคิดเห็น หรือสิ่งที่ต้องแก้ไขเพิ่มเติม..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white min-h-[100px] resize-y text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-h-[100px] resize-y text-sm"
                   />
                 </div>
               </div>
@@ -810,7 +965,7 @@ export function LessonPlanForm({
             )}
             <button
               type="submit"
-              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 text-white px-8 py-2.5 rounded-xl hover:from-sky-600 hover:to-sky-700 transition-all font-semibold shadow-sm hover:shadow"
+              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 text-white px-8 py-2.5 rounded-2xl hover:from-sky-600 hover:to-sky-700 transition-all font-bold shadow-md hover:shadow-lg"
             >
               <Save className="h-5 w-5" />
               {initialPlan ? "ปรับปรุงแผนการสอน" : "บันทึกแผนการสอน"}

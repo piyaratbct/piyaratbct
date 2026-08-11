@@ -306,8 +306,16 @@ const AdmissionManager: React.FC<{
 
   const [viewingApplicant, setViewingApplicant] = useState<AdmissionRecord | null>(null);
   useEffect(() => {
-    fetch('/thai_address.json')
-      .then(res => res.json())
+    fetch('thai_address.json')
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          return res.json();
+        } else {
+          return res.text().then(text => { throw new Error(`Expected JSON but got HTML/text: ${text.substring(0, 100)}`); });
+        }
+      })
       .then(data => setThaiDb(data))
       .catch(err => console.error('Failed to load thai address', err));
   }, []);
