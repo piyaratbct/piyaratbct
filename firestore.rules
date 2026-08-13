@@ -132,7 +132,12 @@ service cloud.firestore {
 
     match /config/{configId} {
       allow read: if true;
-      allow write: if isSignedIn() && isAdmin();
+      allow write: if isAcademic() || isAdmin();
+    }
+
+    match /schoolCalendar/{calendarId} {
+      allow read: if isSignedIn();
+      allow write: if isAcademic() || isAdmin();
     }
 
     match /schedules/{scheduleId} {
@@ -145,6 +150,11 @@ service cloud.firestore {
     }
 
     match /assessments/{assessmentId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /kindergartenAssessments/{assessmentId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
@@ -192,6 +202,11 @@ service cloud.firestore {
     match /admissions/{admissionId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
+    }
+
+    match /subjectTargets/{targetId} {
+      allow read: if isSignedIn();
+      allow write: if isAcademic();
     }
 
     match /curriculums/{curriculumId} {

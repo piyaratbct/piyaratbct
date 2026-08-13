@@ -205,6 +205,18 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                   {assessment.teacherNotes}
                 </div>
               )}
+              {assessment.hasAchievement && assessment.achievementContent && (
+                <div className="mb-6 border p-4 bg-slate-50 text-sm mt-[-1rem]">
+                  <span className="font-bold">ผลงานและความภาคภูมิใจ: </span>
+                  <span className="whitespace-pre-wrap">{assessment.achievementContent}</span>
+                </div>
+              )}
+              {assessment.hasPastoralCare && assessment.pastoralCareContent && (
+                <div className="mb-6 border p-4 bg-slate-50 text-sm mt-[-1rem]">
+                  <span className="font-bold">การดูแลช่วยเหลือนักเรียน: </span>
+                  <span className="whitespace-pre-wrap">{assessment.pastoralCareContent}</span>
+                </div>
+              )}
 
               <div className="flex justify-end mt-8">
                 <PrintSignatureBox

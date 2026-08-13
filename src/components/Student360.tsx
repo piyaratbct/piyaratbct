@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Student } from "../types";
+import { Student, StudentAssessment, KindergartenAssessment, SubjectScore } from "../types";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { 
   Search, User, GraduationCap, HeartPulse, 
   BrainCircuit, Home, Activity, FileText,
@@ -180,6 +183,33 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
   }, [initialStudent]);
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudent ? initialStudent.id : "S-001");
+  const [assessments, setAssessments] = React.useState<StudentAssessment[]>([]);
+  const [kAssessments, setKAssessments] = React.useState<KindergartenAssessment[]>([]);
+  const [subjectScores, setSubjectScores] = React.useState<SubjectScore[]>([]);
+
+  React.useEffect(() => {
+    const student = extendedStudents.find(s => s.id === selectedStudentId);
+    if (!student || !student.id) return;
+
+    const fetchAssessments = async () => {
+      try {
+        const q1 = query(collection(db, 'assessments'), where('studentId', '==', student.id));
+        const snap1 = await getDocs(q1);
+        setAssessments(snap1.docs.map(d => ({id: d.id, ...d.data()} as StudentAssessment)));
+
+        const q2 = query(collection(db, 'kindergartenAssessments'), where('studentId', '==', student.id));
+        const snap2 = await getDocs(q2);
+        setKAssessments(snap2.docs.map(d => ({id: d.id, ...d.data()} as KindergartenAssessment)));
+
+        const q3 = query(collection(db, 'subject_scores'), where('studentId', '==', student.id));
+        const snap3 = await getDocs(q3);
+        setSubjectScores(snap3.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore)));
+      } catch (err) {
+        console.error("Error fetching assessments:", err);
+      }
+    };
+    fetchAssessments();
+  }, [selectedStudentId]);
   const [activeTab, setActiveTab] = useState<"academic" | "health" | "behavior" | "pastoral">("academic");
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -453,32 +483,85 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                 
                 {/* Academic Tab */}
                 {activeTab === 'academic' && (
-                  <div className="space-y-6 animate-in fade-in duration-300">
-                    <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <div className="space-y-8 animate-in fade-in duration-300">
+                    <h3 className="text-base font-black text-slate-800 flex items-center gap-2 mb-2">
                       <Activity className="w-5 h-5 text-indigo-500" /> 
-                      ผลสัมฤทธิ์ทางการเรียน (รายวิชาพื้นฐาน)
+                      ผลสัมฤทธิ์ทางการเรียน
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {student.academic.subjects.map(sub => (
-                        <div key={sub.name} className="bg-white p-4 rounded-2xl border border-slate-200">
-                          <div className="flex justify-between items-end mb-2">
-                            <span className="font-bold text-slate-700 text-sm">{sub.name}</span>
-                            <div className="text-right">
-                              <span className="text-xs text-slate-500 font-medium">เกรด {sub.grade}</span>
-                              <span className="ml-2 text-lg font-black text-indigo-600">{sub.score}</span>
-                              <span className="text-[10px] text-slate-400 font-bold ml-1">/ 100</span>
+                    {subjectScores.length === 0 ? (
+                      <p className="text-center text-slate-500 py-8 bg-white rounded-2xl border border-slate-200">ยังไม่มีข้อมูลผลสัมฤทธิ์ทางการเรียนที่ถูกบันทึก</p>
+                    ) : (
+                      (Object.entries(
+                        subjectScores.reduce((acc, score) => {
+                          const key = `${score.semester}/${score.academicYear}`;
+                          if (!acc[key]) acc[key] = [];
+                          acc[key].push(score);
+                          return acc;
+                        }, {} as Record<string, SubjectScore[]>)
+                      ) as [string, SubjectScore[]][]).map(([term, scores]) => {
+                        // Prepare data for Radar Chart
+                        const radarData = scores.map(s => ({
+                          subject: s.subject.length > 15 ? s.subject.substring(0,15)+'...' : s.subject,
+                          score: s.totalScore || 0,
+                          fullMark: 100
+                        }));
+                        
+                        return (
+                          <div key={term} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <h4 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                              <span className="w-1.5 h-5 rounded-full bg-indigo-500"></span>
+                              ภาคเรียนที่ {term}
+                            </h4>
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                              {/* Spider Chart */}
+                              {scores.length >= 3 ? (
+                                <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-2">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+                                      <PolarGrid stroke="#e2e8f0" />
+                                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                      <Tooltip 
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                      />
+                                      <Radar name="คะแนนรวม" dataKey="score" stroke="#6366f1" fill="#818cf8" fillOpacity={0.5} />
+                                    </RadarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-6 text-center">
+                                  <p className="text-sm text-slate-500">กราฟใยแมงมุมจะแสดงเมื่อมีคะแนนอย่างน้อย 3 วิชา</p>
+                                </div>
+                              )}
+                              
+                              {/* Subject Cards */}
+                              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {scores.map(sub => (
+                                  <div key={sub.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-colors">
+                                    <div className="flex justify-between items-end mb-2">
+                                      <span className="font-bold text-slate-700 text-sm line-clamp-1 flex-1 pr-2">{sub.subject}</span>
+                                      <div className="text-right shrink-0">
+                                        <span className="text-xs text-slate-500 font-medium">เกรด {sub.grade || '-'}</span>
+                                        <span className="ml-2 text-lg font-black text-indigo-600">{sub.totalScore || 0}</span>
+                                        <span className="text-[10px] text-slate-400 font-bold ml-1">/ 100</span>
+                                      </div>
+                                    </div>
+                                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                      <div 
+                                        className={`h-2 rounded-full ${(sub.totalScore || 0) >= 80 ? 'bg-emerald-500' : (sub.totalScore || 0) >= 70 ? 'bg-indigo-500' : (sub.totalScore || 0) >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} 
+                                        style={{ width: `${sub.totalScore || 0}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div 
-                              className={`h-2.5 rounded-full ${sub.score >= 80 ? 'bg-emerald-500' : sub.score >= 70 ? 'bg-indigo-500' : sub.score >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} 
-                              style={{ width: `${sub.score}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
 
@@ -553,6 +636,59 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                       <p className="text-sm text-slate-700 leading-relaxed">{student.behavior.notes}</p>
                     </div>
 
+                    {/* Linked Assessments */}
+                    {(assessments.some(a => a.publishContentToStudent360 || a.publishActivitiesToStudent360) || 
+                      kAssessments.some(a => a.publishNotesToStudent360)) && (
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-pink-500" /> ข้อมูลจากแบบประเมินพัฒนาการ
+                        </h4>
+                        <div className="space-y-3">
+                          {assessments.filter(a => a.publishContentToStudent360 || a.publishActivitiesToStudent360).map(a => (
+                            <div key={a.id} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-pink-400"></div>
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-1 rounded-md">
+                                  ภาคเรียนที่ {a.semester}/{a.academicYear}
+                                </span>
+                                {a.month && <span className="text-xs text-slate-500">ประเมินเดือน: {a.month}</span>}
+                              </div>
+                              {a.publishContentToStudent360 && a.content && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-bold text-slate-600">พฤติกรรม/พัฒนาการที่พบ:</p>
+                                  <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{a.content}</p>
+                                </div>
+                              )}
+                              {a.publishActivitiesToStudent360 && a.activities && (
+                                <div className="mt-2 pt-2 border-t border-slate-100">
+                                  <p className="text-xs font-bold text-slate-600">วิธีการส่งเสริม/แก้ไขปัญหา:</p>
+                                  <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{a.activities}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          
+                          {kAssessments.filter(a => a.publishNotesToStudent360).map(a => (
+                            <div key={a.id} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-pink-400"></div>
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-1 rounded-md">
+                                  ปฐมวัย ภาคเรียนที่ {a.semester}/{a.academicYear}
+                                </span>
+                                {a.month && <span className="text-xs text-slate-500">ประเมินเดือน: {a.month}</span>}
+                              </div>
+                              {a.publishNotesToStudent360 && a.teacherNotes && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-bold text-slate-600">ข้อเสนอแนะเพิ่มเติม:</p>
+                                  <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{a.teacherNotes}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                         <Award className="w-4 h-4 text-indigo-500" /> ผลงานและความภาคภูมิใจ
@@ -566,7 +702,24 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                             <p className="text-sm font-medium text-slate-700 leading-snug">{ach}</p>
                           </div>
                         ))}
-                        {student.behavior.achievements.length === 0 && (
+                        
+                        {/* Dynamic Achievements from Assessments */}
+                        {[...assessments, ...kAssessments].filter(a => a.hasAchievement && a.achievementContent).map((a, idx) => (
+                          <div key={'ach_'+a.id} className="flex items-start gap-3 bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-400"></div>
+                            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5 border border-indigo-100">
+                              <Award className="w-3 h-3 text-indigo-500" />
+                            </div>
+                            <div className="flex-1">
+                               <div className="flex justify-between items-center mb-1">
+                                 <span className="text-xs font-bold text-indigo-600">จากแบบประเมินฯ ({a.month || `เทอม ${a.semester}/${a.academicYear}`})</span>
+                               </div>
+                               <p className="text-sm font-medium text-slate-700 leading-snug whitespace-pre-wrap">{a.achievementContent}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {student.behavior.achievements.length === 0 && !assessments.some(a => a.hasAchievement) && !kAssessments.some(a => a.hasAchievement) && (
                           <p className="text-sm text-slate-500 italic">ยังไม่มีบันทึกผลงาน</p>
                         )}
                       </div>
@@ -583,6 +736,25 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                     </h3>
 
                     <div className="relative border-l-2 border-emerald-100 ml-4 space-y-6 pb-4">
+                      {/* Dynamic Pastoral Care from Assessments */}
+                      {[...assessments, ...kAssessments].filter(a => a.hasPastoralCare && a.pastoralCareContent).map((a, idx) => (
+                        <div key={'pastoral_'+a.id} className="relative pl-6">
+                          <div className="absolute w-4 h-4 bg-emerald-400 rounded-full border-4 border-white -left-[9px] top-1 shadow-sm"></div>
+                          <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-400"></div>
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
+                                จากแบบประเมินฯ
+                              </span>
+                              <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                                <Calendar className="w-3 h-3" /> {a.month || `ภาคเรียนที่ ${a.semester}/${a.academicYear}`}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed mt-3 whitespace-pre-wrap">{a.pastoralCareContent}</p>
+                          </div>
+                        </div>
+                      ))}
+
                       {student.pastoralCare.map((record, idx) => (
                         <div key={idx} className="relative pl-6">
                           <div className="absolute w-4 h-4 bg-emerald-500 rounded-full border-4 border-white -left-[9px] top-1"></div>
@@ -600,7 +772,7 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                         </div>
                       ))}
                       
-                      {student.pastoralCare.length === 0 && (
+                      {student.pastoralCare.length === 0 && !assessments.some(a => a.hasPastoralCare) && !kAssessments.some(a => a.hasPastoralCare) && (
                         <div className="pl-6">
                           <p className="text-sm text-slate-500 italic">ยังไม่มีบันทึกการดูแลช่วยเหลือ</p>
                         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { TeacherSchedule, AttendanceSession, GRADE_LEVELS, Student } from '../types';
 import { BookOpen, Clock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -15,6 +15,7 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalLearningDays, setTotalLearningDays] = useState(100);
 
   const uniqueGrades = useMemo(() => {
     const dbGrades = new Set(students.map(s => s.gradeLevel));
@@ -24,6 +25,16 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
     extraGrades.sort();
     return [...filteredGradeLevels, ...extraGrades];
   }, [students]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!uniqueGrades.includes(selectedGrade)) {
@@ -89,8 +100,9 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
           lastTaughtDate: null
         };
       }
+      const learningWeeks = Math.max(1, Math.round(totalLearningDays / 5));
       subjectMap[sch.subject].periodsPerWeek += 1;
-      subjectMap[sch.subject].targetPeriodsTotal += 20; // 20 weeks estimation
+      subjectMap[sch.subject].targetPeriodsTotal += learningWeeks;
     });
 
     gradeSessions.forEach(sess => {
@@ -113,7 +125,7 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
     });
 
     return Object.values(subjectMap).sort((a, b) => b.periodsPerWeek - a.periodsPerWeek);
-  }, [schedules, sessions, selectedGrade]);
+  }, [schedules, sessions, selectedGrade, totalLearningDays]);
 
   if (isLoading) {
     return (
@@ -132,7 +144,7 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
             <Clock className="h-5 w-5 text-indigo-500" />
             รายงานชั่วโมงเรียนและแผนการสอน
           </h3>
-          <p className="text-sm text-slate-500">ตรวจสอบความคืบหน้าการจัดการเรียนการสอนเทียบกับโครงสร้างหลักสูตร 20 สัปดาห์</p>
+          <p className="text-sm text-slate-500">ตรวจสอบความคืบหน้าการจัดการเรียนการสอนเทียบกับโครงสร้างหลักสูตร (อิงตามจำนวนวันเรียน {totalLearningDays} วัน)</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <select 

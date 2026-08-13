@@ -242,6 +242,11 @@ export interface KindergartenAssessment {
   
   month?: string;
   teacherNotes?: string;
+  publishNotesToStudent360?: boolean;
+  hasAchievement?: boolean;
+  achievementContent?: string;
+  hasPastoralCare?: boolean;
+  pastoralCareContent?: string;
   updatedAt: string;
 }
 
@@ -342,6 +347,12 @@ export interface StudentAssessment {
   }[];
   content?: string;      // พฤติกรรม/พัฒนาการที่พบ
   activities?: string;   // วิธีการส่งเสริม/แก้ไขปัญหา
+  publishContentToStudent360?: boolean;
+  publishActivitiesToStudent360?: boolean;
+  hasAchievement?: boolean;
+  achievementContent?: string;
+  hasPastoralCare?: boolean;
+  pastoralCareContent?: string;
   limitations?: string;  // ปัญหาอุปสรรค
   suggestions?: string;  // ผลการพัฒนา/ข้อเสนอแนะ
 
@@ -578,3 +589,9 @@ export interface CurriculumSubject {
 }
 
 export const PERIOD_OPTIONS = Array.from({length: 60}, (_, i) => `ครั้งที่ ${i + 1}`);
+
+export interface SchoolHoliday {
+  id: string;
+  date: string;
+  description: string;
+}

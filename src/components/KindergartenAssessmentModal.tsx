@@ -298,6 +298,66 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
               rows={3}
               placeholder="ระบุข้อเสนอแนะ พฤติกรรมที่ควรส่งเสริม..."
             />
+            <label className="flex items-center gap-2 mt-2 cursor-pointer group w-fit">
+              <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${formData.publishNotesToStudent360 ? 'bg-pink-500 border-pink-500' : 'bg-white border-slate-300 group-hover:border-pink-400'}`}>
+                {formData.publishNotesToStudent360 && <CheckCircle className="w-3 h-3 text-white" />}
+              </div>
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={!!formData.publishNotesToStudent360}
+                onChange={(e) => setFormData(prev => ({ ...prev, publishNotesToStudent360: e.target.checked }))}
+              />
+              <span className="text-xs text-slate-600 font-medium group-hover:text-pink-600 transition-colors">ลิงก์ข้อมูลนี้ไปแสดงในหน้าพัฒนาการและพฤติกรรม (Student 360°)</span>
+            </label>
+          </div>
+          
+          {/* ผลงานและความภาคภูมิใจ */}
+          <div className="pt-4 border-t border-slate-100">
+            <label className="flex items-center gap-2 cursor-pointer group w-fit mb-2">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.hasAchievement ? 'bg-indigo-500 border-indigo-500' : 'bg-white border-slate-300 group-hover:border-indigo-400'}`}>
+                {formData.hasAchievement && <CheckCircle className="w-3 h-3 text-white" />}
+              </div>
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={!!formData.hasAchievement}
+                onChange={(e) => setFormData(prev => ({ ...prev, hasAchievement: e.target.checked }))}
+              />
+              <span className="text-sm text-slate-800 font-bold group-hover:text-indigo-600 transition-colors">บันทึกผลงานและความภาคภูมิใจ (ลิงก์ไป Student 360°)</span>
+            </label>
+            {formData.hasAchievement && (
+              <textarea
+                value={formData.achievementContent || ""}
+                onChange={(e) => setFormData((prev) => ({ ...prev, achievementContent: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm min-h-[80px] outline-none focus:border-indigo-500 mt-1 animate-in slide-in-from-top-2 fade-in duration-200"
+                placeholder="ระบุผลงาน, รางวัล, หรือความภาคภูมิใจที่โดดเด่น..."
+              />
+            )}
+          </div>
+
+          {/* การดูแลช่วยเหลือนักเรียน */}
+          <div className="pt-4 border-t border-slate-100">
+            <label className="flex items-center gap-2 cursor-pointer group w-fit mb-2">
+              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.hasPastoralCare ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300 group-hover:border-emerald-400'}`}>
+                {formData.hasPastoralCare && <CheckCircle className="w-3 h-3 text-white" />}
+              </div>
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={!!formData.hasPastoralCare}
+                onChange={(e) => setFormData(prev => ({ ...prev, hasPastoralCare: e.target.checked }))}
+              />
+              <span className="text-sm text-slate-800 font-bold group-hover:text-emerald-600 transition-colors">บันทึกการดูแลช่วยเหลือนักเรียน (ลิงก์ไป Student 360°)</span>
+            </label>
+            {formData.hasPastoralCare && (
+              <textarea
+                value={formData.pastoralCareContent || ""}
+                onChange={(e) => setFormData((prev) => ({ ...prev, pastoralCareContent: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl p-3 text-sm min-h-[80px] outline-none focus:border-emerald-500 mt-1 animate-in slide-in-from-top-2 fade-in duration-200"
+                placeholder="ระบุการให้คำปรึกษา, การเยี่ยมบ้าน, หรือการดูแลช่วยเหลือต่างๆ..."
+              />
+            )}
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, setDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
 import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
@@ -25,6 +25,20 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+  const [termStartDate, setTermStartDate] = useState<string>('');
+  const [termEndDate, setTermEndDate] = useState<string>('');
+
+  // Fetch term dates
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.termStartDate) setTermStartDate(data.termStartDate);
+        if (data.termEndDate) setTermEndDate(data.termEndDate);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Fetch teacher schedules
   useEffect(() => {
@@ -36,7 +50,9 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         
         // Filter by gradeLevel, semester, academicYear in memory to avoid needing a composite index
         const filteredSchedules = scheduleList.filter(s => 
-          s.gradeLevel === gradeLevel
+          s.gradeLevel === gradeLevel &&
+          s.semester === semester &&
+          s.academicYear === academicYear
         );
         setSchedules(filteredSchedules);
       } catch (error) {
@@ -219,6 +235,8 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
               <input
                 type="date"
                 value={date}
+                min={termStartDate}
+                max={termEndDate}
                 onChange={(e) => setDate(e.target.value)}
                 className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
@@ -233,7 +251,16 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
                 onChange={(e) => setPeriod(e.target.value)}
                 className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-56 appearance-none"
               >
-                <optgroup label={`คาบเรียน (${gradeLevel})`}>
+                {suggestedSchedules.length > 0 && (
+                  <optgroup label="มีเรียนวันนี้">
+                    {suggestedSchedules.map(match => (
+                      <option key={`suggested-${match.period}`} value={match.period}>
+                        {match.period} - {match.subject}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="คาบเรียนทั้งหมด">
                   {standardPeriods.map(p => {
                     const match = suggestedSchedules.find(s => s.period === p);
                     if (match) {

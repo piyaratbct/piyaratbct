@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
-import { Settings, Save, AlertCircle } from "lucide-react";
-import { Teacher } from "../types";
+import { Settings, Save, AlertCircle, Plus, Trash2, Calendar } from "lucide-react";
+import { Teacher, SchoolHoliday } from "../types";
 
 interface AcademicSettingsProps {
   currentTeacher: Teacher;
@@ -15,6 +15,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   const [termStartDate, setTermStartDate] = useState<string>("");
   const [termEndDate, setTermEndDate] = useState<string>("");
   const [passingGrade, setPassingGrade] = useState<number>(50);
+  const [holidays, setHolidays] = useState<SchoolHoliday[]>([]);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -33,8 +34,62 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
         if (data.passingGrade) setPassingGrade(data.passingGrade);
       }
     });
-    return () => unsub();
-  }, []);
+
+    // Separately load holidays from schoolCalendar
+    const calendarDocId = `${academicYear}_${semester}`;
+    const unsubCalendar = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.holidays) {
+          setHolidays(data.holidays);
+        } else {
+          setHolidays([]);
+        }
+      } else {
+        setHolidays([]);
+      }
+    });
+
+    return () => {
+      unsub();
+      unsubCalendar();
+    };
+  }, [academicYear, semester]);
+
+  
+  const calculateLearningDays = () => {
+    if (!termStartDate || !termEndDate) {
+      alert("กรุณาระบุวันเปิดและวันปิดภาคเรียนให้ครบถ้วนก่อนคำนวณ");
+      return;
+    }
+    const start = new Date(termStartDate);
+    const end = new Date(termEndDate);
+    if (start > end) {
+      alert("วันเปิดภาคเรียนต้องอยู่ก่อนวันปิดภาคเรียน");
+      return;
+    }
+
+    let count = 0;
+    let cur = new Date(start);
+    const holidayDates = new Set(holidays.map(h => h.date));
+
+    while (cur <= end) {
+      const dayOfWeek = cur.getDay(); // 0 = Sunday, 6 = Saturday
+      
+      const year = cur.getFullYear();
+      const month = String(cur.getMonth() + 1).padStart(2, '0');
+      const day = String(cur.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidayDates.has(dateString)) {
+        count++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    setTotalLearningDays(count);
+    setMessage({ type: 'success', text: 'คำนวณจำนวนวันเรียนอัตโนมัติเรียบร้อยแล้ว (ไม่รวมเสาร์-อาทิตย์ และวันหยุดพิเศษ)' });
+    setTimeout(() => setMessage(null), 4000);
+  };
 
   const handleSave = async () => {
     if (!canEdit) return;
@@ -50,6 +105,14 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
         termStartDate: termStartDate,
         termEndDate: termEndDate,
         passingGrade: passingGrade
+      }, { merge: true });
+      
+      const calendarDocId = `${academicYear}_${semester}`;
+      await setDoc(doc(db, "schoolCalendar", calendarDocId), {
+        academicYear: academicYear,
+        semester: semester,
+        holidays: holidays,
+        updatedAt: new Date().toISOString()
       }, { merge: true });
       
       setMessage({ type: 'success', text: 'บันทึกการตั้งค่าระบบเรียบร้อยแล้ว' });
@@ -162,10 +225,22 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
               
               <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    จำนวนวันเรียนทั้งหมด (วัน)
-                    <span className="text-xs text-slate-400 font-normal ml-2">ใช้คำนวณร้อยละการเข้าเรียน</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-sm font-bold text-slate-700">
+                      จำนวนวันเรียนทั้งหมด (วัน)
+                      <span className="text-xs text-slate-400 font-normal ml-2">ใช้คำนวณร้อยละการเข้าเรียน</span>
+                    </label>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={calculateLearningDays}
+                        className="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold rounded hover:bg-emerald-200 transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <Calendar className="h-3 w-3" />
+                        คำนวณจากปฏิทิน
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="number"
                     value={totalLearningDays}
@@ -178,7 +253,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
                 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                    เกณฑ์คะแนนขั้นต่ำที่ผ่าน (%)
+                    จำนวนเวลาขั้นต่ำ (%)
                   </label>
                   <input
                     type="number"
@@ -186,7 +261,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
                     onChange={(e) => setPassingGrade(parseInt(e.target.value) || 0)}
                     disabled={!canEdit}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
-                    placeholder="เช่น 50"
+                    placeholder="เช่น 80"
                   />
                 </div>
               </div>
@@ -208,6 +283,74 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
                 ควรเปลี่ยนเมื่อสิ้นสุดภาคเรียนเท่านั้น
               </p>
             </div>
+          </div>
+        </div>
+
+        
+        <div className="pt-6 border-t border-slate-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <span className="h-6 w-1 bg-rose-500 rounded-full"></span>
+              วันหยุดตามปฏิทิน / วันหยุดพิเศษ (สำหรับภาคเรียนนี้)
+            </h3>
+            {canEdit && (
+              <button
+                onClick={() => setHolidays([...holidays, { id: Date.now().toString(), date: '', description: '' }])}
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="h-4 w-4" /> เพิ่มวันหยุด
+              </button>
+            )}
+          </div>
+          
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-100">
+            {holidays.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 flex flex-col items-center">
+                <Calendar className="h-8 w-8 mb-2 opacity-20" />
+                <p className="text-sm">ยังไม่มีการกำหนดวันหยุดพิเศษ</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {holidays.map((holiday, index) => (
+                  <div key={holiday.id} className="flex items-start sm:items-center gap-3 bg-white p-3 rounded-lg border border-slate-200">
+                    <input
+                      type="date"
+                      value={holiday.date}
+                      onChange={(e) => {
+                        const newHolidays = [...holidays];
+                        newHolidays[index].date = e.target.value;
+                        setHolidays(newHolidays);
+                      }}
+                      disabled={!canEdit}
+                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
+                    />
+                    <input
+                      type="text"
+                      value={holiday.description}
+                      onChange={(e) => {
+                        const newHolidays = [...holidays];
+                        newHolidays[index].description = e.target.value;
+                        setHolidays(newHolidays);
+                      }}
+                      disabled={!canEdit}
+                      placeholder="รายละเอียด (เช่น วันวิสาขบูชา, วันหยุดชดเชย)"
+                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
+                    />
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          const newHolidays = holidays.filter(h => h.id !== holiday.id);
+                          setHolidays(newHolidays);
+                        }}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

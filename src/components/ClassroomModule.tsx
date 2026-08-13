@@ -951,13 +951,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => setViewingStudent(student)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                title="ดูข้อมูลนักเรียน"
-                              >
-                                <Search className="h-4 w-4" />
-                              </button>
+                              {(isStudentManager || currentTeacher?.role === 'staff' || (currentTeacher && (currentTeacher.homeroomClass === student.gradeLevel || currentTeacher.coHomeroomClass === student.gradeLevel))) && (
+                                <button
+                                  onClick={() => setViewingStudent(student)}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="ดูข้อมูลนักเรียน"
+                                >
+                                  <Search className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   setSelectedStudent360(student);
@@ -1253,7 +1255,20 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     { name: 'อื่นๆ', value: otherMedicalStudents.length, fill: '#64748b' }
   ].filter(d => d.value > 0);
 
-  const hasAnySpecialCare = diseaseData.length > 0;
+  const congenitalDiseaseCounts = allCongenitalDiseaseStudents.reduce((acc, s) => {
+    const raw = (s.congenitalDisease || '').trim();
+    const diseases = raw.split(/[,/]+/).map(d => d.trim()).filter(Boolean);
+    diseases.forEach(d => {
+      acc[d] = (acc[d] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  const congenitalBarData = Object.entries(congenitalDiseaseCounts)
+    .map(([name, value]) => ({ name, value, fill: '#e11d48' }))
+    .sort((a, b) => (b.value as number) - (a.value as number));
+
+  const hasAnySpecialCare = diseaseData.length > 0 || congenitalBarData.length > 0;
 
   const getStudentHealthData = (student: Student) => {
     // If you need latest assessment weight/height for special care display (optional)
@@ -1289,7 +1304,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h4 className="font-bold text-slate-700 mb-4 text-center">สถิติข้อมูลสุขภาพ (ห้อง {selectedGrade})</h4>
+              <h4 className="font-bold text-slate-700 mb-1 text-center">ภาพรวมข้อมูลสุขภาพ ({selectedGrade.includes('ทั้งหมด') ? selectedGrade : 'ห้อง ' + selectedGrade})</h4>
+              <p className="text-xs text-slate-500 text-center mb-4">จำนวนนักเรียนในกลุ่มนี้ {diseaseData.reduce((acc, curr) => acc + Number(curr.value || 0), 0)} รายการ</p>
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -1315,6 +1331,33 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                   </PieChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
+              <h4 className="font-bold text-slate-700 mb-1 text-center">สถิติโรคประจำตัวทั้งหมด</h4>
+              <p className="text-xs text-slate-500 text-center mb-4">พบโรคประจำตัว {congenitalBarData.reduce((acc, curr) => acc + Number(curr.value || 0), 0)} รายการ</p>
+              <div className="h-64 w-full">
+                {congenitalBarData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={congenitalBarData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={80} />
+                      <RechartsTooltip 
+                        formatter={(value) => [`${value} คน`, 'จำนวน']}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={40}>
+                        {congenitalBarData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400 text-sm">ไม่มีข้อมูลโรคประจำตัว</div>
+                )}
               </div>
             </div>
           </div>
@@ -1418,10 +1461,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     let obese2 = 0;
     let unknown = 0;
     
-    const studentsToCalculate = showHistoryCompare ? students : studentsInGrade;
+    const studentsToCalculate = students.filter(s => {
+      if (s.status === 'graduated' || s.status === 'inactive') return false;
+      if (selectedGrade === 'ภาพรวม') return true;
+      if (selectedGrade.includes('อนุบาล')) return (s.gradeLevel || '').includes('อนุบาล');
+      if (selectedGrade.includes('ประถม')) return (s.gradeLevel || '').includes('ประถม');
+      if (selectedGrade.includes('มัธยม')) return (s.gradeLevel || '').includes('มัธยม');
+      return s.gradeLevel === selectedGrade;
+    });
     const currentGradeBmiStats = { underweight: 0, normal: 0, overweight: 0, obese1: 0, obese2: 0, unknown: 0 };
     
     const gradeStats: Record<string, { grade: string, underweight: number, normal: number, overweight: number, obese1: number, obese2: number, unknown: number }> = {};
+    const inGradeIds = new Set(studentsInGrade.map(st => st.id));
     
     studentsToCalculate.forEach(s => {
       const assessment = currentAssessments.find(a => a.studentId === s.id);
@@ -1459,11 +1510,11 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           else if (bmi < baseObese2) cat = 'obese1';
           else cat = 'obese2';
           
-          if (cat === 'underweight') { underweight++; gradeStats[grade].underweight++; if(s.gradeLevel === selectedGrade) currentGradeBmiStats.underweight++; }
-          else if (cat === 'normal') { normal++; gradeStats[grade].normal++; if(s.gradeLevel === selectedGrade) currentGradeBmiStats.normal++; }
-          else if (cat === 'overweight') { overweight++; gradeStats[grade].overweight++; if(s.gradeLevel === selectedGrade) currentGradeBmiStats.overweight++; }
-          else if (cat === 'obese1') { obese1++; gradeStats[grade].obese1++; if(s.gradeLevel === selectedGrade) currentGradeBmiStats.obese1++; }
-          else if (cat === 'obese2') { obese2++; gradeStats[grade].obese2++; if(s.gradeLevel === selectedGrade) currentGradeBmiStats.obese2++; }
+          if (cat === 'underweight') { underweight++; gradeStats[grade].underweight++; if(inGradeIds.has(s.id)) currentGradeBmiStats.underweight++; }
+          else if (cat === 'normal') { normal++; gradeStats[grade].normal++; if(inGradeIds.has(s.id)) currentGradeBmiStats.normal++; }
+          else if (cat === 'overweight') { overweight++; gradeStats[grade].overweight++; if(inGradeIds.has(s.id)) currentGradeBmiStats.overweight++; }
+          else if (cat === 'obese1') { obese1++; gradeStats[grade].obese1++; if(inGradeIds.has(s.id)) currentGradeBmiStats.obese1++; }
+          else if (cat === 'obese2') { obese2++; gradeStats[grade].obese2++; if(inGradeIds.has(s.id)) currentGradeBmiStats.obese2++; }
         }
       }
     });
@@ -1475,7 +1526,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     if (currentGradeBmiStats.obese2 > 0) bmiData.push({ name: 'อ้วน', value: currentGradeBmiStats.obese2, fill: '#ef4444' });
     if (currentGradeBmiStats.unknown > 0) bmiData.push({ name: 'ขาดวันเกิด', value: currentGradeBmiStats.unknown, fill: '#94a3b8' });
     
-    bmiByGradeData = Object.values(gradeStats).sort((a, b) => a.grade.localeCompare(b.grade));
+    const shortenGrade = (g) => {
+      let short = g.replace('ประถมศึกษาปีที่ ', 'ป.');
+      short = short.replace('มัธยมศึกษาปีที่ ', 'ม.');
+      short = short.replace('อนุบาลปีที่ ', 'อ.');
+      short = short.replace('อนุบาล ', 'อ.');
+      return short;
+    };
+    bmiByGradeData = Object.values(gradeStats).map(st => ({...st, shortGrade: shortenGrade(st.grade)})).sort((a, b) => a.grade.localeCompare(b.grade));
   }
 
   return (
@@ -1514,7 +1572,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       {currentChartMonth && bmiData.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <h4 className="font-bold text-slate-700 mb-4 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ (ห้อง {selectedGrade})</h4>
+            <h4 className="font-bold text-slate-700 mb-1 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ ({selectedGrade.includes('ทั้งหมด') ? selectedGrade : 'ห้อง ' + selectedGrade})</h4>
+            <p className="text-xs text-slate-500 text-center mb-4">จำนวนที่มีข้อมูล {bmiData.reduce((acc, curr) => acc + curr.value, 0)} คน</p>
             <div className="h-64 w-full">
             {bmiData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1526,7 +1585,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     labelLine={false}
                     outerRadius={80}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                   >
                     {bmiData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -1536,6 +1595,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     formatter={(value) => [`${value} คน`, 'จำนวน']}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -1547,14 +1607,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           </div>
           
           <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-            <h4 className="font-bold text-slate-700 mb-4 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ (รายชั้นปี)</h4>
+            <h4 className="font-bold text-slate-700 mb-1 text-center">สัดส่วนนักเรียนแยกตามเกณฑ์ (รายชั้นปี)</h4>
+            <p className="text-xs text-slate-500 text-center mb-4">จำนวนที่มีข้อมูล {bmiByGradeData.reduce((acc, curr) => acc + curr.underweight + curr.normal + curr.overweight + curr.obese1 + curr.obese2 + curr.unknown, 0)} คน</p>
             <div className="h-64 w-full">
               {bmiByGradeData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={bmiByGradeData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
-                      dataKey="grade" 
+                      dataKey="shortGrade" 
                       tick={{ fontSize: 11, fill: '#64748b' }} 
                       axisLine={false} 
                       tickLine={false} 
@@ -1568,7 +1629,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       allowDecimals={false}
                     />
                     <RechartsTooltip 
-                      formatter={(value, name) => [`${value} คน`, name === 'underweight' ? 'ผอม' : name === 'normal' ? 'สมส่วน' : name === 'overweight' ? 'ท้วม' : name === 'obese1' ? 'เริ่มอ้วน' : name === 'obese2' ? 'อ้วน' : 'ขาดวันเกิด']}
+                      formatter={(value, name) => [`${value} คน`, name]}
                       labelStyle={{ color: '#0f172a', fontWeight: 'bold' }}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />

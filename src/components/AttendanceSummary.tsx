@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS } from '../types';
 import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2 } from 'lucide-react';
@@ -22,6 +22,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   const [viewMode, setViewMode] = useState<'daily' | 'cumulative'>('daily');
   const [editingSession, setEditingSession] = useState<AttendanceSession | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [termStartDate, setTermStartDate] = useState<string>('');
+  const [termEndDate, setTermEndDate] = useState<string>('');
 
   const uniqueGrades = React.useMemo(() => {
     const dbGrades = new Set(students.map(s => s.gradeLevel));
@@ -31,6 +33,18 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
     extraGrades.sort();
     return [...filteredGradeLevels, ...extraGrades];
   }, [students]);
+
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.termStartDate) setTermStartDate(data.termStartDate);
+        if (data.termEndDate) setTermEndDate(data.termEndDate);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (viewMode === 'cumulative') return;
@@ -138,6 +152,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
             <input 
               type="date"
               value={selectedDate}
+              min={termStartDate}
+              max={termEndDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />

@@ -155,6 +155,35 @@ export const AssessmentPrintTemplate: React.FC<
                       {assessment.suggestions || "-"}
                     </p>
                   </div>
+                  {assessment.hasAchievement && assessment.achievementContent && (
+                    <div>
+                      <h4
+                        className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}
+                      >
+                        ผลงานและความภาคภูมิใจ:
+                      </h4>
+                      <p
+                        className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}
+                      >
+                        {assessment.achievementContent}
+                      </p>
+                    </div>
+                  )}
+
+                  {assessment.hasPastoralCare && assessment.pastoralCareContent && (
+                    <div>
+                      <h4
+                        className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}
+                      >
+                        การดูแลช่วยเหลือนักเรียน:
+                      </h4>
+                      <p
+                        className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}
+                      >
+                        {assessment.pastoralCareContent}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
