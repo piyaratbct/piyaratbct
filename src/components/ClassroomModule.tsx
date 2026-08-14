@@ -66,7 +66,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemSemester = "1",
   teachers = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<"students" | "student360" | "attendance" | "assessments" | "special-care" | "health-report">(
+  const [activeTab, setActiveTab] = useState<"students" | "student360" | "attendance" | "assessments" | "special-care">(
     "students",
   );
   const [selectedStudent360, setSelectedStudent360] = useState<Student | null>(null);
@@ -696,23 +696,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               }`}
             >
               <HeartPulse className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">ข้อมูลสุขภาพ</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("health-report")}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === "health-report"
-                  ? "bg-pink-100 text-pink-700"
-                  : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <FileSpreadsheet className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">พัฒนาการร่างกาย</span>
+              <span className="whitespace-nowrap">ข้อมูลสุขภาพและร่างกาย</span>
             </button>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 w-full justify-between items-start sm:items-center">
-            <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full sm:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'health-report') ? 'opacity-100' : 'opacity-0 hidden sm:flex pointer-events-none'}`}>
+            <div className={`flex items-center gap-3 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 shrink-0 w-full sm:w-auto transition-opacity duration-200 ${(activeTab === 'assessments' || activeTab === 'special-care') ? 'opacity-100' : 'opacity-0 hidden sm:flex pointer-events-none'}`}>
               <label className="text-sm font-bold text-slate-700 whitespace-nowrap">ประจำเดือน:</label>
               <div className="flex items-center min-w-[120px]">
                 <input
@@ -722,7 +711,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   className="text-sm outline-none bg-white font-bold text-pink-600 border border-slate-200 rounded px-2 py-1 focus:ring-2 focus:ring-pink-500"
                 />
               </div>
-              {selectedMonth && activeTab === 'health-report' && (
+              {selectedMonth && activeTab === 'special-care' && (
                 <button 
                   onClick={() => setSelectedMonth('')}
                   className="text-slate-400 hover:text-slate-600 flex-shrink-0 ml-1 relative z-10"
@@ -1009,28 +998,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
           {activeTab === "attendance" && currentTeacher && (
             <div className="p-6 relative animate-in fade-in duration-300">
-              {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center min-h-[50vh]">
-                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                    <Wrench className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-800">
-                    ปิดปรับปรุงชั่วคราว
-                  </h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium max-w-md mx-auto">
-                    ฟังก์ชันเช็กชื่อนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
-                  </p>
-                </div>
-              ) : (
-                <AttendanceTracking 
-                  students={displayedStudents}
-                  gradeLevel={selectedGrade}
-                  teacherId={currentTeacher.id}
-                  teacherName={currentTeacher.thaiName || currentTeacher.displayName || 'Unknown Teacher'}
-                  semester={systemSemester}
-                  academicYear={systemAcademicYear}
-                />
-              )}
+              <AttendanceTracking 
+                students={displayedStudents}
+                gradeLevel={selectedGrade}
+                teacherId={currentTeacher.id}
+                teacherName={currentTeacher.thaiName || currentTeacher.displayName || 'Unknown Teacher'}
+                semester={systemSemester}
+                academicYear={systemAcademicYear}
+              />
             </div>
           )}
 
@@ -1438,7 +1413,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   );
 })()}
 
-{activeTab === "health-report" && (() => {
+{/* BMI Report appended to special-care */}
+          {activeTab === "special-care" && (() => {
   
   const allAssessments = Object.values(assessments) as StudentAssessment[];
   const availableMonthsSet = new Set<string>();
@@ -1537,7 +1513,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   }
 
   return (
-    <div className="p-6">
+    <div className="px-6 pb-6 pt-2 border-t border-slate-100 mt-2">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">

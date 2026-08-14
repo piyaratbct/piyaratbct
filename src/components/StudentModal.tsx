@@ -39,6 +39,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     allergicMedicine: '',
     allergicFood: '',
     congenitalDisease: '',
+    vision: '',
+    dental: '',
     weight: '',
     height: '',
     bloodGroup: '',
@@ -79,6 +81,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         allergicMedicine: student.allergicMedicine || '',
         allergicFood: student.allergicFood || '',
         congenitalDisease: student.congenitalDisease || '',
+        vision: student.vision || '',
+        dental: student.dental || '',
         weight: student.weight || '',
         height: student.height || '',
         bloodGroup: student.bloodGroup || '',
@@ -440,6 +444,19 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                 placeholder="เช่น อาหารทะเล, ถั่วลิสง (ถ้าไม่มีให้เว้นว่าง)"
               />
             </div>
+            
+            <div className="flex items-center mt-6">
+              <input
+                type="checkbox"
+                id="noSchoolMilk"
+                checked={formData.noSchoolMilk || false}
+                onChange={e => setFormData({ ...formData, noSchoolMilk: e.target.checked })}
+                className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500 cursor-pointer"
+              />
+              <label htmlFor="noSchoolMilk" className="ml-2 block text-sm font-bold text-rose-700 cursor-pointer flex items-center gap-2">
+                🥛 งดรับนมโรงเรียน (เช่น แพ้นมวัว)
+              </label>
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-rose-700 mb-1">โรคประจำตัว</label>
@@ -452,6 +469,26 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">การมองเห็น</label>
+              <input
+                type="text"
+                value={formData.vision}
+                onChange={e => setFormData({ ...formData, vision: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none placeholder-rose-300"
+                placeholder="เช่น ปกติ, สั้น 150 (สวมแว่นตา)"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-rose-700 mb-1">สุขภาพช่องปากและฟัน</label>
+              <input
+                type="text"
+                value={formData.dental}
+                onChange={e => setFormData({ ...formData, dental: e.target.value })}
+                className="w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 outline-none placeholder-rose-300"
+                placeholder="เช่น ปกติ, ฟันผุ 1 ซี่"
+              />
+            </div>
             <div>
               <label className="block text-xs font-bold text-rose-700 mb-1">ข้อมูลสุขภาพอื่นๆ</label>
               <textarea

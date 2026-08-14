@@ -152,6 +152,7 @@ export interface Student {
   number: number;
   status: 'active' | 'graduated' | 'inactive';
   dob?: string;
+  noSchoolMilk?: boolean;
   parentName?: string;
   parentPhone?: string;
   fatherFirstName?: string;
@@ -195,6 +196,8 @@ export interface Student {
   allergicMedicine?: string;
   allergicFood?: string;
   congenitalDisease?: string;
+  vision?: string;
+  dental?: string;
   historicalRecords?: HistoricalRecord[];
   destinationSchool?: string;
 }

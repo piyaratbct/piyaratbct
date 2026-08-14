@@ -16,6 +16,10 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   const [termEndDate, setTermEndDate] = useState<string>("");
   const [passingGrade, setPassingGrade] = useState<number>(50);
   const [holidays, setHolidays] = useState<SchoolHoliday[]>([]);
+  const [schoolName, setSchoolName] = useState<string>("");
+  const [schoolSubDistrict, setSchoolSubDistrict] = useState<string>("");
+  const [schoolDistrict, setSchoolDistrict] = useState<string>("");
+  const [schoolProvince, setSchoolProvince] = useState<string>("");
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -99,6 +103,10 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
       setMessage(null);
       
       await setDoc(doc(db, "config", "school"), {
+        schoolName,
+        schoolSubDistrict,
+        schoolDistrict,
+        schoolProvince,
         systemAcademicYear: academicYear,
         systemSemester: semester,
         totalLearningDays: totalLearningDays,
@@ -147,7 +155,53 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 border-b border-slate-100 pb-8">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อโรงเรียน</label>
+              <input
+                type="text"
+                value={schoolName}
+                onChange={e => setSchoolName(e.target.value)}
+                disabled={!canEdit || isProcessing}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50"
+                placeholder="ระบุชื่อโรงเรียน"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">แขวง/ตำบล</label>
+              <input
+                type="text"
+                value={schoolSubDistrict}
+                onChange={e => setSchoolSubDistrict(e.target.value)}
+                disabled={!canEdit || isProcessing}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50"
+                placeholder="ระบุแขวงหรือตำบล"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">เขต/อำเภอ</label>
+              <input
+                type="text"
+                value={schoolDistrict}
+                onChange={e => setSchoolDistrict(e.target.value)}
+                disabled={!canEdit || isProcessing}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50"
+                placeholder="ระบุเขตหรืออำเภอ"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">จังหวัด</label>
+              <input
+                type="text"
+                value={schoolProvince}
+                onChange={e => setSchoolProvince(e.target.value)}
+                disabled={!canEdit || isProcessing}
+                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50"
+                placeholder="ระบุจังหวัด"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div>
               <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">

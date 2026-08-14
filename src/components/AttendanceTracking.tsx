@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { MilkReportPrintTemplate } from './MilkReportPrintTemplate';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
@@ -27,6 +30,28 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
   const [termStartDate, setTermStartDate] = useState<string>('');
   const [termEndDate, setTermEndDate] = useState<string>('');
+  const [showMilkReport, setShowMilkReport] = useState(false);
+  const [schoolInfo, setSchoolInfo] = useState({ name: '', subDistrict: '', district: '', province: '' });
+
+  useEffect(() => {
+    const fetchSchoolInfo = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "config", "school"));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSchoolInfo({
+            name: data.schoolName || '',
+            subDistrict: data.schoolSubDistrict || '',
+            district: data.schoolDistrict || '',
+            province: data.schoolProvince || ''
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching school config:", err);
+      }
+    };
+    fetchSchoolInfo();
+  }, []);
 
   // Fetch term dates
   useEffect(() => {
@@ -215,10 +240,35 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   
   // Suggest periods based on teacher's schedule for this day and grade
   const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;
-  const suggestedSchedules = schedules.filter(s => s.dayOfWeek === selectedDayOfWeek);
+  // Deduplicate by period to avoid duplicate keys in React (which happens if multiple schedules exist for the same period)
+  const suggestedSchedules = schedules
+    .filter(s => s.dayOfWeek === selectedDayOfWeek)
+    .filter((v, i, a) => a.findIndex(t => (t.period === v.period)) === i);
+
+  // When the event to close is fired from the Print Template
+  useEffect(() => {
+    const handleCloseReport = () => setShowMilkReport(false);
+    window.addEventListener('close-milk-report', handleCloseReport);
+    return () => window.removeEventListener('close-milk-report', handleCloseReport);
+  }, []);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
+      {showMilkReport && (
+        <MilkReportPrintTemplate 
+          students={sortedStudents}
+          gradeLevel={gradeLevel}
+          semester={semester}
+          academicYear={academicYear}
+          teacherName={teacherName}
+          monthName={new Date(date).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+          daysInMonth={new Date(new Date(date).getFullYear(), new Date(date).getMonth() + 1, 0).getDate()}
+          schoolName={schoolInfo.name}
+          schoolSubDistrict={schoolInfo.subDistrict}
+          schoolDistrict={schoolInfo.district}
+          schoolProvince={schoolInfo.province}
+        />
+      )}
       {/* Header Controls */}
       {onClose && (
         <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b border-slate-200">
@@ -282,6 +332,12 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           )}
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowMilkReport(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold transition-colors whitespace-nowrap"
+            >
+              🥛 รายงานดื่มนม
+            </button>
+            <button
               onClick={handleClearAttendance}
               disabled={isSaving || isLoading}
               className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-200 font-bold transition-colors disabled:opacity-50 whitespace-nowrap"
@@ -343,90 +399,79 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             <p>ไม่มีข้อมูลนักเรียนในชั้นเรียนนี้</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">เลขที่ / รหัสนักเรียน</th>
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">ชั้น</th>
-                  <th className="px-6 py-4 font-bold border-b border-slate-100">ชื่อ - นามสกุล</th>
-                  <th className="px-6 py-4 font-bold border-b border-slate-100 text-center">สถานะการเข้าเรียน</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {sortedStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-100/80 transition-colors whitespace-nowrap even:bg-slate-50/50">
-                    <td className="px-6 py-3 text-center">
-                      <span className="text-slate-500 font-medium">{student.number}</span>
-                      <span className="text-slate-300 mx-2">|</span>
-                      <span className="text-slate-400 text-sm">{student.studentId}</span>
-                    </td>
-                    <td className="px-6 py-3 text-center text-slate-500 font-bold">
-                      {student.gradeLevel || '-'}
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="font-bold text-slate-700">
-                        {student.firstName} {student.lastName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 text-center">
-                      <div className="flex justify-center gap-1.5 sm:gap-2">
-                        <button
-                          onClick={() => handleStatusChange(student.id, 'present')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                            attendanceData[student.id] === 'present'
-                              ? 'bg-emerald-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">มา</span>
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(student.id, 'leave')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                            attendanceData[student.id] === 'leave'
-                              ? 'bg-amber-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          <HelpCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">ลา</span>
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(student.id, 'sick')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                            attendanceData[student.id] === 'sick'
-                              ? 'bg-orange-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          <AlertCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">ป่วย</span>
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(student.id, 'late')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                            attendanceData[student.id] === 'late'
-                              ? 'bg-blue-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          <Clock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">สาย</span>
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(student.id, 'absent')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                            attendanceData[student.id] === 'absent'
-                              ? 'bg-rose-500 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          <XCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">ขาด</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-slate-100">
+            {sortedStudents.map((student) => (
+              <div key={student.id} className="p-4 sm:px-6 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 even:bg-slate-50/30">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 shrink-0">
+                     {student.number}
+                   </div>
+                   <div>
+                     <div className="font-bold text-slate-700 text-sm sm:text-base">
+                       {student.firstName} {student.lastName}
+                     </div>
+                     <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                       <span>รหัส: {student.studentId}</span>
+                       <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                       <span>ชั้น: {student.gradeLevel || '-'}</span>
+                     </div>
+                   </div>
+                </div>
+                
+                <div className="flex justify-between md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
+                  <button
+                    onClick={() => handleStatusChange(student.id, 'present')}
+                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                      attendanceData[student.id] === 'present'
+                        ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-200 ring-offset-1'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>มา</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(student.id, 'leave')}
+                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                      attendanceData[student.id] === 'leave'
+                        ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-200 ring-offset-1'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <HelpCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ลา</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(student.id, 'sick')}
+                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                      attendanceData[student.id] === 'sick'
+                        ? 'bg-orange-500 text-white shadow-sm ring-2 ring-orange-200 ring-offset-1'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ป่วย</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(student.id, 'late')}
+                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                      attendanceData[student.id] === 'late'
+                        ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-200 ring-offset-1'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>สาย</span>
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(student.id, 'absent')}
+                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                      attendanceData[student.id] === 'absent'
+                        ? 'bg-rose-500 text-white shadow-sm ring-2 ring-rose-200 ring-offset-1'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    <XCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ขาด</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

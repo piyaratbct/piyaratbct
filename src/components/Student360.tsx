@@ -606,11 +606,11 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-slate-700 mb-1">การมองเห็น</h4>
-                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">{student.health.vision}</p>
+                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">{student.vision || student.health.vision}</p>
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-slate-700 mb-1">สุขภาพช่องปากและฟัน</h4>
-                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">{student.health.dental}</p>
+                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">{student.dental || student.health.dental}</p>
                       </div>
                     </div>
                   </div>
