@@ -20,7 +20,7 @@ import {
   GraduationCap,
   CalendarCheck,
   Wrench, AlertCircle,
-  AlertTriangle, HeartPulse, X, TrendingUp, TrendingDown, Minus,
+  AlertTriangle, HeartPulse, X, TrendingUp, TrendingDown, Minus, FileJson,
 } from "lucide-react";
 import { StudentDetailModal } from "./StudentDetailModal";
 import { Student360 } from "./Student360";
@@ -71,7 +71,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   );
   const [selectedStudent360, setSelectedStudent360] = useState<Student | null>(null);
 
-  const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS[0]);
+  const initialGrade = currentTeacher?.homeroomClass || currentTeacher?.coHomeroomClass || GRADE_LEVELS[0];
+  const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade);
     const [students, setStudents] = useState<Student[]>([]);
   
   const uniqueGrades = React.useMemo(() => {
@@ -126,6 +127,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   } | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [assessmentToDelete, setAssessmentToDelete] =
     useState<StudentAssessment | null>(null);
 
@@ -139,7 +141,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
 
 
-  const isStudentManager = currentTeacher?.role && ['admin', 'academic', 'deputy', 'discipline'].includes(currentTeacher.role);
+  const isStudentManager = currentTeacher?.role && ['admin', 'academic', 'deputy', 'discipline', 'staff'].includes(currentTeacher.role);
+  const canDeleteStudent = currentTeacher?.role === 'admin';
 
   useEffect(() => {
     // Fetch students from Firestore
@@ -377,6 +380,16 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const confirmDeleteStudent = async () => {
     if (!studentToDelete) return;
     try {
+      // ทำการสำรองข้อมูล (Soft Backup) ไปที่ collection deleted_students ก่อนลบจริง
+      const studentToBackup = students.find(s => s.id === studentToDelete.id);
+      if (studentToBackup) {
+        await setDoc(doc(db, "deleted_students", studentToDelete.id), {
+          ...studentToBackup,
+          deletedAt: new Date().toISOString(),
+          deletedBy: currentTeacher?.id || 'unknown'
+        });
+      }
+      
       await deleteDoc(doc(db, "students", studentToDelete.id));
       setStudentToDelete(null);
     } catch (error) {
@@ -589,26 +602,28 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="print:hidden space-y-6">
         {/* Module Header with attractive display */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl p-4 sm:p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-40 h-40 bg-pink-300 opacity-20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl"></div>
 
-          <div className="flex items-center gap-5 relative z-10">
+          <div className="flex flex-row items-center gap-4 sm:gap-5 relative z-10">
             <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner border border-white/30">
               <Users className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
-                2. การจัดการชั้นเรียน (LessonClass)
+              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
+                <span>2. การจัดการชั้นเรียน</span>
+                <span className="text-xl opacity-90">(LessonClass)</span>
               </h2>
-              <p className="text-pink-100 font-medium mt-1">
-                จัดการข้อมูลนักเรียนและประเมินพัฒนาการแบบรายบุคคล
+              <p className="text-pink-100 font-medium mt-1 flex flex-col sm:block">
+                <span>จัดการข้อมูลนักเรียน</span>
+                <span className="sm:ml-1">ประเมินพัฒนาการแบบรายบุคคล</span>
               </p>
             </div>
           </div>
 
           {/* Grade Selector inside header */}
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3 rounded-xl">
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-3 rounded-xl w-full md:w-auto">
             <label className="text-sm font-bold text-pink-50">
               เลือกระดับชั้น:
             </label>
@@ -641,62 +656,61 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
         {/* Tabs and Filters */}
         <div className="flex flex-col gap-4 w-full">
-          <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full custom-scrollbar gap-1">
+          <div className="grid grid-cols-2 lg:flex lg:flex-wrap bg-white/50 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm border border-slate-100 w-full gap-1.5">
             <button
               onClick={() => setActiveTab("students")}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === "students"
-                  ? "bg-pink-100 text-pink-700"
-                  : "text-slate-500 hover:bg-slate-50"
+                  ? "bg-white text-pink-600 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
-              <UserPlus className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">ฐานข้อมูลนักเรียน</span>
+              <UserPlus className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> 
+              <span className="text-center lg:text-left leading-tight">ฐานข้อมูลนักเรียน</span>
             </button>
             <button
               onClick={() => { setSelectedStudent360(null); setActiveTab("student360"); }}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === "student360"
-                  ? "bg-sky-100 text-sky-700"
-                  : "text-slate-500 hover:bg-slate-50"
+                  ? "bg-white text-sky-600 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
-              <User className="h-4 w-4 shrink-0" />
-              <span className="whitespace-nowrap">Student 360°</span>
+              <User className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" />
+              <span className="text-center lg:text-left leading-tight">Student 360°</span>
             </button>
-
             <button
               onClick={() => setActiveTab("attendance")}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === "attendance"
-                  ? "bg-pink-100 text-pink-700"
-                  : "text-slate-500 hover:bg-slate-50"
+                  ? "bg-white text-pink-600 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
-              <CalendarCheck className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">เช็กชื่อเข้าเรียน</span>
+              <CalendarCheck className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> 
+              <span className="text-center lg:text-left leading-tight">เช็กชื่อเข้าเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab("assessments")}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === "assessments"
-                  ? "bg-pink-100 text-pink-700"
-                  : "text-slate-500 hover:bg-slate-50"
+                  ? "bg-white text-pink-600 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
-              <CheckCircle className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">ประเมินพัฒนาการ</span>
+              <CheckCircle className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> 
+              <span className="text-center lg:text-left leading-tight">ประเมินพัฒนาการ</span>
             </button>
             <button
               onClick={() => setActiveTab("special-care")}
-              className={`flex-1 min-w-[90px] flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-sm font-bold transition-all ${
+              className={`col-span-2 lg:col-span-1 flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === "special-care"
-                  ? "bg-pink-100 text-pink-700"
-                  : "text-slate-500 hover:bg-slate-50"
+                  ? "bg-white text-pink-600 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               }`}
             >
-              <HeartPulse className="h-4 w-4 shrink-0" /> 
-              <span className="whitespace-nowrap">ข้อมูลสุขภาพและร่างกาย</span>
+              <HeartPulse className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> 
+              <span className="text-center lg:text-left leading-tight">ข้อมูลสุขภาพและร่างกาย</span>
             </button>
           </div>
           
@@ -738,18 +752,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden w-full">
           
           {activeTab === "student360" && (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <Student360 initialStudent={selectedStudent360} />
             </div>
           )}
 {activeTab === "students" && (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
-                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 whitespace-nowrap">
+                  <h3 className="text-lg font-black text-slate-800 flex flex-wrap items-center gap-2">
                     {searchQuery ? (
                       <>ผลการค้นหา: <span className="text-pink-600">"{searchQuery}"</span></>
                     ) : (
@@ -768,7 +782,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </span>
                   </div>
                   {homeroomTeachers.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
                       <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm flex items-center gap-1.5">
                         <Users className="h-3 w-3 text-slate-400" />
                         ครูประจำชั้น:
@@ -791,7 +805,36 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
+                  <button
+                    onClick={() => {
+                      const backupStr = JSON.stringify(studentsInGrade, null, 2);
+                      const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(backupStr);
+                      const exportFileDefaultName = `LessonClass_Students_${selectedGrade}_${new Date().toISOString().slice(0, 10)}.json`;
+                      const linkElement = document.createElement("a");
+                      linkElement.setAttribute("href", dataUri);
+                      linkElement.setAttribute("download", exportFileDefaultName);
+                      linkElement.click();
+                    }}
+                    className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-white hover:bg-pink-50 text-slate-600 hover:text-pink-600 border border-slate-200 rounded-lg font-bold transition-colors shadow-sm"
+                    title="สำรองข้อมูลเป็นไฟล์ JSON"
+                  >
+                    <FileJson className="h-4 w-4 sm:h-4 sm:w-4 text-slate-400" />
+                    <span>สำรองข้อมูล</span>
+                  </button>
+                  <button
+                    onClick={exportToCSV}
+                    className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 border border-slate-200 rounded-lg font-bold transition-colors shadow-sm"
+                    title="นำไปใช้ใน Excel / Sheets (CSV)"
+                  >
+                    <FileText className="h-4 w-4 sm:h-4 sm:w-4 text-slate-400" />
+                    <span>Excel / Sheets</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full md:w-auto">
 
                   <select
                     value={genderFilter}
@@ -800,7 +843,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         e.target.value as "all" | "male" | "female",
                       )
                     }
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white"
+                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white w-full sm:w-auto"
                   >
                     <option value="all">เพศ: ทั้งหมด</option>
                     <option value="male">เพศ: ชาย</option>
@@ -808,7 +851,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </select>
                   <button
                     onClick={exportToCSV}
-                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200"
+                    className="w-full justify-center sm:w-auto bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200"
                   >
                     <Download className="h-4 w-4" /> ส่งออก CSV
                   </button>
@@ -816,7 +859,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     <>
 {isStudentManager && (                      <button
                         onClick={() => setShowImport(true)}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                        className="w-full justify-center sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                       >
                         <FileSpreadsheet className="h-4 w-4" /> นำเข้าข้อมูล
                         (Excel/CSV)
@@ -824,31 +867,33 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
 {isStudentManager && (
                         <>
+                      {canDeleteStudent && (
                       <button
                         onClick={() => setShowDeleteAllConfirm(true)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                        className="w-full justify-center sm:w-auto bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                       >
                         <Trash2 className="h-4 w-4" /> ลบทั้งหมด
                       </button>
+                      )}
                       <button
                         onClick={() => {
                           setEditingStudent(null);
                           setShowStudentModal(true);
                         }}
-                        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                        className="w-full justify-center sm:w-auto bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                       >
                         <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                       </button>
                       <button
                         onClick={() => setShowBatchPromotion(true)}
-                        className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                        className="w-full justify-center sm:w-auto bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                       >
                         <TrendingUp className="h-4 w-4" /> เลื่อนชั้นทั้งห้อง
                       </button>
                       {GRADE_LEVELS.some(g => g.startsWith(selectedGrade + "/")) && (
                         <button
                           onClick={() => setShowAssignSection(true)}
-                          className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                          className="w-full justify-center sm:w-auto bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                         >
                           <Users className="h-4 w-4" /> ย้ายห้อง/จัดห้องย่อย
                         </button>
@@ -860,61 +905,47 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 whitespace-nowrap">
-                    <tr>
-                      <th className="px-4 py-3 text-center">เลขที่ / รหัส</th>
-                      <th className="px-4 py-3 text-center">ระดับชั้น</th>
-                      <th className="px-4 py-3">ชื่อ-นามสกุล</th>
-                      <th className="px-4 py-3 text-center">เพศ</th>
-                      <th className="px-4 py-3 text-center">สถานะ</th>
-                      <th className="px-4 py-3 text-right">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayedStudents.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="text-center py-8 text-slate-500"
-                        >
-                          ไม่พบข้อมูลนักเรียนในระดับชั้นนี้
-                        </td>
-                      </tr>
-                    ) : (
-                      displayedStudents.map((student) => (
-                        <tr
-                          key={student.id}
-                          className="border-b border-slate-100 hover:bg-slate-100/80 whitespace-nowrap even:bg-slate-50/50"
-                        >
-                          <td className="px-4 py-3 text-center">
-                            <span className="font-medium">{student.number}</span>
-                            <span className="text-slate-300 mx-2">|</span>
-                            <span className="font-mono text-slate-500">{student.studentId}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center font-bold text-slate-700">
-                            {student.gradeLevel || '-'}
-                          </td>
-                          <td className="px-4 py-3 font-medium text-slate-800">
-                            {student.firstName} {student.lastName}{" "}
-                            {student.nickname && `(${student.nickname})`}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {student.gender === "male" ? "ชาย" : "หญิง"}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-bold ${student.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}
-                                >
-                                  {student.status === "active"
-                                    ? "ปกติ"
-                                    : "ย้าย/ออก"}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center justify-center gap-1 max-w-[150px]">
+              <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm w-full">
+                  {displayedStudents.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">
+                      ไม่พบข้อมูลนักเรียนในระดับชั้นนี้
+                    </div>
+                  ) : (
+                    displayedStudents.map((student) => (
+                      <div
+                        key={student.id}
+                        className="p-3 sm:px-4 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4 even:bg-slate-50/30 border-b border-slate-100 last:border-0"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm shrink-0 mt-0.5">
+                            {student.number}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-slate-700 text-sm truncate whitespace-normal leading-tight flex items-center gap-2 flex-wrap">
+                              <span>
+                                {student.firstName} {student.lastName}
+                                {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
+                              </span>
+                              {student.gender === "male" ? (
+                                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">ชาย</span>
+                              ) : (
+                                <span className="bg-pink-50 text-pink-600 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">หญิง</span>
+                              )}
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${student.status === "active" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}
+                              >
+                                {student.status === "active" ? "ปกติ" : "ย้าย/ออก"}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5">
+                              <span>รหัส: {student.studentId}</span>
+                              <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                              <span>ชั้น: {student.gradeLevel || '-'}</span>
+                            </div>
+                            
+                            {/* Health Tags */}
+                            {(student.allergicFood || student.congenitalDisease || student.allergicMedicine || student.medicalInfo) && (
+                              <div className="flex flex-wrap items-center gap-1 mt-1.5">
                                 {student.allergicFood && (
                                   <span className="flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-[10px] font-bold" title={`แพ้อาหาร: ${student.allergicFood}`}>
                                     <AlertTriangle className="h-3 w-3" /> แพ้อาหาร
@@ -936,68 +967,70 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                   </span>
                                 )}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex justify-end gap-2">
-                              {(isStudentManager || currentTeacher?.role === 'staff' || (currentTeacher && (currentTeacher.homeroomClass === student.gradeLevel || currentTeacher.coHomeroomClass === student.gradeLevel))) && (
-                                <button
-                                  onClick={() => setViewingStudent(student)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                  title="ดูข้อมูลนักเรียน"
-                                >
-                                  <Search className="h-4 w-4" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setSelectedStudent360(student);
-                                  setActiveTab("student360");
-                                }}
-                                className="p-1.5 text-slate-400 hover:bg-fuchsia-50 rounded-lg transition-colors border border-transparent hover:border-fuchsia-100 shadow-sm"
-                                title="ดูข้อมูล Student 360°"
-                              >
-                                <span className="text-[10px] font-black leading-none px-0.5 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500">360&deg;</span>
-                              </button>
-{isStudentManager && (
-                                <>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-row items-center justify-end md:justify-center gap-1 sm:gap-2 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-0 border-slate-100">
+                          {(isStudentManager || currentTeacher?.role === 'staff' || (currentTeacher && (currentTeacher.homeroomClass === student.gradeLevel || currentTeacher.coHomeroomClass === student.gradeLevel))) && (
+                            <button
+                              onClick={() => setViewingStudent(student)}
+                              className="flex items-center justify-center gap-1 flex-1 md:flex-none p-1.5 sm:px-3 text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors text-xs font-bold"
+                              title="ดูข้อมูลนักเรียน"
+                            >
+                              <Search className="h-3.5 w-3.5" /> <span className="md:hidden lg:inline">ดูข้อมูล</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedStudent360(student);
+                              setActiveTab("student360");
+                            }}
+                            className="flex items-center justify-center flex-1 md:flex-none px-4 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-xs font-black tracking-widest"
+                            title="ดูข้อมูล Student 360°"
+                          >
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-600 to-cyan-600">360&deg;</span>
+                          </button>
+                          
+                          {isStudentManager && (
+                            <div className="flex gap-1 ml-auto md:ml-0">
                               <button
                                 onClick={() => {
                                   setEditingStudent(student);
                                   setShowStudentModal(true);
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                                className="p-1.5 sm:p-2 text-slate-400 hover:text-sky-600 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-200 rounded-lg transition-colors"
                                 title="แก้ไขข้อมูล"
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </button>
-                              <button
-                                onClick={() =>
-                                  setStudentToDelete({
-                                    id: student.id,
-                                    name: `${student.firstName} ${student.lastName}`,
-                                  })
-                                }
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="ลบนักเรียน"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                                </>
+                              {canDeleteStudent && (
+                                <button
+                                  onClick={() =>
+                                    setStudentToDelete({
+                                      id: student.id,
+                                      name: `${student.firstName} ${student.lastName}`,
+                                    })
+                                  }
+                                  className="p-1.5 sm:p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors"
+                                  title="ลบนักเรียน"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
             </div>
           )}
 
           {activeTab === "attendance" && currentTeacher && (
-            <div className="p-6 relative animate-in fade-in duration-300">
+            <div className="p-2 sm:p-6 relative animate-in fade-in duration-300">
               <AttendanceTracking 
                 students={displayedStudents}
                 gradeLevel={selectedGrade}
@@ -1010,10 +1043,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           )}
 
           {activeTab === "assessments" && (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
-                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 whitespace-nowrap">
+                  <h3 className="text-lg font-black text-slate-800 flex flex-wrap items-center gap-2">
                     ประเมินพัฒนาการนักเรียน
                     {searchQuery && (
                        <span className="text-sm font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full ml-2">
@@ -1056,7 +1089,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2 items-center">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full md:w-auto mt-4 md:mt-0">
 
                   <select
                     value={genderFilter}
@@ -1065,7 +1098,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         e.target.value as "all" | "male" | "female",
                       )
                     }
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white"
+                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-pink-500 bg-white w-full sm:w-auto"
                   >
                     <option value="all">เพศ: ทั้งหมด</option>
                     <option value="male">เพศ: ชาย</option>
@@ -1073,13 +1106,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                   </select>
                   <button
                     onClick={printBatchReport}
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                    className="w-full justify-center sm:w-auto bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                   >
                     <Printer className="h-4 w-4" /> ออกรายงานรวม
                   </button>
                   <button
                     onClick={printFeedbackBatchReport}
-                    className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                    className="w-full justify-center sm:w-auto bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
                   >
                     <Printer className="h-4 w-4" /> พิมพ์แบบตอบกลับ (ฟอร์มเปล่า)
                   </button>
@@ -1103,6 +1136,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                           </div>
                           <div className="font-bold text-slate-800">
                             {student.firstName} {student.lastName}
+                            {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
                           </div>
                         </div>
                         {hasAssessed ? (
@@ -1255,16 +1289,23 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   };
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
+    <div className="p-4 sm:p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-rose-50/50 p-4 rounded-xl border border-rose-100 items-start">
+        <div className="flex flex-col gap-1">
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-rose-500" />
             ข้อมูลสุขภาพนักเรียน
           </h3>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-500 text-sm">
             นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา โรคประจำตัว รวมถึงการประเมินน้ำหนักและส่วนสูง
           </p>
+        </div>
+        <div className="flex flex-col md:items-end gap-3 justify-center h-full">
+          <div className="flex flex-wrap gap-2 text-sm font-medium">
+             <span className="bg-white px-3 py-1.5 rounded-lg text-slate-600 shadow-sm border border-rose-100 whitespace-nowrap flex items-center gap-2">
+                ต้องการการดูแลพิเศษ: <span className="font-black text-rose-600 text-base">{allSpecialCareStudents.length}</span> คน
+             </span>
+          </div>
         </div>
       </div>
 
@@ -1337,83 +1378,82 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             </div>
           </div>
 
-          <div>
-            <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                    <tr>
-                      <th className="px-4 py-3 text-center w-24 whitespace-nowrap">ระดับชั้น</th>
-                      <th className="px-4 py-3 text-center w-16 whitespace-nowrap">เลขที่</th>
-                      <th className="px-4 py-3 whitespace-nowrap">ชื่อ-สกุล</th>
-                      <th className="px-4 py-3 text-center w-24 whitespace-nowrap">น้ำหนัก/ส่วนสูง</th>
-                      <th className="px-4 py-3 whitespace-nowrap">ข้อมูลสุขภาพที่ต้องระวัง</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allSpecialCareStudents.map((student) => (
-                      <tr key={student.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                        <td className="px-4 py-3 text-center font-bold text-pink-600 whitespace-nowrap">
-                          <span className="bg-pink-50 px-2 py-1 rounded-md">{student.gradeLevel || '-'}</span>
-                        </td>
-                        <td className="px-4 py-3 text-center font-medium text-slate-500 whitespace-nowrap">{student.number}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="font-bold text-slate-800">{student.firstName} {student.lastName}</div>
-                          <div className="text-xs text-slate-500">{student.studentId}</div>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap text-xs">
-                          {(() => {
-                            const { weight, height } = getStudentHealthData(student);
-                            if (weight && height) {
-                              const h = height / 100;
-                              const bmi = weight / (h * h);
-                                
-                              let ageYears = 7;
-                              if (student.dob) {
-                                const birthDate = new Date(student.dob);
-                                const now = new Date();
-                                ageYears = now.getFullYear() - birthDate.getFullYear();
-                              }
-                                    
-                              const baseNormal = 14 + (ageYears - 6) * 0.3;
-                              const baseObese1 = 20 + (ageYears - 6) * 0.6;
-                              let label = '';
-                              let color = '';
-                              if (bmi < baseNormal) { label = 'ผอม'; color = 'text-blue-600'; }
-                              else if (bmi >= baseObese1) { label = 'เริ่มอ้วน/อ้วน'; color = 'text-red-600'; }
-                              if (label) {
-                                return (
-                                  <div>
-                                    <div className="font-bold">{weight} กก. / {height} ซม.</div>
-                                    <div className={`font-bold ${color}`}>{label} (BMI {bmi.toFixed(1)})</div>
+          <div className="w-full">
+            <div className="flex flex-col border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                  {allSpecialCareStudents.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">
+                      ไม่พบข้อมูลสุขภาพที่ต้องระวัง
+                    </div>
+                  ) : (
+                    allSpecialCareStudents.map((student) => {
+                      const { weight, height } = getStudentHealthData(student);
+                      let bmiLabel = '';
+                      let bmiColor = '';
+                      let bmiText = '-';
+                      if (weight && height) {
+                        const h = height / 100;
+                        const bmi = weight / (h * h);
+                        let ageYears = 7;
+                        if (student.dob) {
+                          const birthDate = new Date(student.dob);
+                          const now = new Date();
+                          ageYears = now.getFullYear() - birthDate.getFullYear();
+                        }
+                        const baseNormal = 14 + (ageYears - 6) * 0.3;
+                        const baseObese1 = 20 + (ageYears - 6) * 0.6;
+                        if (bmi < baseNormal) { bmiLabel = 'ผอม'; bmiColor = 'text-blue-600 bg-blue-50 border-blue-200'; }
+                        else if (bmi >= baseObese1) { bmiLabel = 'เริ่มอ้วน/อ้วน'; bmiColor = 'text-red-600 bg-red-50 border-red-200'; }
+                        else { bmiLabel = 'สมส่วน'; bmiColor = 'text-green-600 bg-green-50 border-green-200'; }
+                        bmiText = `${weight} กก. / ${height} ซม. (BMI ${bmi.toFixed(1)})`;
+                      }
+
+                      return (
+                        <div key={student.id} className="p-3 sm:px-4 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center font-bold text-pink-600 text-sm shrink-0 mt-0.5">
+                              {student.number}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-slate-700 text-sm truncate whitespace-normal leading-tight flex items-center gap-2 flex-wrap">
+                                <span>
+                                  {student.firstName} {student.lastName}
+                                  {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
+                                </span>
+                                <span className="bg-pink-50 text-pink-600 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{student.gradeLevel || '-'}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                รหัส: {student.studentId}
+                              </div>
+                              
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                {bmiLabel && (
+                                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${bmiColor}`}>
+                                    {bmiText} - {bmiLabel}
                                   </div>
-                                );
-                              }
-                            }
-                            return <span className="text-slate-400">-</span>;
-                          })()}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          <div className="flex flex-col gap-1">
-                            {student.congenitalDisease && student.congenitalDisease !== 'ไม่มี' && student.congenitalDisease !== '-' && <div className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full inline-block w-max font-medium text-xs border border-rose-100">โรค: {student.congenitalDisease}</div>}
-                            {student.allergicFood && student.allergicFood !== 'ไม่มี' && student.allergicFood !== '-' && <div className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full inline-block w-max font-medium text-xs border border-orange-100">แพ้อาหาร: {student.allergicFood}</div>}
-                            {student.allergicMedicine && student.allergicMedicine !== 'ไม่มี' && student.allergicMedicine !== '-' && <div className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block w-max font-medium text-xs border border-purple-100">แพ้ยา: {student.allergicMedicine}</div>}
+                                )}
+                                {student.congenitalDisease && student.congenitalDisease !== 'ไม่มี' && student.congenitalDisease !== '-' && (
+                                  <div className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md font-bold text-[10px] border border-rose-100">โรค: {student.congenitalDisease}</div>
+                                )}
+                                {student.allergicFood && student.allergicFood !== 'ไม่มี' && student.allergicFood !== '-' && (
+                                  <div className="text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md font-bold text-[10px] border border-orange-100">แพ้อาหาร: {student.allergicFood}</div>
+                                )}
+                                {student.allergicMedicine && student.allergicMedicine !== 'ไม่มี' && student.allergicMedicine !== '-' && (
+                                  <div className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md font-bold text-[10px] border border-purple-100">แพ้ยา: {student.allergicMedicine}</div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
           </div>
         </div>
       )}
     </div>
   );
-})()}
-
-{/* BMI Report appended to special-care */}
+})()}{/* BMI Report appended to special-care */}
           {activeTab === "special-care" && (() => {
   
   const allAssessments = Object.values(assessments) as StudentAssessment[];
@@ -1524,16 +1564,16 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             เปรียบเทียบข้อมูล BMI ของนักเรียน
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
           <button
             onClick={printBatchHealthReport}
-            className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors flex items-center gap-2"
+            className="w-full justify-center sm:w-auto px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
             <Printer className="h-4 w-4" /> พิมพ์รายงานทั้งหมด
           </button>
           <button
             onClick={() => setShowHistoryCompare(!showHistoryCompare)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showHistoryCompare ? 'bg-pink-50 text-pink-600 border-pink-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+            className={`w-full justify-center sm:w-auto px-4 py-2 rounded-xl text-sm font-bold border transition-colors flex items-center ${showHistoryCompare ? 'bg-pink-50 text-pink-600 border-pink-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
           >
             {showHistoryCompare ? 'ซ่อนเปรียบเทียบย้อนหลัง' : 'เปรียบเทียบย้อนหลัง 4 เดือน'}
           </button>
@@ -1641,163 +1681,142 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
         </div>
       )}
       
-      <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-              <tr>
-                <th className="px-4 py-3 text-center w-16 whitespace-nowrap">เลขที่</th>
-                <th className="px-4 py-3 whitespace-nowrap border-r border-slate-200">ชื่อ-สกุล</th>
-                <th className="px-4 py-3 text-center whitespace-nowrap border-r border-slate-200">อายุ (ปี/เดือน)</th>
-                
-                {displayMonths.length === 0 ? (
-                  <th className="px-4 py-3 text-center whitespace-nowrap text-slate-400">ข้อมูลพัฒนาการร่างกาย (BMI)</th>
-                ) : (
-                  displayMonths.map(m => (
-                    <th key={m} className="px-4 py-3 text-center whitespace-nowrap border-r border-slate-200">
-                      <div>ประจำเดือน</div>
-                      <div className="text-xs text-slate-500">{formatThaiMonthYear(m).replace('256', '6')}</div>
-                    </th>
-                  ))
-                )}
-                {displayMonths.length > 1 && (
-                  <th className="px-4 py-3 text-center whitespace-nowrap w-24">แนวโน้ม</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {displayedStudents.map((student) => {
-                const studentDataMap: Record<string, any> = {};
-                
-                let currentAgeYears = 7;
-                let currentAgeMonths = 0;
-                const hasDob = !!student.dob;
-
-                if (hasDob) {
-                  const birthDate = new Date(student.dob!);
-                  const now = new Date();
+      <div className="flex flex-col border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden w-full">
+              {displayedStudents.length === 0 ? (
+                <div className="px-4 py-8 text-center text-slate-500">
+                  ไม่มีข้อมูลนักเรียน
+                </div>
+              ) : (
+                displayedStudents.map((student) => {
+                  const studentDataMap: Record<string, any> = {};
                   
-                  let years = now.getFullYear() - birthDate.getFullYear();
-                  let months = now.getMonth() - birthDate.getMonth();
-                  
-                  if (months < 0 || (months === 0 && now.getDate() < birthDate.getDate())) {
-                    years--;
-                    months += (months < 0 ? 12 : 11);
-                  }
-                  
-                  currentAgeYears = years;
-                  currentAgeMonths = months;
-                }
-
-                displayMonths.forEach(m => {
-                  const assessmentForMonth = allAssessments.find(a => a.studentId === student.id && a.month === m);
-                  const weight = assessmentForMonth?.weight;
-                  const height = assessmentForMonth?.height;
-                  
-                  if (weight && height) {
-                    const h = height / 100;
-                    const bmi = weight / (h * h);
+                  let currentAgeYears = 7;
+                  let currentAgeMonths = 0;
+                  const hasDob = !!student.dob;
+                  if (hasDob) {
+                    const birthDate = new Date(student.dob!);
+                    const now = new Date();
                     
-                    let label = '';
-                    let color = '';
+                    let years = now.getFullYear() - birthDate.getFullYear();
+                    let months = now.getMonth() - birthDate.getMonth();
                     
-                    if (!hasDob) {
-                      label = 'ไม่มีวันเกิด';
-                      color = 'text-slate-400';
-                    } else {
-                      const birthDate = new Date(student.dob!);
-                      const targetDate = new Date(`${m}-01`);
-                      let years = targetDate.getFullYear() - birthDate.getFullYear();
-                      if (targetDate.getMonth() < birthDate.getMonth()) {
-                        years--;
-                      }
-                      const ageAtMonth = years;
-                      
-                      const baseNormal = 14 + (ageAtMonth - 6) * 0.3;
-                      const baseOverweight = 18 + (ageAtMonth - 6) * 0.5;
-                      const baseObese1 = 20 + (ageAtMonth - 6) * 0.6;
-                      const baseObese2 = 22 + (ageAtMonth - 6) * 0.7;
-
-                      if (bmi < baseNormal) { label = 'ผอม'; color = 'text-blue-600'; }
-                      else if (bmi < baseOverweight) { label = 'สมส่วน'; color = 'text-green-600'; }
-                      else if (bmi < baseObese1) { label = 'ท้วม'; color = 'text-yellow-600'; }
-                      else if (bmi < baseObese2) { label = 'เริ่มอ้วน'; color = 'text-orange-600'; }
-                      else { label = 'อ้วน'; color = 'text-red-600'; }
+                    if (months < 0 || (months === 0 && now.getDate() < birthDate.getDate())) {
+                      years--;
+                      months += (months < 0 ? 12 : 11);
                     }
                     
-                    studentDataMap[m] = { weight, height, bmi, bmiLabel: label, bmiColor: color };
+                    currentAgeYears = years;
+                    currentAgeMonths = months;
                   }
-                });
 
-                let trendIcon = <Minus className="h-4 w-4 text-slate-300 mx-auto" />;
-                if (displayMonths.length > 1) {
-                  const firstM = displayMonths[displayMonths.length - 1];
-                  const lastM = displayMonths[0];
-                  const firstBmi = studentDataMap[firstM]?.bmi;
-                  const lastBmi = studentDataMap[lastM]?.bmi;
-                  if (firstBmi && lastBmi) {
-                    const diff = lastBmi - firstBmi;
-                    if (diff > 0.5) trendIcon = <TrendingUp className="h-4 w-4 text-red-500 mx-auto" title={`เพิ่มขึ้น ${diff.toFixed(1)}`} />;
-                    else if (diff < -0.5) trendIcon = <TrendingDown className="h-4 w-4 text-green-500 mx-auto" title={`ลดลง ${Math.abs(diff).toFixed(1)}`} />;
+                  displayMonths.forEach(m => {
+                    const assessmentForMonth = allAssessments.find(a => a.studentId === student.id && a.month === m);
+                    const weight = assessmentForMonth?.weight;
+                    const height = assessmentForMonth?.height;
+                    let bmi = null;
+                    let label = '-';
+                    let color = 'text-slate-500';
+
+                    if (weight && height) {
+                      const h = height / 100;
+                      bmi = weight / (h * h);
+                      
+                      if (!hasDob) {
+                        label = 'ไม่มีวันเกิด';
+                        color = 'text-red-500';
+                      } else {
+                        const baseNormal = 14 + (currentAgeYears - 6) * 0.3;
+                        const baseOverweight = 17 + (currentAgeYears - 6) * 0.4;
+                        const baseObese1 = 20 + (currentAgeYears - 6) * 0.6;
+                        const baseObese2 = 22 + (currentAgeYears - 6) * 0.7;
+
+                        if (bmi < baseNormal) { label = 'ผอม'; color = 'text-blue-600'; }
+                        else if (bmi < baseOverweight) { label = 'สมส่วน'; color = 'text-green-600'; }
+                        else if (bmi < baseObese1) { label = 'ท้วม'; color = 'text-yellow-600'; }
+                        else if (bmi < baseObese2) { label = 'เริ่มอ้วน'; color = 'text-orange-600'; }
+                        else { label = 'อ้วน'; color = 'text-red-600'; }
+                      }
+                      
+                      studentDataMap[m] = { weight, height, bmi, bmiLabel: label, bmiColor: color };
+                    }
+                  });
+
+                  let trendIcon = <Minus className="h-4 w-4 text-slate-300" />;
+                  if (displayMonths.length > 1) {
+                    const firstM = displayMonths[displayMonths.length - 1];
+                    const lastM = displayMonths[0];
+                    const firstBmi = studentDataMap[firstM]?.bmi;
+                    const lastBmi = studentDataMap[lastM]?.bmi;
+                    if (firstBmi && lastBmi) {
+                      const diff = lastBmi - firstBmi;
+                      if (diff > 0.5) trendIcon = <TrendingUp className="h-4 w-4 text-red-500" title={`เพิ่มขึ้น ${diff.toFixed(1)}`} />;
+                      else if (diff < -0.5) trendIcon = <TrendingDown className="h-4 w-4 text-green-500" title={`ลดลง ${Math.abs(diff).toFixed(1)}`} />;
+                    }
                   }
-                }
 
-                return (
-                  <tr key={student.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-2 text-sm text-center font-mono text-slate-500 border-r border-slate-200">
-                      {student.number}
-                    </td>
-                    <td className="px-4 py-2 border-r border-slate-200">
-                      <div className="font-bold text-slate-800">{student.firstName} {student.lastName}</div>
-                      <div className="text-xs text-slate-500 font-mono">{student.studentId}</div>
-                    </td>
-                    <td className="px-4 py-2 text-center text-sm font-medium text-slate-600 border-r border-slate-200">
-                      {student.dob ? `${currentAgeYears} ปี ${currentAgeMonths} ด.` : '-'}
-                    </td>
-                    {displayMonths.length === 0 ? (
-                      <td className="px-4 py-3 text-center text-slate-400 text-sm">-</td>
-                    ) : (
-                      displayMonths.map(m => {
-                        const d = studentDataMap[m];
-                        if (!d) {
-                          return (
-                            <td key={`${student.id}-${m}`} className="px-2 py-2 text-center text-slate-300 border-r border-slate-200 bg-slate-50/30">-</td>
-                          );
-                        }
-                        return (
-                            <td key={`${student.id}-${m}`} className="px-2 py-2 text-center border-r border-slate-200 bg-slate-50/30">
-                              <div className={`text-sm font-bold ${d.bmiColor}`}>{d.bmi?.toFixed(1)}</div>
-                              {d.bmiLabel === 'ไม่มีวันเกิด' ? (
-                                <div className={`text-[10px] text-red-500 font-bold opacity-100 flex items-center justify-center gap-1`} title="ไม่สามารถแปลผล BMI ได้เนื่องจากไม่มีข้อมูลวันเกิด กรุณาเพิ่มวันเกิดในประวัตินักเรียน">
-                                  <AlertCircle className="h-3 w-3" />
-                                  ขาดวันเกิด
+                  return (
+                    <div key={student.id} className="p-3 sm:px-4 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3 even:bg-slate-50/30">
+                      <div className="flex items-start gap-2.5 min-w-[200px]">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm shrink-0 mt-0.5">
+                          {student.number}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-700 text-sm truncate whitespace-normal leading-tight">
+                            {student.firstName} {student.lastName}
+                            {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5 flex flex-wrap gap-x-1.5 items-center">
+                            <span>รหัส: {student.studentId}</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                            <span>อายุ: {student.dob ? `${currentAgeYears} ปี ${currentAgeMonths} ด.` : '-'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-1 flex-col gap-1 w-full md:w-auto mt-2 md:mt-0 pl-10 md:pl-0">
+                        {displayMonths.length === 0 ? (
+                          <div className="text-sm text-slate-400">-</div>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2">
+                            {displayMonths.map(m => {
+                              const d = studentDataMap[m];
+                              return (
+                                <div key={`${student.id}-${m}`} className="flex flex-col bg-slate-50 border border-slate-100 rounded-md p-1.5 min-w-[70px] sm:min-w-[90px]">
+                                  <div className="text-[9px] text-slate-400 mb-0.5 truncate">{formatThaiMonthYear(m).replace('256', '6')}</div>
+                                  {!d ? (
+                                    <div className="text-xs text-slate-300 font-medium">-</div>
+                                  ) : (
+                                    <>
+                                      <div className={`text-xs font-bold ${d.bmiColor}`}>{d.bmi?.toFixed(1)}</div>
+                                      {d.bmiLabel === 'ไม่มีวันเกิด' ? (
+                                        <div className="text-[9px] text-red-500 font-bold opacity-100 flex items-center gap-0.5" title="ไม่สามารถแปลผล BMI ได้เนื่องจากไม่มีข้อมูลวันเกิด">
+                                          <AlertCircle className="h-2.5 w-2.5" /> <span className="truncate">ขาดวันเกิด</span>
+                                        </div>
+                                      ) : (
+                                        <div className={`text-[9px] ${d.bmiColor} opacity-80`}>{d.bmiLabel}</div>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className={`text-[10px] ${d.bmiColor} opacity-80`}>{d.bmiLabel}</div>
-                              )}
-                            </td>
-                        );
-                      })
-                    )}
-                    {displayMonths.length > 1 && (
-                      <td className="px-4 py-2 text-center bg-slate-50/50">
-                        {trendIcon}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {displayedStudents.length === 0 && (
-                <tr>
-                  <td colSpan={availableMonths.slice(0, 4).length * 3 + 3} className="px-4 py-8 text-center text-slate-500">
-                    ไม่มีข้อมูลนักเรียน
-                  </td>
-                </tr>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {displayMonths.length > 1 && (
+                        <div className="flex items-center gap-1.5 pl-10 md:pl-0 mt-1 md:mt-0">
+                          <span className="text-[10px] text-slate-400 md:hidden">แนวโน้ม:</span>
+                          <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
+                            {trendIcon}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
     </div>
   );
 })()}
@@ -1887,23 +1906,44 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               <h3 className="font-black text-slate-800 text-lg mb-2">
                 ยืนยันการลบนักเรียนทั้งหมด
               </h3>
-              <p className="text-slate-500 text-sm mb-6">
+              <p className="text-slate-500 text-sm mb-4">
                 คุณต้องการลบข้อมูลนักเรียนทั้งหมดใน "{selectedGrade}" ใช่หรือไม่?<br/>
                 มีนักเรียนทั้งหมด {students.filter(s => s.gradeLevel === selectedGrade).length} คน<br/>
                 <span className="text-rose-600 font-bold mt-2 block">การดำเนินการนี้ไม่สามารถกู้คืนได้!</span>
               </p>
+              <div className="mb-6 text-left">
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  พิมพ์คำว่า <span className="text-rose-600 font-black">DELETE</span> เพื่อยืนยัน
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 text-center font-bold"
+                  placeholder="DELETE"
+                  disabled={isDeletingAll}
+                />
+              </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowDeleteAllConfirm(false)}
+                  onClick={() => {
+                    setShowDeleteAllConfirm(false);
+                    setDeleteConfirmText("");
+                  }}
                   disabled={isDeletingAll}
                   className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button
-                  onClick={handleDeleteAllStudents}
-                  disabled={isDeletingAll}
-                  className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
+                  onClick={() => {
+                    if (deleteConfirmText === "DELETE") {
+                      handleDeleteAllStudents();
+                      setDeleteConfirmText("");
+                    }
+                  }}
+                  disabled={isDeletingAll || deleteConfirmText !== "DELETE"}
+                  className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isDeletingAll ? 'กำลังลบ...' : 'ลบข้อมูลทั้งหมด'}
                 </button>
@@ -1921,21 +1961,42 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               <h3 className="font-black text-slate-800 text-lg mb-2">
                 ยืนยันการลบนักเรียน
               </h3>
-              <p className="text-slate-500 text-sm mb-6">
+              <p className="text-slate-500 text-sm mb-4">
                 คุณต้องการลบนักเรียน "{studentToDelete.name}" ใช่หรือไม่?
                 <br />
                 การดำเนินการนี้ไม่สามารถกู้คืนได้
               </p>
+              <div className="mb-6 text-left">
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  พิมพ์คำว่า <span className="text-rose-600 font-black">DELETE</span> เพื่อยืนยัน
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500 text-center font-bold"
+                  placeholder="DELETE"
+                />
+              </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setStudentToDelete(null)}
+                  onClick={() => {
+                    setStudentToDelete(null);
+                    setDeleteConfirmText("");
+                  }}
                   className="flex-1 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                 >
                   ยกเลิก
                 </button>
                 <button
-                  onClick={confirmDeleteStudent}
-                  className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors"
+                  onClick={() => {
+                    if (deleteConfirmText === "DELETE") {
+                      confirmDeleteStudent();
+                      setDeleteConfirmText("");
+                    }
+                  }}
+                  disabled={deleteConfirmText !== "DELETE"}
+                  className="flex-1 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ลบข้อมูล
                 </button>

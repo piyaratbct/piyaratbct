@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { MilkReportPrintTemplate } from './MilkReportPrintTemplate';
-import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
@@ -277,8 +275,8 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         </div>
       )}
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-start md:items-end">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div>
+        <div className="grid grid-cols-2 sm:flex sm:flex-row flex-wrap gap-2 sm:gap-4 items-start sm:items-end w-full md:w-auto">
+          <div className="w-full sm:w-auto">
             <label className="block text-xs font-bold text-slate-500 mb-1">วันที่</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -288,18 +286,18 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
                 min={termStartDate}
                 max={termEndDate}
                 onChange={(e) => setDate(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">คาบเรียน (เชื่อมโยงตารางสอน)</label>
+          <div className="w-full sm:w-auto">
+            <label className="block text-xs font-bold text-slate-500 mb-1 truncate">คาบเรียน (ตารางสอน)</label>
             <div className="relative">
               <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-56 appearance-none"
+                className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 w-full md:w-56 appearance-none"
               >
                 {suggestedSchedules.length > 0 && (
                   <optgroup label="มีเรียนวันนี้">
@@ -324,37 +322,37 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           </div>
         </div>
         
-        <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto justify-between md:justify-end">
           {saveStatus && (
             <span className={`text-sm ${saveStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
               {saveStatus.message}
             </span>
           )}
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
             <button
               onClick={() => setShowMilkReport(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold transition-colors whitespace-nowrap"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold transition-colors "
             >
               🥛 รายงานดื่มนม
             </button>
             <button
               onClick={handleClearAttendance}
               disabled={isSaving || isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-200 font-bold transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-200 font-bold transition-colors disabled:opacity-50 "
             >
               <XCircle className="h-4 w-4" /> ล้างข้อมูล
             </button>
             <button
               onClick={handleMarkAllPresent}
               disabled={isSaving || isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold transition-colors disabled:opacity-50 "
             >
               <CheckCircle2 className="h-4 w-4" /> มาเรียนทั้งหมด
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || isLoading}
-              className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold transition-colors disabled:opacity-50 whitespace-nowrap shadow-sm"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold transition-colors disabled:opacity-50  shadow-sm"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               บันทึก
@@ -364,29 +362,30 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-5 border-b border-slate-100 divide-x divide-slate-100">
-        <div className="p-4 text-center bg-emerald-50/30">
-          <div className="text-2xl font-black text-emerald-600">{stats.present}</div>
-          <div className="text-xs font-medium text-emerald-600/70 uppercase tracking-wider">มา</div>
+      <div className="overflow-x-auto w-full"><div className="grid grid-cols-5 min-w-[300px] border-b border-slate-100 divide-x divide-slate-100">
+        <div className="p-2 sm:p-4 text-center bg-emerald-50/30">
+          <div className="text-lg sm:text-2xl font-black text-emerald-600">{stats.present}</div>
+          <div className="text-[10px] sm:text-xs font-medium text-emerald-600/70 uppercase tracking-wider">มา</div>
         </div>
-        <div className="p-4 text-center bg-amber-50/30">
-          <div className="text-2xl font-black text-amber-500">{stats.leave}</div>
-          <div className="text-xs font-medium text-amber-500/70 uppercase tracking-wider">ลา</div>
+        <div className="p-2 sm:p-4 text-center bg-amber-50/30">
+          <div className="text-lg sm:text-2xl font-black text-amber-500">{stats.leave}</div>
+          <div className="text-[10px] sm:text-xs font-medium text-amber-500/70 uppercase tracking-wider">ลา</div>
         </div>
-        <div className="p-4 text-center bg-orange-50/30">
-          <div className="text-2xl font-black text-orange-500">{stats.sick}</div>
-          <div className="text-xs font-medium text-orange-500/70 uppercase tracking-wider">ป่วย</div>
+        <div className="p-2 sm:p-4 text-center bg-orange-50/30">
+          <div className="text-lg sm:text-2xl font-black text-orange-500">{stats.sick}</div>
+          <div className="text-[10px] sm:text-xs font-medium text-orange-500/70 uppercase tracking-wider">ป่วย</div>
         </div>
-        <div className="p-4 text-center bg-blue-50/30">
-          <div className="text-2xl font-black text-blue-500">{stats.late}</div>
-          <div className="text-xs font-medium text-blue-500/70 uppercase tracking-wider">สาย</div>
+        <div className="p-2 sm:p-4 text-center bg-blue-50/30">
+          <div className="text-lg sm:text-2xl font-black text-blue-500">{stats.late}</div>
+          <div className="text-[10px] sm:text-xs font-medium text-blue-500/70 uppercase tracking-wider">สาย</div>
         </div>
-        <div className="p-4 text-center bg-rose-50/30">
-          <div className="text-2xl font-black text-rose-500">{stats.absent}</div>
-          <div className="text-xs font-medium text-rose-500/70 uppercase tracking-wider">ขาด</div>
+        <div className="p-2 sm:p-4 text-center bg-rose-50/30">
+          <div className="text-lg sm:text-2xl font-black text-rose-500">{stats.absent}</div>
+          <div className="text-[10px] sm:text-xs font-medium text-rose-500/70 uppercase tracking-wider">ขาด</div>
         </div>
       </div>
 
+      </div>
       {/* Student List */}
       <div className="p-0">
         {isLoading ? (
@@ -401,74 +400,79 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         ) : (
           <div className="divide-y divide-slate-100">
             {sortedStudents.map((student) => (
-              <div key={student.id} className="p-4 sm:px-6 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 even:bg-slate-50/30">
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 shrink-0">
+              <div key={student.id} className="p-3 sm:px-4 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4 even:bg-slate-50/30">
+                <div className="flex items-start gap-2.5">
+                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm shrink-0">
                      {student.number}
                    </div>
-                   <div>
-                     <div className="font-bold text-slate-700 text-sm sm:text-base">
+                   <div className="flex-1 min-w-0">
+                     <div className="font-bold text-slate-700 text-sm truncate whitespace-normal leading-tight">
                        {student.firstName} {student.lastName}
+                       {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
                      </div>
-                     <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                     <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5">
                        <span>รหัส: {student.studentId}</span>
-                       <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                       <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
                        <span>ชั้น: {student.gradeLevel || '-'}</span>
                      </div>
                    </div>
                 </div>
                 
-                <div className="flex justify-between md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
-                  <button
-                    onClick={() => handleStatusChange(student.id, 'present')}
-                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                      attendanceData[student.id] === 'present'
-                        ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-200 ring-offset-1'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>มา</span>
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(student.id, 'leave')}
-                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                      attendanceData[student.id] === 'leave'
-                        ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-200 ring-offset-1'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    <HelpCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ลา</span>
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(student.id, 'sick')}
-                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                      attendanceData[student.id] === 'sick'
-                        ? 'bg-orange-500 text-white shadow-sm ring-2 ring-orange-200 ring-offset-1'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    <AlertCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ป่วย</span>
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(student.id, 'late')}
-                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                      attendanceData[student.id] === 'late'
-                        ? 'bg-blue-500 text-white shadow-sm ring-2 ring-blue-200 ring-offset-1'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Clock className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>สาย</span>
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(student.id, 'absent')}
-                    className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
-                      attendanceData[student.id] === 'absent'
-                        ? 'bg-rose-500 text-white shadow-sm ring-2 ring-rose-200 ring-offset-1'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                    }`}
-                  >
-                    <XCircle className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span>ขาด</span>
-                  </button>
+                <div className="flex flex-col md:flex-row gap-1 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
+                  <div className="grid grid-cols-3 md:flex gap-1 sm:gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => handleStatusChange(student.id, 'present')}
+                      className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                        attendanceData[student.id] === 'present'
+                          ? 'bg-emerald-500 text-white shadow-sm ring-1 ring-emerald-200'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> <span>มา</span>
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(student.id, 'leave')}
+                      className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                        attendanceData[student.id] === 'leave'
+                          ? 'bg-amber-500 text-white shadow-sm ring-1 ring-amber-200'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" /> <span>ลา</span>
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(student.id, 'sick')}
+                      className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                        attendanceData[student.id] === 'sick'
+                          ? 'bg-orange-500 text-white shadow-sm ring-1 ring-orange-200'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" /> <span>ป่วย</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 md:flex gap-1 sm:gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => handleStatusChange(student.id, 'late')}
+                      className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                        attendanceData[student.id] === 'late'
+                          ? 'bg-blue-500 text-white shadow-sm ring-1 ring-blue-200'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <Clock className="h-3.5 w-3.5" /> <span>สาย</span>
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(student.id, 'absent')}
+                      className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
+                        attendanceData[student.id] === 'absent'
+                          ? 'bg-rose-500 text-white shadow-sm ring-1 ring-rose-200'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <XCircle className="h-3.5 w-3.5" /> <span>ขาด</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

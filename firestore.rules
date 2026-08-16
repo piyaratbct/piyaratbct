@@ -117,8 +117,12 @@ service cloud.firestore {
     }
 
     match /lessonPlans/{planId} {
-      allow get: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
-      allow list: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAcademic());
+      allow get: if isSignedIn() && (resource.data.teacherId == request.auth.uid || (resource.data.coTeachers != null && request.auth.uid in resource.data.coTeachers) || isAcademic());
+      allow list: if isSignedIn() && (
+        isAcademic() || 
+        resource.data.teacherId == request.auth.uid || 
+        (resource.data.coTeachers != null && request.auth.uid in resource.data.coTeachers)
+      );
       allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
       allow update: if isSignedIn() && (
         (request.resource.data.teacherId == resource.data.teacherId

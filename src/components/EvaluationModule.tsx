@@ -305,8 +305,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               <BarChart3 className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">3. การวัดและประเมินผลผู้เรียน (LessonAchieve)</h2>
-              <p className="text-emerald-100 font-medium mt-1">รายงานผลสัมฤทธิ์ทางการเรียนและวิเคราะห์สถิติภาพรวม</p>
+              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
+                <span>3. การวัดและประเมินผล</span>
+                <span className="text-xl opacity-90">(LessonAchieve)</span>
+              </h2>
+              <p className="text-emerald-100 font-medium mt-2">
+                รายงานผลสัมฤทธิ์ทางการเรียน <br className="sm:hidden" /> และวิเคราะห์สถิติภาพรวม
+              </p>
             </div>
           </div>
         </div>
@@ -314,46 +319,46 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         {/* Tabs and Content */}
         <div className="space-y-6">
           {/* Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 max-w-2xl gap-1">
+          <div className="flex flex-col sm:grid sm:grid-cols-3 md:flex md:flex-row md:flex-wrap bg-white rounded-xl p-1.5 sm:p-1 shadow-sm border border-slate-100 max-w-2xl gap-1.5 sm:gap-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <TrendingUp className="h-4 w-4" /> ภาพรวมผลสัมฤทธิ์
+              <TrendingUp className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>ภาพรวมผลสัมฤทธิ์</span>
             </button>
             <button
               onClick={() => setActiveTab('grades')}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'grades' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <FileText className="h-4 w-4" /> บันทึกคะแนน (ประถม)
+              <FileText className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>บันทึกคะแนน (ประถม)</span>
             </button>
             <button
               onClick={() => setActiveTab('kindergarten')}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'kindergarten' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <Award className="h-4 w-4" /> ประเมินอนุบาล
+              <Award className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>ประเมินอนุบาล</span>
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'attendance' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <CalendarDays className="h-4 w-4" /> สรุปการเช็กชื่อ
+              <CalendarDays className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>สรุปการเช็กชื่อ</span>
             </button>
             <button
               onClick={() => setActiveTab('learning_hours')}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'learning_hours' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <BookOpen className="h-4 w-4" /> รายงานเวลาเรียน
+              <BookOpen className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>รายงานเวลาเรียน</span>
             </button>
           </div>
 
@@ -370,15 +375,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             <div className="p-6">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800">บันทึกคะแนน</h3>
+                  <h2 className="text-xl font-black text-slate-800">บันทึกคะแนน</h2>
                   <p className="text-sm text-slate-500">จัดการข้อมูลคะแนนเก็บ คะแนนสอบย่อย กลางภาค และปลายภาค</p>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
                                     <select 
                     value={selectedSubject}
                     onChange={(e) => setSelectedSubject(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
                     {SUBJECTS.filter(s => {
                       const isPrimary = selectedGrade.includes('ประถม');
@@ -395,7 +400,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   <select 
                     value={selectedGrade}
                     onChange={(e) => setSelectedGrade(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
                     {uniqueGrades.filter(g => g.includes('ประถม')).map(g => (
                       <option key={g} value={g}>{g}</option>
@@ -403,19 +408,19 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   </select>
                   <button 
                     onClick={() => setShowSettingsModal(true)}
-                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
                   >
                     <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
                   </button>
                   <button
                     onClick={() => setShowPrintScore(true)}
-                    className="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
                   >
                     <Printer className="h-4 w-4" /> พิมพ์ (ปพ.5)
                   </button>
                   <button
                     onClick={() => setShowPrintReport(true)}
-                    className="flex items-center gap-2 bg-pink-600 text-white hover:bg-pink-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-pink-600 text-white hover:bg-pink-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
                   >
                     <Printer className="h-4 w-4" /> สมุดพก (ปพ.6)
                   </button>
@@ -754,7 +759,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Award className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2">การวัดและประเมินผลระดับอนุบาล</h3>
+              <h2 className="text-xl font-black text-slate-800">การวัดและประเมินผลระดับอนุบาล</h2>
               <p className="text-slate-500">
                 ฟังก์ชันสำหรับประเมินพัฒนาการนักเรียนระดับปฐมวัย<br/>
                 (รอการกำหนดรูปแบบและวิธีการประเมิน)

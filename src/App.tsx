@@ -214,7 +214,6 @@ export default function App() {
   const [activePlanPrintPreview, setActivePlanPrintPreview] =
     useState<LessonPlan | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showFormOnMobile, setShowFormOnMobile] = useState(false);
 
   // Edit Teacher profile temporary states
   const [pThaiName, setPThaiName] = useState("");
@@ -976,7 +975,6 @@ export default function App() {
 
       await setDoc(doc(db, "records", record.id), cleanPayload);
       setEditingRecord(null);
-      setShowFormOnMobile(false);
       addToast(
         isEdit
           ? `แก้ไขและอัปเดตบันทึกผลหลังสอนรายวิชา "${record.subject}" เรียบร้อยแล้ว ✨`
@@ -1066,7 +1064,6 @@ export default function App() {
       }
 
       setEditingPlan(null);
-      setShowFormOnMobile(false);
       addToast(
         isEdit
           ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" เรียบร้อยแล้ว ✨`
@@ -1398,99 +1395,99 @@ export default function App() {
         <div className="grid grid-cols-2 lg:flex lg:flex-wrap bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 print:hidden gap-1.5">
           <button
             onClick={() => setActiveModule("home")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "home"
                 ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <LayoutDashboard className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">หน้าแรก</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">หน้าแรก</span>
               <span className="text-xs font-semibold opacity-90">(Overview)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("teaching")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "teaching"
                 ? "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <Presentation className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">1. การจัดการผู้สอน</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">1. การจัดการผู้สอน</span>
               <span className="text-xs font-semibold opacity-90">(LessonTeach)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("classroom")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "classroom"
                 ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <Users className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">2. การจัดการชั้นเรียน</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">2. การจัดการชั้นเรียน</span>
               <span className="text-xs font-semibold opacity-90">(LessonClass)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("analytics")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "analytics"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <BarChart3 className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">3. การวัดและประเมินผลผู้เรียน</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">3. การวัดและประเมินผล</span>
               <span className="text-xs font-semibold opacity-90">(LessonAchieve)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("academic")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "academic"
                 ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <BookOpen className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">4. การบริหารงานวิชาการ</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">4. การบริหารงานวิชาการ</span>
               <span className="text-xs font-semibold opacity-90">(LessonAcad)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("discipline")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "discipline"
                 ? "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <ShieldAlert className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">5. การบริหารงานปกครอง</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">5. การบริหารงานปกครอง</span>
               <span className="text-xs font-semibold opacity-90">(LessonDiscipline)</span>
             </div>
           </button>
           <button
             onClick={() => setActiveModule("admission")}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
               activeModule === "admission"
                 ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
             }`}
           >
             <UserPlus className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">6. การรับสมัครนักเรียน</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">6. การรับสมัครนักเรียน</span>
               <span className="text-xs font-semibold opacity-90">(LessonAdmit)</span>
             </div>
           </button>
@@ -1498,15 +1495,15 @@ export default function App() {
           {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
             <button
               onClick={() => setActiveModule("admin" as any)}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 ${
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
                 activeModule === ("admin" as any)
                   ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
               <ShieldCheck className="h-4.5 w-4.5 shrink-0" />
-            <div className="flex flex-col items-center sm:items-start leading-tight">
-              <span className="whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
+            <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+              <span className="text-center sm:text-left leading-snug truncate w-full">การจัดการระบบผู้ใช้งาน</span>
               <span className="text-xs font-semibold opacity-90">(Admin)</span>
             </div>
             </button>
@@ -1514,11 +1511,11 @@ export default function App() {
         </div>
 
         {/* Welcome Card & Info */}
-        <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs max-w-full overflow-hidden">
-              <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
-              <span className="text-xs sm:text-base font-black tracking-wide text-indigo-950 font-sans truncate">
+        <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-4 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
+          <div className="space-y-2 sm:space-y-3 w-full md:w-auto">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs w-fit">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
+              <span className="text-[10px] sm:text-base font-black tracking-wide text-indigo-950 font-sans truncate">
                 LessonLog <span className="hidden sm:inline">- ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
               </span>
             </div>
@@ -1526,43 +1523,31 @@ export default function App() {
               <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ,{" "}
               {currentTeacher.displayName}
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">
-              ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน สถานะของคุณครูคือ{" "}
+            <p className="text-[10px] sm:text-xs text-slate-500 font-semibold leading-snug">
+              ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน<br className="sm:hidden" /> สถานะของคุณครูคือ{" "}
               <b className="text-sky-700">{currentTeacher.affiliation}</b>
             </p>
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto mt-1 md:mt-0">
             {/* Backup JSON */}
             <button
               onClick={handleExportBackup}
-              className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white hover:bg-pink-50 hover:text-pink-600 border border-slate-200 rounded-xl transition"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-white hover:bg-pink-50 text-slate-600 hover:text-pink-600 border border-slate-200 rounded-lg font-bold transition-colors shadow-sm"
               title="ส่งออกฐานข้อมูลครูสำรองเครื่องเป็นไฟล์ JSON"
             >
-              <FileJson className="h-3.5 w-3.5" />
-              <span>สำรองข้อมูล (JSON)</span>
+              <FileJson className="h-4 w-4 sm:h-4 sm:w-4 text-slate-400" />
+              <span>สำรองข้อมูล</span>
             </button>
 
             {/* Export CSV for Excel */}
             <button
               onClick={handleExportCSV}
-              className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white hover:bg-emerald-50 hover:text-emerald-600 border border-slate-200 rounded-xl transition"
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 border border-slate-200 rounded-lg font-bold transition-colors shadow-sm"
               title="ส่งออกบันทึกการสอนเป็นไฟล์ CSV สำหรับเปิดใช้จริงใน Excel และ Google Sheets"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>นำไปใช้ใน Excel / Sheets (CSV)</span>
-            </button>
-
-            {/* Print/Add mobile float trigger */}
-            <button
-              onClick={() => {
-                setEditingRecord(null);
-                setShowFormOnMobile(!showFormOnMobile);
-              }}
-              className="flex-1 md:flex-none md:hidden flex items-center justify-center gap-1 bg-gradient-to-r from-sky-500 to-pink-500 text-white px-3 py-2 text-xs font-bold rounded-xl active:scale-95 transition"
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span>{showFormOnMobile ? "ปิดฟอร์ม" : "เขียนบันทึกใหม่"}</span>
+              <FileSpreadsheet className="h-4 w-4 sm:h-4 sm:w-4 text-slate-400" />
+              <span>Excel / Sheets</span>
             </button>
           </div>
         </div>
@@ -1660,7 +1645,7 @@ export default function App() {
                   <Presentation className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">1. การจัดการผู้สอน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">1. การจัดการผู้สอน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonTeach)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1680,7 +1665,7 @@ export default function App() {
                   <Users className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">2. การจัดการชั้นเรียน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">2. การจัดการชั้นเรียน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonClass)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1700,11 +1685,11 @@ export default function App() {
                   <BarChart3 className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap text-base sm:text-lg">3. การวัดและประเมินผลผู้เรียน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">3. การวัดและประเมินผล</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAchieve)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
-                  รายงานผลสัมฤทธิ์และสถิติภาพรวมของผู้เรียน
+                  รายงานผลสัมฤทธิ์ทางการเรียน <br className="sm:hidden" /> และวิเคราะห์สถิติภาพรวม
                 </p>
                 <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
                   <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
@@ -1720,7 +1705,7 @@ export default function App() {
                   <BookOpen className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">4. การบริหารงานวิชาการ</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">4. การบริหารงานวิชาการ</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAcad)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1740,7 +1725,7 @@ export default function App() {
                   <ShieldAlert className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">5. การบริหารงานปกครอง</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">5. การบริหารงานปกครอง</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonDiscipline)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1759,7 +1744,7 @@ export default function App() {
                   <UserPlus className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">6. การรับสมัครนักเรียน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">6. การรับสมัครนักเรียน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAdmit)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1779,7 +1764,7 @@ export default function App() {
                     <ShieldCheck className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block whitespace-nowrap">การจัดการระบบผู้ใช้งาน</span>
+                  <span className="block text-center sm:text-left leading-snug">การจัดการระบบผู้ใช้งาน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(Admin)</span>
                 </h3>
                   <p className="text-sm text-slate-500">
@@ -1929,8 +1914,9 @@ export default function App() {
                     <Presentation className="h-8 w-8" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
-                      1. การจัดการผู้สอน (LessonTeach)
+                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
+                      <span>1. การจัดการผู้สอน</span>
+                      <span className="text-xl opacity-90">(LessonTeach)</span>
                     </h2>
                     <p className="text-violet-100 font-medium mt-1">
                       บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
