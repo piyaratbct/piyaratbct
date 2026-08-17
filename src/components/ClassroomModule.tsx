@@ -611,9 +611,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
               <Users className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
-                <span>2. การจัดการชั้นเรียน</span>
-                <span className="text-xl opacity-90">(LessonClass)</span>
+              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
+                <span className="block sm:inline">2. จัดการชั้นเรียน</span>
+                <span className="text-xl opacity-90 block sm:inline sm:ml-2">(LessonClass)</span>
               </h2>
               <p className="text-pink-100 font-medium mt-1 flex flex-col sm:block">
                 <span>จัดการข้อมูลนักเรียน</span>

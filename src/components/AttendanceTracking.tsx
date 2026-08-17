@@ -265,6 +265,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           schoolSubDistrict={schoolInfo.subDistrict}
           schoolDistrict={schoolInfo.district}
           schoolProvince={schoolInfo.province}
+          currentDate={date}
         />
       )}
       {/* Header Controls */}

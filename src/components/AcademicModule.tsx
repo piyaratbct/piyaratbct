@@ -84,8 +84,9 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
             <BookOpen className="h-8 w-8" />
           </div>
           <div>
-            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
-              4. การบริหารงานวิชาการ (LessonAcad)
+            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex items-center flex-wrap sm:flex-nowrap gap-1 sm:gap-2">
+              <span>4. บริหารงานวิชาการ</span>
+              <span className="text-xl opacity-90">(LessonAcad)</span>
             </h2>
             <p className="text-indigo-100 font-medium mt-1">
               ปีการศึกษา {systemAcademicYear} ภาคเรียนที่ {systemSemester}

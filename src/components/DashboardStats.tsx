@@ -173,48 +173,48 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
       )}
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Metric Card 1 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 hover:shadow-md transition duration-200">
-          <div className="p-3 bg-blue-55 rounded-xl bg-blue-50 text-blue-600">
-            <BookOpen className="h-6 w-6" />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 hover:shadow-md transition duration-200">
+          <div className="p-2.5 sm:p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+            <BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600">บันทึกทั้งหมด</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{totalLogs} <span className="text-xs font-bold text-slate-500">รายการ</span></p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-600">บันทึกทั้งหมด</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 sm:mt-1">{totalLogs} <span className="text-[10px] sm:text-xs font-bold text-slate-500">รายการ</span></p>
           </div>
         </div>
 
         {/* Metric Card 2 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 hover:shadow-md transition duration-200">
-          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-            <GraduationCap className="h-6 w-6" />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 hover:shadow-md transition duration-200">
+          <div className="p-2.5 sm:p-3 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
+            <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600">ห้องเรียนที่สอน</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{uniqueGrades} <span className="text-xs font-bold text-slate-500">ชั้นเรียน</span></p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-600">ห้องเรียนที่สอน</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 sm:mt-1">{uniqueGrades} <span className="text-[10px] sm:text-xs font-bold text-slate-500">ชั้นเรียน</span></p>
           </div>
         </div>
 
         {/* Metric Card 3 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 hover:shadow-md transition duration-200">
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
-            <Presentation className="h-6 w-6" />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 hover:shadow-md transition duration-200">
+          <div className="p-2.5 sm:p-3 bg-amber-50 rounded-xl text-amber-600 shrink-0">
+            <Presentation className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600">วิชาที่สอนบ่อยที่สุด</p>
-            <p className="text-base font-black text-slate-900 mt-1 truncate max-w-[130px] sm:max-w-none">{topSubject}</p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-600">วิชาที่สอนบ่อยที่สุด</p>
+            <p className="text-sm sm:text-base font-black text-slate-900 mt-0.5 sm:mt-1 truncate max-w-[130px] sm:max-w-none">{topSubject}</p>
           </div>
         </div>
 
         {/* Metric Card 4 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4 hover:shadow-md transition duration-200">
-          <div className="p-3 bg-rose-50 rounded-xl text-rose-600">
-            <Calendar className="h-6 w-6" />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 hover:shadow-md transition duration-200">
+          <div className="p-2.5 sm:p-3 bg-rose-50 rounded-xl text-rose-600 shrink-0">
+            <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-600">บันทึกล่าสุดเมื่อ</p>
-            <p className="text-sm font-black text-slate-900 mt-1.5">{formatThaiDate(lastLogDate)}</p>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-600">บันทึกล่าสุดเมื่อ</p>
+            <p className="text-xs sm:text-sm font-black text-slate-900 mt-1 sm:mt-1.5">{formatThaiDate(lastLogDate)}</p>
           </div>
         </div>
       </div>

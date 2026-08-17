@@ -393,7 +393,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '7.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '6.' : '5.'} การวัดและประเมินผล (Evaluation)
+              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '7.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '6.' : '5.'} วัดและประเมินผล (Evaluation)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}

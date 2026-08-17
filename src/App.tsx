@@ -6,11 +6,9 @@ import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
 import { StudentStatsModal } from "./components/StudentStatsModal";
 import { TeacherListModal } from "./components/TeacherListModal";
-import { LessonLogForm } from "./components/LessonLogForm";
 import { LessonLogList } from "./components/LessonLogList";
 import { PBLLessonPlanForm } from "./components/PBLLessonPlanForm";
 import { PBLLessonLogForm } from "./components/PBLLessonLogForm";
-import { LessonPlanForm } from "./components/LessonPlanForm";
 import { LessonPlanList } from "./components/LessonPlanList";
 import { ClassroomModule } from "./components/ClassroomModule";
 import { EvaluationModule } from "./components/EvaluationModule";
@@ -183,8 +181,8 @@ export default function App() {
     "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission"
   >("home");
   const [activeTab, setActiveTab] = useState<
-    "form" | "dashboard" | "plan-form" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
-  >("form");
+    "dashboard" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
+  >("pbl-log-form");
   const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] =
     useState<string>("all");
 
@@ -1417,7 +1415,7 @@ export default function App() {
           >
             <Presentation className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">1. การจัดการผู้สอน</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">1. จัดการผู้สอน</span>
               <span className="text-xs font-semibold opacity-90">(LessonTeach)</span>
             </div>
           </button>
@@ -1431,7 +1429,7 @@ export default function App() {
           >
             <Users className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">2. การจัดการชั้นเรียน</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">2. จัดการชั้นเรียน</span>
               <span className="text-xs font-semibold opacity-90">(LessonClass)</span>
             </div>
           </button>
@@ -1445,8 +1443,8 @@ export default function App() {
           >
             <BarChart3 className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">3. การวัดและประเมินผล</span>
-              <span className="text-xs font-semibold opacity-90">(LessonAchieve)</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">3. วัดและประเมินผล</span>
+              <span className="text-xs font-semibold opacity-90 truncate w-full text-center sm:text-left">(LessonAchieve)</span>
             </div>
           </button>
           <button
@@ -1459,7 +1457,7 @@ export default function App() {
           >
             <BookOpen className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">4. การบริหารงานวิชาการ</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">4. บริหารงานวิชาการ</span>
               <span className="text-xs font-semibold opacity-90">(LessonAcad)</span>
             </div>
           </button>
@@ -1473,8 +1471,8 @@ export default function App() {
           >
             <ShieldAlert className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">5. การบริหารงานปกครอง</span>
-              <span className="text-xs font-semibold opacity-90">(LessonDiscipline)</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">5. บริหารงานปกครอง</span>
+              <span className="text-xs font-semibold opacity-90 truncate w-full text-center sm:text-left">(LessonDiscipline)</span>
             </div>
           </button>
           <button
@@ -1487,7 +1485,7 @@ export default function App() {
           >
             <UserPlus className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">6. การรับสมัครนักเรียน</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">6. รับสมัครนักเรียน</span>
               <span className="text-xs font-semibold opacity-90">(LessonAdmit)</span>
             </div>
           </button>
@@ -1503,7 +1501,7 @@ export default function App() {
             >
               <ShieldCheck className="h-4.5 w-4.5 shrink-0" />
             <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
-              <span className="text-center sm:text-left leading-snug truncate w-full">การจัดการระบบผู้ใช้งาน</span>
+              <span className="text-center sm:text-left leading-snug truncate w-full">จัดการระบบผู้ใช้งาน</span>
               <span className="text-xs font-semibold opacity-90">(Admin)</span>
             </div>
             </button>
@@ -1555,7 +1553,7 @@ export default function App() {
         {activeModule === "home" ? (
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Hero Banner */}
-            <div className="bg-white rounded-2xl border border-violet-100 p-8 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <div className="bg-white rounded-2xl border border-violet-100 p-8 shadow-sm hidden sm:flex flex-col items-center justify-center text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400"></div>
               <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
                 <LayoutDashboard className="h-8 w-8" />
@@ -1575,59 +1573,59 @@ export default function App() {
             <OverviewCalendar currentTeacher={currentTeacher} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} onNavigateToCalendar={() => setActiveModule("academic")} />
 
             {/* Quick Stats Cards (Mockup) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-                <div className="h-12 w-12 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
-                  <Presentation className="h-6 w-6" />
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0">
+                  <Presentation className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">
-                    แผนการสอนทั้งหมด
+                  <div className="text-xs sm:text-sm font-bold text-slate-500">
+                    แผนการสอน
                   </div>
-                  <div className="text-2xl font-black text-slate-800">
+                  <div className="text-xl sm:text-2xl font-black text-slate-800">
                     {plans.length || 0}
                   </div>
                 </div>
               </div>
               <button
                 onClick={() => setShowStudentStatsModal(true)}
-                className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md hover:border-pink-200 transition-all text-left text-inherit cursor-pointer"
+                className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md hover:border-pink-200 transition-all text-left text-inherit cursor-pointer"
               >
-                <div className="h-12 w-12 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
-                  <Users className="h-6 w-6" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
+                  <Users className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">
+                  <div className="text-xs sm:text-sm font-bold text-slate-500">
                     นักเรียนทั้งหมด
                   </div>
-                  <div className="text-2xl font-black text-slate-800">
+                  <div className="text-xl sm:text-2xl font-black text-slate-800">
                     {studentsCount.toLocaleString()}
                   </div>
                 </div>
               </button>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-                <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
-                  <CheckCircle className="h-6 w-6" />
+              <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md transition-shadow">
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                  <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">
-                    สถิติเข้าเรียนวันนี้
+                  <div className="text-xs sm:text-sm font-bold text-slate-500">
+                    เข้าเรียนวันนี้
                   </div>
-                  <div className="text-2xl font-black text-slate-800">95%</div>
+                  <div className="text-xl sm:text-2xl font-black text-slate-800">95%</div>
                 </div>
               </div>
               <button 
                 onClick={() => setShowTeacherListModal(true)}
-                className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md hover:border-amber-200 transition-all text-left text-inherit cursor-pointer"
+                className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md hover:border-amber-200 transition-all text-left text-inherit cursor-pointer"
               >
-                <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
-                  <School className="h-6 w-6" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
+                  <School className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-500">
-                    ครูผู้สอน (ระบบ)
+                  <div className="text-xs sm:text-sm font-bold text-slate-500">
+                    ครูผู้สอน
                   </div>
-                  <div className="text-2xl font-black text-slate-800">
+                  <div className="text-xl sm:text-2xl font-black text-slate-800">
                     {teachers.length || 0}
                   </div>
                 </div>
@@ -1635,7 +1633,7 @@ export default function App() {
             </div>
 
             {/* Quick Actions / Modules Navigation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 onClick={() => setActiveModule("teaching")}
                 className="bg-white p-8 rounded-2xl border border-violet-100 shadow-sm hover:shadow-md hover:border-violet-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
@@ -1645,7 +1643,7 @@ export default function App() {
                   <Presentation className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">1. การจัดการผู้สอน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">1. จัดการผู้สอน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonTeach)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1665,8 +1663,9 @@ export default function App() {
                   <Users className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">2. การจัดการชั้นเรียน</span>
-                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonClass)</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">
+                    2. จัดการชั้นเรียน <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonClass)</span>
+                  </span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   จัดการข้อมูลนักเรียน เช็กชื่อ และบันทึกพฤติกรรม
@@ -1685,8 +1684,9 @@ export default function App() {
                   <BarChart3 className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">3. การวัดและประเมินผล</span>
-                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAchieve)</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug truncate w-full max-w-[200px] sm:max-w-none mx-auto">
+                    3. วัดและประเมินผล <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonAchieve)</span>
+                  </span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   รายงานผลสัมฤทธิ์ทางการเรียน <br className="sm:hidden" /> และวิเคราะห์สถิติภาพรวม
@@ -1705,8 +1705,9 @@ export default function App() {
                   <BookOpen className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">4. การบริหารงานวิชาการ</span>
-                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAcad)</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">
+                    4. บริหารงานวิชาการ <span className="text-sm text-slate-500 font-bold ml-1">(LessonAcad)</span>
+                  </span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   ดูตารางสอน ปฏิทินกิจกรรม และการตั้งค่าวิชาการ
@@ -1725,8 +1726,9 @@ export default function App() {
                   <ShieldAlert className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">5. การบริหารงานปกครอง</span>
-                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonDiscipline)</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug truncate w-full max-w-[200px] sm:max-w-none mx-auto">
+                    5. บริหารงานปกครอง <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonDiscipline)</span>
+                  </span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
@@ -1744,7 +1746,7 @@ export default function App() {
                   <UserPlus className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">6. การรับสมัครนักเรียน</span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">6. รับสมัครนักเรียน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAdmit)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
@@ -1764,7 +1766,7 @@ export default function App() {
                     <ShieldCheck className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left leading-snug">การจัดการระบบผู้ใช้งาน</span>
+                  <span className="block text-center sm:text-left leading-snug">จัดการระบบผู้ใช้งาน</span>
                   <span className="block text-sm text-slate-500 font-bold mt-0.5">(Admin)</span>
                 </h3>
                   <p className="text-sm text-slate-500">
@@ -1915,7 +1917,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
-                      <span>1. การจัดการผู้สอน</span>
+                      <span>1. จัดการผู้สอน</span>
                       <span className="text-xl opacity-90">(LessonTeach)</span>
                     </h2>
                     <p className="text-violet-100 font-medium mt-1">
@@ -1929,15 +1931,15 @@ export default function App() {
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
                 <div className="flex flex-wrap bg-slate-50 p-1.5 rounded-xl w-full lg:w-auto overflow-x-auto custom-scrollbar gap-1 border border-slate-100">
                   <button
-                    onClick={() => setActiveTab("form")}
+                    onClick={() => setActiveTab("pbl-log-form")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                      activeTab === "form"
+                      activeTab === "pbl-log-form"
                         ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
                         : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
-                    <PenLine className="h-4 w-4" />
-                    บันทึกหลังสอน
+                    <BookOpen className="h-4 w-4" />
+                    บันทึกหลังสอน (PBL)
                   </button>
                   <button
                     onClick={() => setActiveTab("dashboard")}
@@ -1949,28 +1951,6 @@ export default function App() {
                   >
                     <List className="h-4 w-4" />
                     หน้ารายการสอน
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("plan-form")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                      activeTab === "plan-form"
-                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
-                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
-                    }`}
-                  >
-                    <FileText className="h-4 w-4" />
-                    สร้างแผนการสอน
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("plan-list")}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                      activeTab === "plan-list"
-                        ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
-                        : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
-                    }`}
-                  >
-                    <History className="h-4 w-4" />
-                    คลังแผนการสอน
                   </button>
                   <div className="w-px h-8 bg-slate-200 mx-2 hidden md:block"></div>
                   <button
@@ -1985,34 +1965,21 @@ export default function App() {
                     สร้างแผนการสอน (PBL)
                   </button>
                   <button
-                    onClick={() => setActiveTab("pbl-log-form")}
+                    onClick={() => setActiveTab("plan-list")}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                      activeTab === "pbl-log-form"
+                      activeTab === "plan-list"
                         ? "bg-white text-purple-700 shadow-sm ring-1 ring-slate-200"
                         : "text-slate-500 hover:text-purple-700 hover:bg-purple-50"
                     }`}
                   >
-                    <BookOpen className="h-4 w-4" />
-                    บันทึกหลังสอน (PBL)
+                    <History className="h-4 w-4" />
+                    คลังแผนการสอน
                   </button>
 
                 </div>
               </div>
 
               {/* Content area */}
-              {activeTab === "form" && (
-                <LessonLogForm
-                  teacherId={currentTeacher.id}
-                  onSave={handleSaveRecord}
-                  initialRecord={editingRecord}
-                  onCancel={
-                    editingRecord ? () => setEditingRecord(null) : undefined
-                  }
-                  systemAcademicYear={systemAcademicYear}
-                  systemSemester={systemSemester}
-                />
-              )}
-
               {activeTab === "dashboard" && (
                 <LessonLogList
                   records={records}
@@ -2026,30 +1993,13 @@ export default function App() {
                   currentTeacherId={currentTeacher.id}
                   onEdit={(r) => {
                     setEditingRecord(r);
-                    setActiveTab("form");
+                    setActiveTab("pbl-log-form");
                   }}
                   onDelete={handleDeleteRecord}
                   onPrintPreview={(r) => setActivePrintPreview(r)}
                 />
               )}
 
-              {activeTab === "plan-form" && (
-                <LessonPlanForm
-                  teacherId={currentTeacher.id}
-                  teachers={teachers}
-                  onSave={handleSavePlan}
-                  initialPlan={editingPlan}
-                  onCancel={
-                    editingPlan ? () => setEditingPlan(null) : undefined
-                  }
-                  currentUserRole={currentTeacher.role}
-                  currentUserName={currentTeacher.name}
-                  systemAcademicYear={systemAcademicYear}
-                  systemSemester={systemSemester}
-                />
-              )}
-
-              
               {activeTab === "pbl-plan-form" && (
                 <PBLLessonPlanForm
                   teacherId={currentTeacher.id}
@@ -2094,7 +2044,7 @@ export default function App() {
                   currentTeacherId={currentTeacher.id}
                   onEdit={(p) => {
                     setEditingPlan(p);
-                    setActiveTab("plan-form");
+                    setActiveTab("pbl-plan-form");
                   }}
                   onDelete={handleDeletePlan}
                   onPrintPreview={(p) => setActivePlanPrintPreview(p)}
@@ -2176,7 +2126,7 @@ export default function App() {
                     ปิดปรับปรุงชั่วคราว
                   </h3>
                   <p className="text-slate-500 mt-2 text-sm font-medium">
-                    โมดูลการรับสมัครนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                    โมดูลรับสมัครนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
                   </p>
                   <button
                     onClick={() => setActiveModule("home")}

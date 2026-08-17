@@ -371,9 +371,10 @@ export function DisciplineModule({
           <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex-shrink-0 flex items-center justify-center shadow-inner border border-white/30">
             <ShieldAlert className="h-8 w-8" />
           </div>
-          <div>
-            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm">
-              การบริหารงานปกครอง (LessonDiscipline)
+          <div className="min-w-0 w-full overflow-hidden">
+            <h2 className="text-2xl font-black tracking-tight drop-shadow-sm truncate w-full">
+              <span className="block sm:inline">5. บริหารงานปกครอง</span>
+              <span className="text-xl opacity-90 block sm:inline sm:ml-2">(LessonDiscipline)</span>
             </h2>
             <p className="text-rose-100 font-medium mt-1">
               บันทึกและติดตามข้อมูลเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ

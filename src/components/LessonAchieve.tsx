@@ -62,7 +62,7 @@ export function LessonAchieve() {
         <div>
           <h4 className="text-sm font-bold text-indigo-900">ตัวอย่าง (Mockup) การแสดงผลข้อมูลผลสัมฤทธิ์</h4>
           <p className="text-xs text-indigo-700 mt-1">
-            ส่วนนี้เป็นการจำลอง Dashboard สำหรับการวัดและประเมินผลผู้เรียน เพื่อให้เห็นภาพรวมของข้อมูลที่ควรนำมาแสดง
+            ส่วนนี้เป็นการจำลอง Dashboard สำหรับวัดและประเมินผลผู้เรียน เพื่อให้เห็นภาพรวมของข้อมูลที่ควรนำมาแสดง
           </p>
         </div>
       </div>

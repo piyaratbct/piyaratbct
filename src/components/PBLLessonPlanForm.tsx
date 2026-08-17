@@ -815,7 +815,7 @@ export function PBLLessonPlanForm({
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <CheckCircle className="h-4 w-4 text-rose-500" />
-              5. การวัดและประเมินผล (Evaluation)
+              5. วัดและประเมินผล (Evaluation)
             </label>
             <p className="text-[10px] text-slate-400 mb-2">
               เกณฑ์และวิธีการประเมินความรู้และความเข้าใจ

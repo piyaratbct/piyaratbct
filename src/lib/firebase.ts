@@ -8,15 +8,15 @@ const app = initializeApp(firebaseConfig);
 // Safe Firestore initialization
 export let db: any;
 try {
-  // Use initializeFirestore with experimentalForceLongPolling to avoid WebSocket connection blocks inside sandboxed iframe
+  // Use initializeFirestore with experimentalAutoDetectLongPolling to avoid WebSocket connection blocks inside sandboxed iframe
   db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: true,
   }, firebaseConfig.firestoreDatabaseId);
 } catch (e) {
   console.warn("Firestore custom database-id setup failed, trying fallback default initialization:", e);
   try {
     db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
+      experimentalAutoDetectLongPolling: true,
     });
   } catch (err) {
     console.error("Firestore initialization completely failed:", err);

@@ -304,12 +304,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             <div className="h-16 w-16 bg-white/20 backdrop-blur-md text-white rounded-2xl flex items-center justify-center shadow-inner border border-white/30">
               <BarChart3 className="h-8 w-8" />
             </div>
-            <div>
-              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
-                <span>3. การวัดและประเมินผล</span>
-                <span className="text-xl opacity-90">(LessonAchieve)</span>
+            <div className="min-w-0 w-full overflow-hidden">
+              <h2 className="text-2xl font-black tracking-tight drop-shadow-sm truncate w-full">
+                <span className="block sm:inline">3. วัดและประเมินผล</span>
+                <span className="text-xl opacity-90 block sm:inline sm:ml-2">(LessonAchieve)</span>
               </h2>
-              <p className="text-emerald-100 font-medium mt-2">
+              <p className="text-emerald-100 font-medium mt-1 sm:mt-2 leading-tight sm:leading-normal">
                 รายงานผลสัมฤทธิ์ทางการเรียน <br className="sm:hidden" /> และวิเคราะห์สถิติภาพรวม
               </p>
             </div>
@@ -319,60 +319,59 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         {/* Tabs and Content */}
         <div className="space-y-6">
           {/* Tabs */}
-          <div className="flex flex-col sm:grid sm:grid-cols-3 md:flex md:flex-row md:flex-wrap bg-white rounded-xl p-1.5 sm:p-1 shadow-sm border border-slate-100 max-w-2xl gap-1.5 sm:gap-1">
+          <div className="grid grid-cols-2 lg:flex lg:flex-wrap bg-white/50 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm border border-slate-100 max-w-2xl gap-1.5">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'overview' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'overview' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <TrendingUp className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>ภาพรวมผลสัมฤทธิ์</span>
+              <TrendingUp className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">ภาพรวมผลสัมฤทธิ์</span>
             </button>
             <button
               onClick={() => setActiveTab('grades')}
-              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'grades' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'grades' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <FileText className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>บันทึกคะแนน (ประถม)</span>
+              <FileText className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">บันทึกคะแนน (ประถม)</span>
             </button>
             <button
               onClick={() => setActiveTab('kindergarten')}
-              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'kindergarten' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'kindergarten' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <Award className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>ประเมินอนุบาล</span>
+              <Award className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">ประเมินอนุบาล</span>
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
-              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'attendance' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'attendance' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <CalendarDays className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>สรุปการเช็กชื่อ</span>
+              <CalendarDays className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">สรุปการเช็กชื่อ</span>
             </button>
             <button
               onClick={() => setActiveTab('learning_hours')}
-              className={`flex-1 w-full sm:w-auto min-w-[120px] flex items-center justify-start sm:justify-center px-4 sm:px-2 gap-3 sm:gap-2 py-3 sm:py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'learning_hours' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-50'
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'learning_hours' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <BookOpen className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" /> <span>รายงานเวลาเรียน</span>
+              <BookOpen className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">รายงานเวลาเรียน</span>
             </button>
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            
+                      
           {activeTab === 'overview' && (
-            <div className="p-6">
+            <div>
               <LessonAchieve />
             </div>
           )}
 
           {activeTab === 'grades' && (
-            <div className="p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 overflow-hidden">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
                 <div>
                   <h2 className="text-xl font-black text-slate-800">บันทึกคะแนน</h2>
@@ -755,11 +754,14 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           )}
 
           {activeTab === 'kindergarten' && (
-            <div className="p-12 text-center">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Award className="h-8 w-8" />
               </div>
-              <h2 className="text-xl font-black text-slate-800">การวัดและประเมินผลระดับอนุบาล</h2>
+              <h2 className="text-xl font-black text-slate-800">
+                <span className="block sm:inline">วัดและประเมินผล</span>
+                <span className="block sm:inline sm:ml-1">ระดับอนุบาล</span>
+              </h2>
               <p className="text-slate-500">
                 ฟังก์ชันสำหรับประเมินพัฒนาการนักเรียนระดับปฐมวัย<br/>
                 (รอการกำหนดรูปแบบและวิธีการประเมิน)
@@ -768,13 +770,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           )}
 
           {activeTab === 'learning_hours' && (
-            <div className="p-6 bg-slate-50">
-              <LearningHoursReport 
-                systemAcademicYear={systemAcademicYear}
-                systemSemester={systemSemester}
-                students={students}
-              />
-            </div>
+            <LearningHoursReport 
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+              students={students}
+            />
           )}
 
           {activeTab === 'attendance' && (
@@ -785,7 +785,6 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             />
           )}
 
-          </div>
         </div>
       </div>
     
