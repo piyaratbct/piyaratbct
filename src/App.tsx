@@ -551,7 +551,7 @@ export default function App() {
         });
 
         const fetchedPlans = Array.from(newPlansMap.values());
-        fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        fetchedPlans.sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt));
         return fetchedPlans;
       });
     };
@@ -570,7 +570,7 @@ export default function App() {
             }
             fetchedPlans.push({ ...data, id: doc.id });
           });
-          fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          fetchedPlans.sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt));
           setPlans(fetchedPlans);
         },
         (err) => console.error("Plans lookup error (admin):", err)
