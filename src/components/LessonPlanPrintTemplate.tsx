@@ -243,7 +243,7 @@ export function LessonPlanPrintTemplate({
               className={`${isCompact ? "text-sm" : "text-base"} text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100`}
             >
               กลุ่มสาระการเรียนรู้{" "}
-              {plan.subject === "อื่น ๆ" ? plan.customSubject : plan.subject}{" "}
+              {plan.subject === "อื่นๆ" || plan.subject === "อื่น ๆ" ? plan.customSubject : plan.subject}{" "}
               ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, "")}
             </p>
           }

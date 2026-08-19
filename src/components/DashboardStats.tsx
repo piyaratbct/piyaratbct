@@ -15,12 +15,22 @@ interface DashboardStatsProps {
 export function DashboardStats({ records, currentTeacher, teachers, systemSemester = 'ภาคเรียนที่ 1/2567', systemAcademicYear = '2567' }: DashboardStatsProps) {
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
   const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
+  const [localAcademicYear, setLocalAcademicYear] = useState<string>("ทั้งหมด");
+  const [localSemester, setLocalSemester] = useState<string>("ทั้งหมด");
 
-  const totalLogs = records.length;
-  const uniqueGrades = new Set(records.map(r => r.gradeLevel)).size;
+  const uniqueYears = Array.from(new Set(records.map(r => r.academicYear).filter(Boolean))).sort().reverse();
+  const uniqueSemesters = Array.from(new Set(records.map(r => r.semester).filter(Boolean))).sort();
+
+  const filteredRecords = records.filter(r => 
+    (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear) &&
+    (localSemester === "ทั้งหมด" || r.semester === localSemester)
+  );
+
+  const totalLogs = filteredRecords.length;
+  const uniqueGrades = new Set(filteredRecords.map(r => r.gradeLevel)).size;
 
   const subjectCounts: Record<string, number> = {};
-  records.forEach(r => {
+  filteredRecords.forEach(r => {
     const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
     subjectCounts[subj] = (subjectCounts[subj] || 0) + 1;
   });
@@ -34,8 +44,8 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
     }
   });
 
-  const lastLogDate = records.length > 0
-    ? [...records].sort((a,b) => b.date.localeCompare(a.date))[0].date
+  const lastLogDate = filteredRecords.length > 0
+    ? [...filteredRecords].sort((a,b) => b.date.localeCompare(a.date))[0].date
     : null;
 
   const formatThaiDate = (dateString: string | null) => {
@@ -113,17 +123,20 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
     if (currentTeacher?.id) {
       fetchSchedules();
     }
-  }, [currentTeacher?.id, systemSemester, systemAcademicYear]);
+  }, [currentTeacher?.id, localSemester, localAcademicYear, systemSemester, systemAcademicYear]);
 
   const fetchSchedules = async () => {
     setIsLoadingSchedules(true);
     try {
-      const q = query(
-        collection(db, 'schedules'), 
-        where('teacherId', '==', currentTeacher?.id),
-        where('semester', '==', systemSemester),
-        where('academicYear', '==', systemAcademicYear)
-      );
+      let conditions = [where('teacherId', '==', currentTeacher?.id)];
+      
+      const targetSemester = localSemester === "ทั้งหมด" ? systemSemester : localSemester;
+      const targetYear = localAcademicYear === "ทั้งหมด" ? systemAcademicYear : localAcademicYear;
+      
+      conditions.push(where('semester', '==', targetSemester));
+      conditions.push(where('academicYear', '==', targetYear));
+
+      const q = query(collection(db, 'schedules'), ...conditions);
       const snapshot = await getDocs(q);
       const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
       setSchedules(scheduleList);
@@ -143,6 +156,39 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
 
   return (
     <div className="space-y-6">
+      
+      {/* Local Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-indigo-500" />
+            สรุปข้อมูลสถิติ
+          </h2>
+          <p className="text-sm text-slate-500">ผลรวมการสอนและข้อมูลสถิติย้อนหลัง</p>
+        </div>
+        <div className="flex gap-2">
+          <select
+            value={localSemester}
+            onChange={(e) => setLocalSemester(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50"
+          >
+            <option value="ทั้งหมด">ภาคเรียนทั้งหมด</option>
+            {uniqueSemesters.map(term => (
+              <option key={term as string} value={term as string}>ภาคเรียนที่ {term as string}</option>
+            ))}
+          </select>
+          <select
+            value={localAcademicYear}
+            onChange={(e) => setLocalAcademicYear(e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50"
+          >
+            <option value="ทั้งหมด">ปีการศึกษาทั้งหมด</option>
+            {uniqueYears.map(year => (
+              <option key={year as string} value={year as string}>ปี {year as string}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {isAcademic && pendingCount > 0 && (
         <div id="academic-pending-alert" className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-3xs animate-pulse-once">

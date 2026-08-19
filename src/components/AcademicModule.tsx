@@ -14,6 +14,7 @@ import { SchoolEventCalendar } from "./SchoolEventCalendar";
 import { PromotionManager } from "./PromotionManager";
 import { AcademicSettings } from "./AcademicSettings";
 import { StaffManager } from "./StaffManager";
+import { StaffProfileModule } from "./StaffProfileModule";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
 import { CurriculumManager } from "./CurriculumManager";
@@ -29,6 +30,8 @@ interface AcademicModuleProps {
   currentTeacher: Teacher;
   systemAcademicYear: string;
   systemSemester: string;
+  students: Student[];
+  teachers: Teacher[];
 }
 
 export const AcademicModule: React.FC<AcademicModuleProps> = ({
@@ -36,8 +39,9 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   systemAcademicYear,
   systemSemester,
   students,
+  teachers,
 }) => {
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum" | "eportfolio">("calendar");
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 
   useEffect(() => {
@@ -141,7 +145,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
           <button
             onClick={() => setActiveTab("staff")}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
-              activeTab === "staff"
+              activeTab === "staff" || activeTab === "eportfolio"
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-500 hover:bg-slate-50"
             }`}
@@ -187,8 +191,44 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         <AcademicSettings currentTeacher={currentTeacher} />
       )}
 
-      {activeTab === "staff" && (
-        <StaffManager currentTeacher={currentTeacher} />
+      {(activeTab === "staff" || activeTab === "eportfolio") && (
+        <div className="space-y-4">
+          <div className="flex gap-2 border-b border-slate-200">
+            <button
+              onClick={() => setActiveTab("staff")}
+              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === "staff"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              จัดการข้อมูลและสิทธิ์ผู้ใช้งาน
+            </button>
+            <button
+              onClick={() => setActiveTab("eportfolio")}
+              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === "eportfolio"
+                  ? "border-fuchsia-600 text-fuchsia-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              แฟ้มสะสมผลงาน (e-Portfolio)
+            </button>
+          </div>
+          
+          {activeTab === "staff" && (
+            <StaffManager currentTeacher={currentTeacher} />
+          )}
+          {activeTab === "eportfolio" && (
+            <StaffProfileModule
+              currentTeacher={currentTeacher}
+              teachers={teachers}
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+              isPersonalView={false}
+            />
+          )}
+        </div>
       )}
 
       {activeTab === "promotion" && (

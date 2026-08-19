@@ -198,13 +198,13 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
                         <div className="space-y-2 p-2 bg-slate-50 rounded-xl">
                           <div className="grid grid-cols-2 gap-2">
                             <div className="col-span-2">
-                              <label className="text-[10px] font-bold text-slate-600">รหัสพนักงาน</label>
+                              <label className="text-[10px] font-bold text-slate-600">รหัสประจำตัว</label>
                               <input 
                                 type="text" 
                                 value={editData.employeeId || ''} 
                                 onChange={e => setEditData({...editData, employeeId: e.target.value})}
                                 className="w-full mt-1 px-2 py-1 text-xs rounded border border-slate-200"
-                                placeholder="รหัสพนักงาน"
+                                placeholder="รหัสประจำตัว"
                               />
                             </div>
                             <div className="col-span-2 sm:col-span-1">

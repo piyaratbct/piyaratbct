@@ -1,9 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, inMemoryPersistence } from 'firebase/auth';
 import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
+
+// Safe Storage initialization
+export let storage: any;
+try {
+  storage = getStorage(app);
+} catch (e) {
+  console.warn("Firebase Storage initialization failed:", e);
+}
 
 // Safe Firestore initialization
 export let db: any;

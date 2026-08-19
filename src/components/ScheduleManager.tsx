@@ -337,6 +337,15 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                         >
                           {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
+                        {schedule.subject === 'อื่นๆ' && (
+                          <input 
+                            type="text"
+                            value={schedule.customSubject || ''}
+                            onChange={(e) => handleUpdateSchedule(schedule.id, 'customSubject', e.target.value)}
+                            placeholder="ระบุวิชาอื่นๆ..."
+                            className="w-full mt-2 p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        )}
                       </div>
                       
                       <div className="w-full md:w-2/6">

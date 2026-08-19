@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { LessonPlan, SUBJECTS, GRADE_LEVELS, Teacher, LessonRecord } from "../types";
+import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import {
   Search,
   Scale,
@@ -17,6 +19,7 @@ import {
   User,
   ExternalLink,
   Lock,
+  Copy,
 } from "lucide-react";
 
 interface LessonPlanListProps {
@@ -26,6 +29,8 @@ interface LessonPlanListProps {
   showTeacherFilter?: boolean;
   currentUserRole?: string;
   currentTeacherId?: string;
+  systemAcademicYear?: string;
+  systemSemester?: string;
   onEdit: (plan: LessonPlan) => void;
   onDelete: (id: string) => void;
   onPrintPreview: (plan: LessonPlan) => void;
@@ -38,6 +43,8 @@ export function LessonPlanList({
   showTeacherFilter = false,
   currentUserRole,
   currentTeacherId,
+  systemAcademicYear,
+  systemSemester,
   onEdit,
   onDelete,
   onPrintPreview,
@@ -47,6 +54,8 @@ export function LessonPlanList({
   const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedStatus, setSelectedStatus] = useState<string>("ทั้งหมด");
+  const [localAcademicYear, setLocalAcademicYear] = useState<string>(systemAcademicYear || "ทั้งหมด");
+  const [localSemester, setLocalSemester] = useState<string>(systemSemester || "ทั้งหมด");
   const [planToDelete, setPlanToDelete] = useState<{id: string, title: string} | null>(null);
   
   const [comparingPlan, setComparingPlan] = useState<LessonPlan | null>(null);
@@ -68,9 +77,38 @@ export function LessonPlanList({
       (plan.coTeachers && plan.coTeachers.includes(selectedTeacherId));
     const statusMatch =
       selectedStatus === "ทั้งหมด" || plan.status === selectedStatus;
+    const yearMatch =
+      localAcademicYear === "ทั้งหมด" || plan.academicYear === localAcademicYear;
+    const termMatch =
+      localSemester === "ทั้งหมด" || plan.semester === localSemester;
 
-    return textMatch && subjMatch && gradeMatch && teacherMatch && statusMatch;
+    return textMatch && subjMatch && gradeMatch && teacherMatch && statusMatch && yearMatch && termMatch;
   });
+
+  const handleDuplicatePlan = async (plan: LessonPlan) => {
+    try {
+      if (!systemAcademicYear || !systemSemester) {
+        window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ไม่สามารถคัดลอกได้ เนื่องจากไม่พบปีการศึกษาปัจจุบัน', type: 'error' } }));
+        return;
+      }
+      
+      const { id, ...planData } = plan;
+      const duplicatedPlan = {
+        ...planData,
+        academicYear: systemAcademicYear,
+        semester: systemSemester,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: "draft" // Reset status to draft for the new term
+      };
+      
+      await addDoc(collection(db, 'lessonPlans'), duplicatedPlan);
+      window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'คัดลอกแผนการสอนสำเร็จ', type: 'success' } }));
+    } catch (error) {
+      console.error("Error duplicating plan:", error);
+      window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการคัดลอก', type: 'error' } }));
+    }
+  };
 
   function searchMatches(plan: LessonPlan, query: string) {
     if (!query) return true;
@@ -114,6 +152,9 @@ export function LessonPlanList({
     const t = teachers.find((t) => t.id === tId);
     return t ? t.thaiName : "คุณครู";
   };
+
+  const uniqueYears = Array.from(new Set(plans.map(p => p.academicYear).filter(Boolean))).sort().reverse();
+  const uniqueSemesters = Array.from(new Set(plans.map(p => p.semester).filter(Boolean))).sort();
 
   return (
     <div className="space-y-4">
@@ -183,6 +224,40 @@ export function LessonPlanList({
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Secondary Filters */}
+        <div className="flex flex-col lg:flex-row gap-3 pt-2 border-t border-slate-100">
+          
+          <div className="flex items-center gap-1.5 min-w-[180px]">
+            <select
+              value={localSemester}
+              onChange={(e) => setLocalSemester(e.target.value)}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-indigo-700 bg-indigo-50"
+            >
+              <option value="ทั้งหมด">ภาคเรียน: ทั้งหมด</option>
+              {uniqueSemesters.map((s) => (
+                <option key={s as string} value={s as string}>
+                  ภาคเรียนที่ {s as string}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-1.5 min-w-[180px]">
+            <select
+              value={localAcademicYear}
+              onChange={(e) => setLocalAcademicYear(e.target.value)}
+              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-indigo-700 bg-indigo-50"
+            >
+              <option value="ทั้งหมด">ปีการศึกษา: ทั้งหมด</option>
+              {uniqueYears.map((y) => (
+                <option key={y as string} value={y as string}>
+                  ปีการศึกษา {y as string}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Status Filter */}
           <div className="flex items-center gap-1.5 min-w-[180px]">
@@ -209,7 +284,9 @@ export function LessonPlanList({
           selectedSubject !== "ทั้งหมด" ||
           selectedGrade !== "ทั้งหมด" ||
           selectedTeacherId !== "ทั้งหมด" ||
-          selectedStatus !== "ทั้งหมด") && (
+          selectedStatus !== "ทั้งหมด" ||
+          localAcademicYear !== "ทั้งหมด" ||
+          localSemester !== "ทั้งหมด") && (
           <button
             onClick={() => {
               setSearchTerm("");
@@ -217,6 +294,8 @@ export function LessonPlanList({
               setSelectedGrade("ทั้งหมด");
               setSelectedTeacherId("ทั้งหมด");
               setSelectedStatus("ทั้งหมด");
+              setLocalAcademicYear(systemAcademicYear || "ทั้งหมด");
+              setLocalSemester(systemSemester || "ทั้งหมด");
             }}
             className="text-blue-600 font-bold hover:underline"
           >
@@ -358,6 +437,16 @@ export function LessonPlanList({
                       {thaiFormatDate(plan.date)}
                     </span>
                     <div className="flex gap-2">
+                      {(plan.academicYear !== systemAcademicYear || plan.semester !== systemSemester) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicatePlan(plan)}
+                          className="p-1.5 rounded-lg transition-colors text-amber-500 hover:text-amber-600 hover:bg-amber-50"
+                          title="นำไปใช้ในภาคเรียนปัจจุบัน (คัดลอก)"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setComparingPlan(plan)}

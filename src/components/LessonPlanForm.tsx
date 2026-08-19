@@ -264,7 +264,7 @@ export function LessonPlanForm({
       id: initialPlan ? initialPlan.id : Date.now().toString(),
       teacherId: initialPlan ? initialPlan.teacherId : teacherId,
       subject: isIntegrated ? 'บูรณาการ' : subject,
-      customSubject: undefined, // Handled implicitly via subject string
+      customSubject: (!isIntegrated && subject === 'อื่นๆ') ? customSubject : undefined,
       gradeLevel: selectedGrades.join(", "),
       title,
       isIntegrated,
@@ -360,21 +360,26 @@ export function LessonPlanForm({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 วิชา (Subject)
               </label>
-              <input
-                type="text"
-                list="plan-subject-list"
+              <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="เลือกหรือพิมพ์รายวิชา..."
                 className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              />
-              <datalist id="plan-subject-list">
-                {availableSubjects.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
+              >
+                <option value="" disabled>เลือกรายวิชา...</option>
+                {availableSubjects.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
-              </datalist>
+              </select>
+              {subject === 'อื่นๆ' && (
+                <input
+                  type="text"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  placeholder="ระบุวิชาอื่นๆ..."
+                  className="w-full mt-2 px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  required
+                />
+              )}
             </div>
           )}
 

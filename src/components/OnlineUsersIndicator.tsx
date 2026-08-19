@@ -57,7 +57,11 @@ export function OnlineUsersIndicator({ currentTeacher, teachers }: Props) {
               {activeTeachers.map(t => (
                 <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                   <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
-                    {t.thaiName ? t.thaiName.substring(0, 1) : t.displayName?.substring(0, 1) || '?'}
+                    {t.photoURL ? (
+                      <img src={t.photoURL} alt={t.thaiName} className="h-full w-full object-cover" />
+                    ) : (
+                      t.thaiName ? t.thaiName.substring(0, 1) : t.displayName?.substring(0, 1) || '?'
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-xs sm:text-sm text-slate-700 truncate">{t.thaiName || t.displayName}</div>

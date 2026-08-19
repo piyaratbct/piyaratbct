@@ -9,6 +9,7 @@ import { TeacherListModal } from "./components/TeacherListModal";
 import { LessonLogList } from "./components/LessonLogList";
 import { PBLLessonPlanForm } from "./components/PBLLessonPlanForm";
 import { PBLLessonLogForm } from "./components/PBLLessonLogForm";
+import { StaffProfileModule } from "./components/StaffProfileModule";
 import { LessonPlanList } from "./components/LessonPlanList";
 import { ClassroomModule } from "./components/ClassroomModule";
 import { EvaluationModule } from "./components/EvaluationModule";
@@ -67,8 +68,9 @@ import {
   UserPlus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
+import { auth, db, storage, handleFirestoreError, OperationType } from "./lib/firebase";
 import { onAuthStateChanged, signOut, updatePassword } from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { formatThaiDate } from './lib/dateUtils';
 import {
   collection,
@@ -212,6 +214,7 @@ export default function App() {
   const [activePlanPrintPreview, setActivePlanPrintPreview] =
     useState<LessonPlan | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showEPortfolioModal, setShowEPortfolioModal] = useState(false);
 
   // Edit Teacher profile temporary states
   const [pThaiName, setPThaiName] = useState("");
@@ -741,21 +744,6 @@ export default function App() {
     ).catch((err) => {
       console.error("Failed to clear custom logo in Firestore:", err);
     });
-  };
-
-  const handleUpdateAcademicYear = (newYear: string, newSemester: string) => {
-    setSystemAcademicYear(newYear);
-    setSystemSemester(newSemester);
-    if (db) {
-      setDoc(
-        doc(db, "config", "school"),
-        { systemAcademicYear: newYear, systemSemester: newSemester },
-        { merge: true },
-      ).catch((err) => {
-        console.error("Failed to persist academic year in Firestore:", err);
-      });
-    }
-    addToast("อัปเดตปีการศึกษาและภาคเรียนเรียบร้อยแล้ว", "success");
   };
 
   const handleLogin = (teacher: Teacher) => {
@@ -1365,13 +1353,26 @@ export default function App() {
               
 
           
+              <button
+                onClick={() => setShowEPortfolioModal(true)}
+                className="hidden sm:flex items-center gap-1.5 bg-fuchsia-50 text-fuchsia-600 px-3 py-1.5 rounded-full border border-fuchsia-100 hover:bg-fuchsia-100 transition-colors"
+                title="แฟ้มสะสมผลงาน (e-Portfolio)"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span className="text-sm font-bold">e-Portfolio</span>
+              </button>
+
               <button 
                 onClick={() => setShowProfileModal(true)}
                 className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 hover:bg-slate-100 transition-colors"
               >
-                <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                  {currentTeacher.thaiName.charAt(0)}
-                </div>
+                {currentTeacher.photoURL ? (
+                  <img src={currentTeacher.photoURL} alt={currentTeacher.thaiName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                    {currentTeacher.thaiName.charAt(0)}
+                  </div>
+                )}
                 <span className="text-sm font-bold text-slate-700 truncate max-w-[150px]">{currentTeacher.thaiName}</span>
               </button>
               
@@ -1461,6 +1462,7 @@ export default function App() {
               <span className="text-xs font-semibold opacity-90">(LessonAcad)</span>
             </div>
           </button>
+          
           <button
             onClick={() => setActiveModule("discipline")}
             className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
@@ -1663,9 +1665,8 @@ export default function App() {
                   <Users className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">
-                    2. จัดการชั้นเรียน <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonClass)</span>
-                  </span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">2. จัดการชั้นเรียน</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonClass)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   จัดการข้อมูลนักเรียน เช็กชื่อ และบันทึกพฤติกรรม
@@ -1684,12 +1685,11 @@ export default function App() {
                   <BarChart3 className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug truncate w-full max-w-[200px] sm:max-w-none mx-auto">
-                    3. วัดและประเมินผล <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonAchieve)</span>
-                  </span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">3. วัดและประเมินผล</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAchieve)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
-                  รายงานผลสัมฤทธิ์ทางการเรียน <br className="sm:hidden" /> และวิเคราะห์สถิติภาพรวม
+                  รายงานผลสัมฤทธิ์ทางการเรียนและวิเคราะห์สถิติภาพรวม
                 </p>
                 <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
                   <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
@@ -1705,9 +1705,8 @@ export default function App() {
                   <BookOpen className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">
-                    4. บริหารงานวิชาการ <span className="text-sm text-slate-500 font-bold ml-1">(LessonAcad)</span>
-                  </span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">4. บริหารงานวิชาการ</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonAcad)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   ดูตารางสอน ปฏิทินกิจกรรม และการตั้งค่าวิชาการ
@@ -1726,9 +1725,8 @@ export default function App() {
                   <ShieldAlert className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
-                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug truncate w-full max-w-[200px] sm:max-w-none mx-auto">
-                    5. บริหารงานปกครอง <span className="text-sm text-slate-500 font-bold mt-0.5 sm:mt-0 sm:ml-1 block sm:inline">(LessonDiscipline)</span>
-                  </span>
+                  <span className="block text-center sm:text-left text-base sm:text-lg leading-snug">5. บริหารงานปกครอง</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(LessonDiscipline)</span>
                 </h3>
                 <p className="text-sm text-slate-500">
                   บันทึกเหตุการณ์ ทะเลาะวิวาท อุบัติเหตุ และความประพฤติ
@@ -2042,6 +2040,8 @@ export default function App() {
                   }
                   currentUserRole={currentTeacher.role}
                   currentTeacherId={currentTeacher.id}
+                  systemAcademicYear={systemAcademicYear}
+                  systemSemester={systemSemester}
                   onEdit={(p) => {
                     setEditingPlan(p);
                     setActiveTab("pbl-plan-form");
@@ -2066,6 +2066,7 @@ export default function App() {
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
               students={students}
+              teachers={teachers}
             />
           </div>
         ) : activeModule === "analytics" ? (
@@ -2263,6 +2264,34 @@ export default function App() {
         />
       )}
 
+      {/* 4.1.5 e-Portfolio Modal */}
+      {showEPortfolioModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-50 w-full max-w-5xl min-h-[80vh] max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
+            <div className="flex justify-between items-center p-4 sm:p-6 bg-white border-b border-slate-100 shrink-0 sticky top-0 z-10">
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+                <div className="h-10 w-10 bg-fuchsia-100 rounded-full flex items-center justify-center text-fuchsia-600">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                แฟ้มสะสมผลงานของฉัน (e-Portfolio)
+              </h2>
+              <button onClick={() => setShowEPortfolioModal(false)} className="p-2 bg-slate-50 hover:bg-slate-100 hover:text-rose-600 text-slate-500 rounded-full transition-colors">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50">
+              <StaffProfileModule
+                currentTeacher={currentTeacher}
+                teachers={teachers}
+                systemAcademicYear={systemAcademicYear}
+                systemSemester={systemSemester}
+                isPersonalView={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 4.2. Profile Settings / Custom Display Name Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4">
@@ -2307,6 +2336,92 @@ export default function App() {
                   className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
                   placeholder="เช่น ครูวิมล แสนสุข, ครูแอร์ บันเทิงศิลป์"
                 />
+              </div>
+
+              {/* Profile Avatar Upload (Firebase Storage) */}
+              <div className="bg-indigo-50 border border-indigo-200/65 p-3.5 rounded-xl">
+                <label className="block text-xs font-black text-indigo-900 mb-1">
+                  รูปภาพโปรไฟล์ส่วนตัว (Avatar)
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center border border-indigo-200 overflow-hidden shrink-0">
+                    {currentTeacher.photoURL ? (
+                      <img src={currentTeacher.photoURL} alt="Profile Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-6 w-6 text-indigo-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'กรุณาเลือกรูปภาพขนาดไม่เกิน 5MB', type: 'error' } }));
+                            e.target.value = '';
+                            return;
+                          }
+                          
+                          if (!storage) {
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน', type: 'error' } }));
+                            return;
+                          }
+
+                          try {
+                            const ext = file.name.split('.').pop() || 'jpg';
+                            const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
+                            const storageRef = ref(storage, fileName);
+                            
+                            // 1. Upload to Firebase Storage
+                            await uploadBytes(storageRef, file);
+                            
+                            // 2. Get Download URL
+                            const downloadURL = await getDownloadURL(storageRef);
+                            
+                            // 3. Update Firestore with new URL
+                            const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };
+                            await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: downloadURL });
+                            setCurrentTeacher(updatedTeacher);
+                            
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'อัปเดตรูปโปรไฟล์สำเร็จ', type: 'success' } }));
+                          } catch (err) {
+                            console.error("Error uploading avatar:", err);
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการอัปเดตรูปโปรไฟล์', type: 'error' } }));
+                          }
+                          e.target.value = ''; // Reset input
+                        }
+                      }}
+                      className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200"
+                    />
+                    <p className="text-[10px] text-indigo-500 mt-1">ไฟล์ JPG/PNG ขนาดไม่เกิน 5MB (รูปสี่เหลี่ยมจัตุรัส)</p>
+                  </div>
+                  {currentTeacher.photoURL && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const updatedTeacher = { ...currentTeacher };
+                          delete updatedTeacher.photoURL;
+                          await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: null });
+                          setCurrentTeacher(updatedTeacher);
+                          
+                          // Attempt to delete from storage if URL matches our structure (optional cleanup)
+                          // Note: A robust system would track the full storage path or parse it from the URL.
+                          
+                          window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบรูประยะไกลออกจากโปรไฟล์แล้ว', type: 'success' } }));
+                        } catch (err) {
+                          console.error("Error removing avatar:", err);
+                          window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบรูปภาพไม่สำเร็จ', type: 'error' } }));
+                        }
+                      }}
+                      className="text-rose-500 hover:bg-rose-100 p-1.5 rounded-lg text-[10px] font-bold"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -2405,153 +2520,81 @@ export default function App() {
               )}
 
               {/* ปรับแต่งโลโก้โรงเรียน (School Logo Setup Panel) */}
-              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl space-y-3">
-                <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
-                  <School className="h-4 w-4 text-pink-600 animate-pulse" />
-                  ปรับแต่งตราสัญลักษณ์โรงเรียน (School Logo)
-                </span>
-                <p className="text-[10px] text-slate-500 leading-normal">
-                  กำหนดภาพตราสัญลักษณ์ที่จะใช้สำหรับใบรายงาน PDF
-                  และแท็บด้านบนของครู สามารถกดจับภาพจากกล้องถ่ายรูปได้โดยตรง
-                  หรืออัปโหลดไฟล์
-                </p>
+              {currentTeacher?.role === "admin" && (
+                <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl space-y-3">
+                  <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
+                    <School className="h-4 w-4 text-pink-600 animate-pulse" />
+                    ปรับแต่งตราสัญลักษณ์โรงเรียน (School Logo)
+                  </span>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    กำหนดภาพตราสัญลักษณ์ที่จะใช้สำหรับใบรายงาน PDF
+                    และแท็บด้านบนของครู สามารถกดจับภาพจากกล้องถ่ายรูปได้โดยตรง
+                    หรืออัปโหลดไฟล์
+                  </p>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
-                  <div className="h-16 w-16 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-150 overflow-hidden relative group shrink-0 shadow-inner">
-                    {customLogo ? (
-                      <>
-                        <img
-                          src={customLogo}
-                          alt="Custom school logo"
-                          className="h-full w-full object-contain p-1"
-                        />
-                        <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">
-                          ตรากำหนดเอง
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <SchoolLogo className="h-12 w-12" />
-                        <span className="absolute bottom-0 inset-x-0 bg-pink-600/90 text-white text-[8px] text-center font-black py-0.5 pointer-events-none scale-90">
-                          ตราเริ่มต้น
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
+                    <div className="h-16 w-16 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-150 overflow-hidden relative group shrink-0 shadow-inner">
+                      {customLogo ? (
+                        <>
+                          <img
+                            src={customLogo}
+                            alt="Custom school logo"
+                            className="h-full w-full object-contain p-1"
+                          />
+                          <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">
+                            ตรากำหนดเอง
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <SchoolLogo className="h-12 w-12" />
+                          <span className="absolute bottom-0 inset-x-0 bg-pink-600/90 text-white text-[8px] text-center font-black py-0.5 pointer-events-none scale-90">
+                            ตราเริ่มต้น
+                          </span>
+                        </>
+                      )}
+                    </div>
 
-                  <div className="space-y-1.5 flex-1 w-full text-left">
-                    {currentTeacher?.role === "admin" ? (
-                      <>
-                        <span className="text-[10px] font-bold text-slate-500 block">
-                          ตัวเลือกปรับเปลี่ยนตราสัญลักษณ์:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsCameraActive(true)}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-lg transition"
-                          >
-                            <Camera className="h-3 w-3" />
-                            จับภาพจากกล้อง
-                          </button>
-
-                          <label className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer transition">
-                            <Upload className="h-3 w-3" />
-                            อัปโหลดรูปภาพ
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoFileUpload}
-                              className="hidden"
-                            />
-                          </label>
-
-                          {customLogo && (
-                            <button
-                              type="button"
-                              onClick={handleClearCustomLogo}
-                              className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-rose-200 transition"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              กู้คืนตราเดิม
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
-                        ⚠️{" "}
-                        <strong>
-                          เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น
-                        </strong>{" "}
-                        ที่มีสิทธิ์แก้ไขสัญลักษณ์/ตราสัญลักษณ์โรงเรียนได้
-                        (ของบัญชีคุณครูและฝ่ายวิชาการจะเป็นสถานะอ่านอย่างเดียว)
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* ปรับแต่งปีการศึกษา (Academic Year Setup Panel) */}
-              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl space-y-3">
-                <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
-                  <CalendarDays className="h-4 w-4 text-blue-600" />
-                  กำหนดภาคเรียนและปีการศึกษาปัจจุบัน (Academic Year)
-                </span>
-                <p className="text-[10px] text-slate-500 leading-normal">
-                  กำหนดภาคเรียนและปีการศึกษาสำหรับระบบ
-                  ซึ่งจะถูกนำไปใช้เป็นค่าเริ่มต้นในเอกสารรายงาน และแบบฟอร์มต่างๆ
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-xs">
-                  <div className="space-y-1.5 flex-1 w-full text-left">
-                    {currentTeacher?.role === "admin" ? (
-                      <div className="flex gap-2">
-                        <select
-                          value={systemSemester}
-                          onChange={(e) => setSystemSemester(e.target.value)}
-                          className="px-3 py-2 text-sm font-bold text-center rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
-                        >
-                          <option value="1">ภาคเรียนที่ 1</option>
-                          <option value="2">ภาคเรียนที่ 2</option>
-                        </select>
-                        <input
-                          type="text"
-                          value={systemAcademicYear}
-                          onChange={(e) =>
-                            setSystemAcademicYear(e.target.value)
-                          }
-                          className="px-3 py-2 text-sm font-bold text-center rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-24"
-                        />
+                    <div className="space-y-1.5 flex-1 w-full text-left">
+                      <span className="text-[10px] font-bold text-slate-500 block">
+                        ตัวเลือกปรับเปลี่ยนตราสัญลักษณ์:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            handleUpdateAcademicYear(
-                              systemAcademicYear,
-                              systemSemester,
-                            )
-                          }
-                          className="flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-4 py-2 rounded-lg transition"
+                          onClick={() => setIsCameraActive(true)}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-lg transition"
                         >
-                          บันทึกข้อมูล
+                          <Camera className="h-3 w-3" />
+                          จับภาพจากกล้อง
                         </button>
+
+                        <label className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-slate-200 cursor-pointer transition">
+                          <Upload className="h-3 w-3" />
+                          อัปโหลดรูปภาพ
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {customLogo && (
+                          <button
+                            type="button"
+                            onClick={handleClearCustomLogo}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-rose-200 transition"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            กู้คืนตราเดิม
+                          </button>
+                        )}
                       </div>
-                    ) : (
-                      <div className="p-2.5 bg-amber-50/60 border border-amber-100 rounded-lg text-amber-800 text-[10.5px] leading-relaxed select-none">
-                        ⚠️{" "}
-                        <strong>
-                          เฉพาะผู้ดูแลระบบ (Administrator) เท่านั้น
-                        </strong>{" "}
-                        ที่มีสิทธิ์แก้ไขภาคเรียนและปีการศึกษา
-                        <div className="mt-1 font-bold text-slate-700">
-                          ปีการศึกษาปัจจุบัน: ภาคเรียนที่ {systemSemester}/
-                          {systemAcademicYear}
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="pt-3 border-t border-slate-150 flex justify-end gap-2.5">
                 <button

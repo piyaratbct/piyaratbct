@@ -18,6 +18,7 @@ export interface Teacher {
   phoneNumber: string;
   affiliation: string;
   displayName: string;
+  photoURL?: string; // profile picture from Firebase Storage
   password?: string;
   role?: 'teacher' | 'academic' | 'deputy' | 'admin' | 'discipline' | 'staff';
   hasSeeded?: boolean;
@@ -370,6 +371,7 @@ export interface TeacherSchedule {
   dayOfWeek: number;
   period: string;
   subject: string;
+  customSubject?: string;
   gradeLevel: string;
   semester: string;
   academicYear: string;
@@ -597,4 +599,24 @@ export interface SchoolHoliday {
   id: string;
   date: string;
   description: string;
+}
+
+export type PDRecordType = 'training' | 'plc' | 'award' | 'research';
+
+export interface PDRecord {
+  id: string;
+  teacherId: string;
+  type: PDRecordType;
+  title: string;
+  date: string; // YYYY-MM-DD format
+  academicYear?: string;
+  semester?: string;
+  hours?: number; // For training, PLC
+  organizer?: string; // For training, award
+  level?: string; // For awards e.g., โรงเรียน, เขต, ประเทศ
+  description?: string; // Problem/result for research, or general details
+  evidenceUrl?: string; // Link to image or document
+  attachments?: Attachment[];
+  createdAt: string;
+  updatedAt: string;
 }

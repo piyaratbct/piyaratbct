@@ -224,5 +224,18 @@ service cloud.firestore {
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
+    match /pd_records/{recordId} {
+      allow read: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid || 
+        isAcademic()
+      );
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid || isAdmin()
+      );
+    }
   }
 }

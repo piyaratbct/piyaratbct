@@ -67,6 +67,7 @@ interface LessonLogFormProps {
 export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1' }: LessonLogFormProps) {
   const [availableSubjects, setAvailableSubjects] = useState<string[]>(SUBJECTS);
   const [subject, setSubject] = useState<SubjectType>('ภาษาไทย');
+  const [customSubject, setCustomSubject] = useState<string>('');
 
   const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
   const defaultSemester = `ภาคเรียนที่ ${systemSemester}/${systemAcademicYear}`;
@@ -233,7 +234,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       id: initialRecord?.id || `rec-${Date.now()}`,
       teacherId,
       subject: isIntegrated ? 'บูรณาการ' : subject,
-      customSubject: '', // We now save the actual subject directly into the `subject` field
+      customSubject: (!isIntegrated && subject === 'อื่นๆ') ? customSubject : '', 
       gradeLevel: selectedGrades.join(', '),
       academicYear: systemAcademicYear,
       semester,
@@ -303,19 +304,26 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 กลุ่มสาระ / วิชาที่สอน
               </label>
-              <input
-                type="text"
-                list="subject-list"
+              <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value as SubjectType)}
-                placeholder="เลือกหรือพิมพ์รายวิชา..."
                 className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              />
-              <datalist id="subject-list">
-                {availableSubjects.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((sub) => (
+              >
+                <option value="" disabled>เลือกรายวิชา...</option>
+                {availableSubjects.map((sub) => (
                   <option key={sub} value={sub}>{sub}</option>
                 ))}
-              </datalist>
+              </select>
+              {subject === 'อื่นๆ' && (
+                <input
+                  type="text"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  placeholder="ระบุวิชาอื่นๆ..."
+                  className="w-full mt-2 px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  required
+                />
+              )}
             </div>
           )}
 
