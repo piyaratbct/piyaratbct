@@ -618,8 +618,8 @@ export function LessonPlanForm({
                     className="text-xs p-1.5 rounded-xl border border-slate-200 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
                   >
                     <option value="all">ทุกระดับชั้น</option>
-                    {curriculums.map(c => (
-                      <option key={c.gradeLevel} value={c.gradeLevel}>{c.gradeLevel}</option>
+                    {Array.from(new Set(curriculums.map(c => c.gradeLevel))).sort().map(grade => (
+                      <option key={grade} value={grade}>{grade}</option>
                     ))}
                   </select>
                 </div>

@@ -14,7 +14,7 @@ interface StaffProfileModuleProps {
 
 export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYear, systemSemester, isPersonalView = false }: StaffProfileModuleProps) {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(currentTeacher.id);
-  const [activeTab, setActiveTab] = useState<PDRecordType>('training');
+  const [activeTab, setActiveTab] = useState<PDRecordType>('sar_overview');
   const [localAcademicYear, setLocalAcademicYear] = useState<string>("ทั้งหมด");
   const [records, setRecords] = useState<PDRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -96,6 +96,30 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
     .filter(r => r.type === activeTab && (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  // SAR Overview Stats
+  const trainingRecords = records.filter(r => r.type === 'training' && (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear));
+  const plcRecords = records.filter(r => r.type === 'plc' && (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear));
+  const researchRecords = records.filter(r => r.type === 'research' && (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear));
+  
+  const totalTrainingHours = trainingRecords.reduce((sum, r) => sum + (r.hours || 0), 0);
+  const totalPLCHours = plcRecords.reduce((sum, r) => sum + (r.hours || 0), 0);
+  const totalResearch = researchRecords.length;
+
+  const TARGET_TRAINING = 20;
+  const TARGET_PLC = 50;
+  const TARGET_RESEARCH = 1;
+
+  const getStatusColor = (current: number, target: number) => {
+    if (current >= target) return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    if (current >= target * 0.5) return 'text-amber-600 bg-amber-50 border-amber-200';
+    return 'text-rose-600 bg-rose-50 border-rose-200';
+  };
+  const getProgressColor = (current: number, target: number) => {
+    if (current >= target) return 'bg-emerald-500';
+    if (current >= target * 0.5) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header & Teacher Selector */}
@@ -148,7 +172,13 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
                 {displayTeacher.displayName?.charAt(0) || displayTeacher.thaiName?.charAt(0) || 'U'}
               </div>
             )}
-            <h3 className="text-lg font-bold text-slate-800">{displayTeacher.thaiName}</h3>
+            <h3 
+              className="text-lg font-bold text-slate-800 whitespace-nowrap truncate px-2" 
+              title={displayTeacher.thaiName}
+            >
+              ครู{displayTeacher.displayName}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1" title={displayTeacher.thaiName}>{displayTeacher.thaiName}</p>
             <p className="text-xs text-slate-500 mt-1">รหัสประจำตัว: {displayTeacher.employeeId || '-'}</p>
             <div className="inline-block mt-3 px-3 py-1 bg-fuchsia-50 text-fuchsia-700 text-xs font-semibold rounded-full border border-fuchsia-100">
               {displayTeacher.affiliation || 'คุณครู'}
@@ -167,11 +197,13 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
         {/* Right Col: PD Records */}
         <div className="lg:col-span-3 space-y-6">
           {/* Tabs */}
-          <div className="flex overflow-x-auto gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 shrink-0">
+          <div className="flex overflow-x-auto custom-scrollbar gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 shrink-0">
             {[
+              { id: 'sar_overview', label: 'ภาพรวม SAR', icon: LayoutDashboard },
               { id: 'training', label: 'อบรม/สัมมนา', icon: GraduationCap },
+              { id: 'plc', label: 'ชั่วโมง PLC', icon: BookOpen },
               { id: 'award', label: 'ผลงาน/รางวัล', icon: Award },
-              { id: 'research', label: 'นวัตกรรม/วิจัยชั้นเรียน', icon: FileText }
+              { id: 'research', label: 'วิจัยชั้นเรียน', icon: FileText }
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -191,11 +223,128 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
             })}
           </div>
 
-          {/* List & Add Button */}
+          {activeTab === 'sar_overview' ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Training Metric */}
+                <div className={`p-5 rounded-2xl border bg-white flex flex-col justify-between ${totalTrainingHours >= TARGET_TRAINING ? 'border-emerald-200' : 'border-amber-200'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="bg-slate-50 p-2 rounded-xl">
+                      <GraduationCap className="h-5 w-5 text-slate-600" />
+                    </div>
+                    {totalTrainingHours >= TARGET_TRAINING ? (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">ผ่านเกณฑ์</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 rounded-full">รอการพัฒนา</span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-slate-500 text-xs font-bold mb-1">ชั่วโมงอบรม/พัฒนาตนเอง</h4>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-slate-800">{totalTrainingHours}</span>
+                      <span className="text-sm font-semibold text-slate-400">/ {TARGET_TRAINING} ชม.</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full mt-3 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${getProgressColor(totalTrainingHours, TARGET_TRAINING)}`} 
+                        style={{ width: `${Math.min((totalTrainingHours / TARGET_TRAINING) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  {totalTrainingHours < TARGET_TRAINING && (
+                    <button onClick={() => setActiveTab('training')} className="mt-4 text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center justify-between p-2 bg-amber-50 rounded-lg transition-colors">
+                      ขาดอีก {TARGET_TRAINING - totalTrainingHours} ชม.
+                      <span className="underline">เพิ่มข้อมูล &rarr;</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* PLC Metric */}
+                <div className={`p-5 rounded-2xl border bg-white flex flex-col justify-between ${totalPLCHours >= TARGET_PLC ? 'border-emerald-200' : 'border-amber-200'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="bg-slate-50 p-2 rounded-xl">
+                      <BookOpen className="h-5 w-5 text-slate-600" />
+                    </div>
+                    {totalPLCHours >= TARGET_PLC ? (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">ผ่านเกณฑ์</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-amber-100 text-amber-700 rounded-full">รอการพัฒนา</span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-slate-500 text-xs font-bold mb-1">ชั่วโมงชุมชนการเรียนรู้ (PLC)</h4>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-slate-800">{totalPLCHours}</span>
+                      <span className="text-sm font-semibold text-slate-400">/ {TARGET_PLC} ชม.</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full mt-3 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${getProgressColor(totalPLCHours, TARGET_PLC)}`} 
+                        style={{ width: `${Math.min((totalPLCHours / TARGET_PLC) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  {totalPLCHours < TARGET_PLC && (
+                    <button onClick={() => setActiveTab('plc')} className="mt-4 text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center justify-between p-2 bg-amber-50 rounded-lg transition-colors">
+                      ขาดอีก {TARGET_PLC - totalPLCHours} ชม.
+                      <span className="underline">เพิ่มข้อมูล &rarr;</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Research Metric */}
+                <div className={`p-5 rounded-2xl border bg-white flex flex-col justify-between ${totalResearch >= TARGET_RESEARCH ? 'border-emerald-200' : 'border-rose-200'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="bg-slate-50 p-2 rounded-xl">
+                      <FileText className="h-5 w-5 text-slate-600" />
+                    </div>
+                    {totalResearch >= TARGET_RESEARCH ? (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">ผ่านเกณฑ์</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-1 bg-rose-100 text-rose-700 rounded-full">ต้องดำเนินการ</span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-slate-500 text-xs font-bold mb-1">วิจัยในชั้นเรียน / นวัตกรรม</h4>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-slate-800">{totalResearch}</span>
+                      <span className="text-sm font-semibold text-slate-400">/ {TARGET_RESEARCH} เรื่อง</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full mt-3 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${getProgressColor(totalResearch, TARGET_RESEARCH)}`} 
+                        style={{ width: `${Math.min((totalResearch / TARGET_RESEARCH) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  {totalResearch < TARGET_RESEARCH && (
+                    <button onClick={() => setActiveTab('research')} className="mt-4 text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center justify-between p-2 bg-rose-50 rounded-lg transition-colors">
+                      ยังไม่มีผลงาน
+                      <span className="underline">เพิ่มข้อมูล &rarr;</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Optional: AI insights or tips panel */}
+              <div className="bg-gradient-to-r from-indigo-500 to-fuchsia-600 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-center gap-6">
+                <div className="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                  <LayoutDashboard className="h-8 w-8 text-white" />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="font-bold text-lg mb-1">การประเมินตนเอง (SAR)</h3>
+                  <p className="text-indigo-100 text-sm">
+                    ระบบจะนำข้อมูลผลงานและการอบรมที่บันทึกในหน้านี้ ไปคำนวณและจัดทำรูปเล่มรายงาน SAR ประจำปีให้อัตโนมัติในตอนสิ้นปีการศึกษา กรุณาอัปเดตข้อมูลให้เป็นปัจจุบันอยู่เสมอ
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="font-bold text-slate-800 text-lg">
                 {activeTab === 'training' ? 'ประวัติการอบรมและพัฒนาตนเอง' :
+                 activeTab === 'plc' ? 'บันทึกชั่วโมงชุมชนการเรียนรู้ (PLC)' :
                  activeTab === 'award' ? 'ประวัติผลงานและรางวัลที่ได้รับ' :
                  'ทะเบียนสื่อ นวัตกรรม และวิจัยในชั้นเรียน'}
               </h3>
@@ -274,6 +423,7 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
 

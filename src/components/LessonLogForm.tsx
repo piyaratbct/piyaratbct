@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS } from "../types";
+import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
 
 import { Save, RefreshCw, ChevronDown, Sparkles, BookCheck, ClipboardList, AlertTriangle, MessageSquareCode, CalendarDays, Paperclip, Link2, FileImage, FileText, Video as VideoIcon, Plus, X, Globe, Eye } from 'lucide-react';
 import { AttachmentManager } from './AttachmentManager';
@@ -145,6 +145,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
   const [limitations, setLimitations] = useState('');
   const [suggestions, setSuggestions] = useState('');
   const [strengths, setStrengths] = useState('');
+  const [sarTags, setSarTags] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<{ planning: Record<string, number>; time: Record<string, number>; media: Record<string, number>; teacher: Record<string, number>; learner: Record<string, number>; }>(DEFAULT_EVALUATIONS);
 
   // Attachment states
@@ -176,6 +177,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       setLimitations(initialRecord.limitations);
       setSuggestions(initialRecord.suggestions);
       setStrengths(initialRecord.strengths || '');
+      setSarTags(initialRecord.sarTags || []);
       setAttachments(initialRecord.attachments || []);
       if (initialRecord.evaluations) {
         setEvaluations({
@@ -205,6 +207,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
     setLimitations('');
     setSuggestions('');
     setStrengths('');
+    setSarTags([]);
     setEvaluations(DEFAULT_EVALUATIONS);
     setAttachments([]);
     setErrorMsg('');
@@ -247,6 +250,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       limitations: limitations.trim(),
       suggestions: suggestions.trim(),
       strengths: strengths.trim(),
+      sarTags,
       evaluations,
       attachments,
       createdAt: initialRecord?.createdAt || new Date().toISOString(),
@@ -537,6 +541,38 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
             onChange={(e) => setStrengths(e.target.value)}
             className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed placeholder:text-slate-400"
           ></textarea>
+        </div>
+
+        {/* แท็กมาตรฐาน SAR (SAR Tags) */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4 text-purple-500" />
+            6. แท็กมาตรฐานคุณภาพ (SAR Tags)
+          </label>
+          <p className="text-[10px] text-slate-400 mb-2">เลือกแท็กที่ตรงกับการสอนในคาบนี้ เพื่อใช้ประกอบการทำรายงานประเมินตนเอง (SAR)</p>
+          <div className="flex flex-wrap gap-2">
+            {SAR_TAGS.map(tag => {
+              const isSelected = sarTags.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => {
+                    setSarTags(prev => 
+                      isSelected ? prev.filter(t => t !== tag.id) : [...prev, tag.id]
+                    );
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all ${
+                    isSelected 
+                      ? 'bg-purple-100 text-purple-700 border-2 border-purple-300 shadow-sm' 
+                      : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* แบบประเมินการจัดการเรียนรู้ */}

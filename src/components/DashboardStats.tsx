@@ -22,8 +22,8 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const uniqueSemesters = Array.from(new Set(records.map(r => r.semester).filter(Boolean))).sort();
 
   const filteredRecords = records.filter(r => 
-    (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear) &&
-    (localSemester === "ทั้งหมด" || r.semester === localSemester)
+    (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear || (!r.academicYear && localAcademicYear === systemAcademicYear)) &&
+    (localSemester === "ทั้งหมด" || r.semester === localSemester || (!r.semester && localSemester === systemSemester))
   );
 
   const totalLogs = filteredRecords.length;

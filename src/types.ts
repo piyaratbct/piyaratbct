@@ -54,6 +54,7 @@ export interface LessonRecord {
   limitations: string;  // ข้อจำกัดในการจัดการเรียนการสอน
   suggestions: string;  // ข้อเสนอแนะ/ความคิดเห็นของผู้สอน
   strengths?: string;   // จุดเด่นในการสอนครั้งนี้
+  sarTags?: string[];   // แท็กมาตรฐาน SAR
   attachments?: Attachment[];
   semester?: string;
   evaluations?: {
@@ -113,6 +114,8 @@ export interface LessonPlan {
   evaluation: string;     // การวัดและประเมินผล
   date: string;           // วันที่สอน (หรือ คาบที่)
   semester?: string;
+  academicYear?: string;
+  sarTags?: string[];
   attachments?: Attachment[];
   
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
@@ -414,6 +417,16 @@ export const SUBJECTS: string[] = [
   'อื่นๆ'
 ];
 
+export const SAR_TAGS = [
+  { id: 'active-learning', label: 'การเรียนรู้เชิงรุก (Active Learning)' },
+  { id: 'critical-thinking', label: 'กระบวนการคิดวิเคราะห์ (Critical Thinking)' },
+  { id: 'tech-integration', label: 'การบูรณาการเทคโนโลยี (Tech Integration)' },
+  { id: 'moral-ethics', label: 'คุณธรรมจริยธรรม (Moral & Ethics)' },
+  { id: 'local-wisdom', label: 'บูรณาการภูมิปัญญาท้องถิ่น (Local Wisdom)' },
+  { id: 'differentiated', label: 'ตอบสนองความแตกต่างผู้เรียน (Differentiated)' },
+  { id: 'authentic-assessment', label: 'การประเมินตามสภาพจริง (Authentic Assessment)' }
+];
+
 export const GRADE_LEVELS = [
   'อนุบาล 1',
   'อนุบาล 2',
@@ -601,7 +614,7 @@ export interface SchoolHoliday {
   description: string;
 }
 
-export type PDRecordType = 'training' | 'plc' | 'award' | 'research';
+export type PDRecordType = 'training' | 'plc' | 'award' | 'research' | 'sar_overview';
 
 export interface PDRecord {
   id: string;

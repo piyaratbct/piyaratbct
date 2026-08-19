@@ -54,14 +54,31 @@ export function LessonPlanList({
   const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedStatus, setSelectedStatus] = useState<string>("ทั้งหมด");
-  const [localAcademicYear, setLocalAcademicYear] = useState<string>(systemAcademicYear || "ทั้งหมด");
-  const [localSemester, setLocalSemester] = useState<string>(systemSemester || "ทั้งหมด");
+  
+  // Combine semester and academic year into one term filter
+  const initialTerm = systemSemester && systemAcademicYear ? `${systemSemester}/${systemAcademicYear}` : "ทั้งหมด";
+  const [localTerm, setLocalTerm] = useState<string>(initialTerm);
+  
   const [planToDelete, setPlanToDelete] = useState<{id: string, title: string} | null>(null);
   
   const [comparingPlan, setComparingPlan] = useState<LessonPlan | null>(null);
   
   const getAssociatedRecords = (planId: string) => {
     return records.filter(r => r.lessonPlanId === planId);
+  };
+
+  const getNormalizedTerm = (plan: LessonPlan) => {
+    let sem = plan.semester || systemSemester || "";
+    let year = plan.academicYear || systemAcademicYear || "";
+    
+    if (sem.includes("ภาคเรียนที่")) {
+      const match = sem.match(/ภาคเรียนที่\s*(\d)\/(\d{4})/);
+      if (match) {
+        sem = match[1];
+        year = match[2];
+      }
+    }
+    return `${sem}/${year}`;
   };
 
   const filteredPlans = plans.filter((plan) => {
@@ -77,12 +94,15 @@ export function LessonPlanList({
       (plan.coTeachers && plan.coTeachers.includes(selectedTeacherId));
     const statusMatch =
       selectedStatus === "ทั้งหมด" || plan.status === selectedStatus;
-    const yearMatch =
-      localAcademicYear === "ทั้งหมด" || plan.academicYear === localAcademicYear;
-    const termMatch =
-      localSemester === "ทั้งหมด" || plan.semester === localSemester;
+    
+    // Check combined term
+    let termMatch = true;
+    if (localTerm !== "ทั้งหมด") {
+      const planTerm = getNormalizedTerm(plan);
+      termMatch = planTerm === localTerm;
+    }
 
-    return textMatch && subjMatch && gradeMatch && teacherMatch && statusMatch && yearMatch && termMatch;
+    return textMatch && subjMatch && gradeMatch && teacherMatch && statusMatch && termMatch;
   });
 
   const handleDuplicatePlan = async (plan: LessonPlan) => {
@@ -153,8 +173,14 @@ export function LessonPlanList({
     return t ? t.thaiName : "คุณครู";
   };
 
-  const uniqueYears = Array.from(new Set(plans.map(p => p.academicYear).filter(Boolean))).sort().reverse();
-  const uniqueSemesters = Array.from(new Set(plans.map(p => p.semester).filter(Boolean))).sort();
+  const uniqueTerms = Array.from(new Set(
+    plans.map(p => getNormalizedTerm(p))
+  )).sort((a, b) => {
+    const [aSem, aYear] = a.split("/");
+    const [bSem, bYear] = b.split("/");
+    if (aYear !== bYear) return bYear.localeCompare(aYear);
+    return bSem.localeCompare(aSem);
+  });
 
   return (
     <div className="space-y-4">
@@ -231,29 +257,14 @@ export function LessonPlanList({
           
           <div className="flex items-center gap-1.5 min-w-[180px]">
             <select
-              value={localSemester}
-              onChange={(e) => setLocalSemester(e.target.value)}
+              value={localTerm}
+              onChange={(e) => setLocalTerm(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-indigo-700 bg-indigo-50"
             >
-              <option value="ทั้งหมด">ภาคเรียน: ทั้งหมด</option>
-              {uniqueSemesters.map((s) => (
-                <option key={s as string} value={s as string}>
-                  ภาคเรียนที่ {s as string}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-1.5 min-w-[180px]">
-            <select
-              value={localAcademicYear}
-              onChange={(e) => setLocalAcademicYear(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-indigo-700 bg-indigo-50"
-            >
-              <option value="ทั้งหมด">ปีการศึกษา: ทั้งหมด</option>
-              {uniqueYears.map((y) => (
-                <option key={y as string} value={y as string}>
-                  ปีการศึกษา {y as string}
+              <option value="ทั้งหมด">ภาคเรียนทั้งหมด</option>
+              {uniqueTerms.map((term) => (
+                <option key={term} value={term}>
+                  ภาคเรียนที่ {term}
                 </option>
               ))}
             </select>
@@ -285,8 +296,7 @@ export function LessonPlanList({
           selectedGrade !== "ทั้งหมด" ||
           selectedTeacherId !== "ทั้งหมด" ||
           selectedStatus !== "ทั้งหมด" ||
-          localAcademicYear !== "ทั้งหมด" ||
-          localSemester !== "ทั้งหมด") && (
+          localTerm !== "ทั้งหมด") && (
           <button
             onClick={() => {
               setSearchTerm("");
@@ -294,8 +304,7 @@ export function LessonPlanList({
               setSelectedGrade("ทั้งหมด");
               setSelectedTeacherId("ทั้งหมด");
               setSelectedStatus("ทั้งหมด");
-              setLocalAcademicYear(systemAcademicYear || "ทั้งหมด");
-              setLocalSemester(systemSemester || "ทั้งหมด");
+              setLocalTerm(initialTerm);
             }}
             className="text-blue-600 font-bold hover:underline"
           >
@@ -424,7 +433,7 @@ export function LessonPlanList({
                           <span className="font-medium text-slate-700">{getTeacherName(plan.teacherId)}</span>
                           {plan.coTeachers && plan.coTeachers.length > 0 && (
                             <span className="text-slate-400 text-[10px]">
-                              (+ ร่วมกับ {plan.coTeachers.map(id => getTeacherName(id)).join(', ')})
+                              (+ ร่วมกับ {plan.coTeachers.map((id, index) => <span key={id}>{getTeacherName(id)}{index < plan.coTeachers!.length - 1 ? ', ' : ''}</span>)})
                             </span>
                           )}
                         </div>
@@ -437,7 +446,7 @@ export function LessonPlanList({
                       {thaiFormatDate(plan.date)}
                     </span>
                     <div className="flex gap-2">
-                      {(plan.academicYear !== systemAcademicYear || plan.semester !== systemSemester) && (
+                      {getNormalizedTerm(plan) !== `${systemSemester}/${systemAcademicYear}` && (
                         <button
                           type="button"
                           onClick={() => handleDuplicatePlan(plan)}

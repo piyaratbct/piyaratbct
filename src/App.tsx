@@ -14,6 +14,7 @@ import { LessonPlanList } from "./components/LessonPlanList";
 import { ClassroomModule } from "./components/ClassroomModule";
 import { EvaluationModule } from "./components/EvaluationModule";
 import { UserManagementModule } from "./components/UserManagementModule";
+import { SARMonitoringDashboard } from "./components/SARMonitoringDashboard";
 import { PrintTemplate, SchoolLogo } from "./components/PrintTemplate";
 import { LessonPlanPrintTemplate } from "./components/LessonPlanPrintTemplate";
 import { AdminMonitoringDashboard } from "./components/AdminMonitoringDashboard";
@@ -180,7 +181,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [activeModule, setActiveModule] = useState<
-    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission"
+    "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission" | "sar"
   >("home");
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
@@ -412,7 +413,7 @@ export default function App() {
           if (data.gradeLevel) {
             data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
           }
-          fetchedRecords.push(data);
+          fetchedRecords.push({ ...data, id: doc.id });
         });
 
         // Sort chronological descending
@@ -526,41 +527,70 @@ export default function App() {
       },
     );
 
-    let plansQuery: any;
-    try {
-      const canReadAll = ['admin', 'academic', 'deputy'].includes(currentTeacher.role || '');
-      if (canReadAll) {
-        plansQuery = collection(db, "lessonPlans");
-      } else {
-        plansQuery = query(
-          collection(db, "lessonPlans"),
-          or(
-            where("teacherId", "==", currentTeacher.id),
-            where("coTeachers", "array-contains", currentTeacher.id)
-          )
-        );
-      }
-    } catch (e) {
-      console.warn("Could not setup Firestore queries for plans", e);
-    }
-    const unsubPlans = onSnapshot(
-      plansQuery,
-      (snapshot) => {
-        const fetchedPlans: LessonPlan[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data() as LessonPlan;
-          if (data.gradeLevel) {
-            data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
+    let unsubPlans: (() => void) | undefined;
+    let unsubPlansCo: (() => void) | undefined;
+
+    const canReadAll = ['admin', 'academic', 'deputy'].includes(currentTeacher.role || '');
+
+    const handlePlansSnapshot = (snapshot: any, source: 'main' | 'co') => {
+      setPlans(prevPlans => {
+        const newPlansMap = new Map(prevPlans.map(p => [p.id, p]));
+        
+        snapshot.docChanges().forEach((change: any) => {
+          if (change.type === 'removed') {
+            newPlansMap.delete(change.doc.id);
+          } else {
+            const data = change.doc.data() as LessonPlan;
+            if (data.gradeLevel) {
+              data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
+            }
+            // Always use change.doc.id to guarantee a valid ID, overriding any missing internal id
+            const planWithId = { ...data, id: change.doc.id };
+            newPlansMap.set(change.doc.id, planWithId);
           }
-          fetchedPlans.push(data);
         });
+
+        const fetchedPlans = Array.from(newPlansMap.values());
         fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        setPlans(fetchedPlans);
-      },
-      (err) => {
-        console.error("Plans lookup error:", err);
-      },
-    );
+        return fetchedPlans;
+      });
+    };
+
+    if (canReadAll) {
+      // For admins, just clear state before first load if needed, but docChanges handles it mostly.
+      // Wait, docChanges might be tricky if we don't clear. Let's just do a full map rebuild on every snapshot for simplicity if it's admin.
+      unsubPlans = onSnapshot(
+        collection(db, "lessonPlans"),
+        (snapshot) => {
+          const fetchedPlans: LessonPlan[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data() as LessonPlan;
+            if (data.gradeLevel) {
+              data.gradeLevel = data.gradeLevel.replace(/\s*\(ป\..*\)/g, '').trim();
+            }
+            fetchedPlans.push({ ...data, id: doc.id });
+          });
+          fetchedPlans.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+          setPlans(fetchedPlans);
+        },
+        (err) => console.error("Plans lookup error (admin):", err)
+      );
+    } else {
+      // Clear plans initially to avoid stale data
+      setPlans([]);
+      
+      unsubPlans = onSnapshot(
+        query(collection(db, "lessonPlans"), where("teacherId", "==", currentTeacher.id)),
+        (snapshot) => handlePlansSnapshot(snapshot, 'main'),
+        (err) => console.error("Plans lookup error (main):", err)
+      );
+
+      unsubPlansCo = onSnapshot(
+        query(collection(db, "lessonPlans"), where("coTeachers", "array-contains", currentTeacher.id)),
+        (snapshot) => handlePlansSnapshot(snapshot, 'co'),
+        (err) => console.error("Plans lookup error (co):", err)
+      );
+    }
 
     const unsubStudents = onSnapshot(
       collection(db, "students"),
@@ -610,7 +640,8 @@ export default function App() {
     return () => {
       unsubRecords();
       unsubTeachers();
-      unsubPlans();
+      if (unsubPlans) unsubPlans();
+      if (unsubPlansCo) unsubPlansCo();
       unsubStudents();
       unsubNotifications();
     };
@@ -1508,6 +1539,23 @@ export default function App() {
             </div>
             </button>
           )}
+
+          {(currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy") && (
+            <button
+              onClick={() => setActiveModule("sar")}
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
+                activeModule === "sar"
+                  ? "bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white shadow-md"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              <FileText className="h-4.5 w-4.5 shrink-0" />
+              <div className="flex flex-col items-center sm:items-start leading-tight min-w-0 w-full overflow-hidden">
+                <span className="text-center sm:text-left leading-snug truncate w-full">ติดตาม SAR</span>
+                <span className="text-xs font-semibold opacity-90">(SAR Tracker)</span>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Welcome Card & Info */}
@@ -1772,6 +1820,28 @@ export default function App() {
                   </p>
                   <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
                     เปิดใช้งานเฉพาะ Admin/ธุรการ
+                  </div>
+                </button>
+              )}
+
+              {(currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy") && (
+                <button
+                  onClick={() => setActiveModule("sar")}
+                  className="bg-white p-8 rounded-2xl border border-fuchsia-100 shadow-sm hover:shadow-md hover:border-fuchsia-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-fuchsia-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                  <div className="h-16 w-16 bg-fuchsia-50 text-fuchsia-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <FileText className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 mb-2 leading-snug">
+                  <span className="block text-center sm:text-left leading-snug">ติดตาม SAR</span>
+                  <span className="block text-sm text-slate-500 font-bold mt-0.5">(SAR Tracker)</span>
+                </h3>
+                  <p className="text-sm text-slate-500">
+                    ตรวจสอบภาพรวมการบันทึกข้อมูล SAR ของบุคลากรทั้งโรงเรียน
+                  </p>
+                  <div className="mt-4 px-3 py-1 bg-fuchsia-100 text-fuchsia-700 text-xs font-bold rounded-full">
+                    สำหรับฝ่ายวิชาการ
                   </div>
                 </button>
               )}
@@ -2100,6 +2170,13 @@ export default function App() {
           </div>
 
         
+        ) : activeModule === "sar" ? (
+          <SARMonitoringDashboard 
+            teachers={teachers} 
+            students={students}
+            systemAcademicYear={systemAcademicYear} 
+            currentTeacher={currentTeacher} 
+          />
         ) : activeModule === "admin" ? (
           <UserManagementModule
             teachers={teachers}
