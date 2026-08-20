@@ -914,15 +914,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     displayedStudents.map((student) => (
                       <div
                         key={student.id}
-                        className="p-3 sm:px-4 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4 even:bg-slate-50/30 border-b border-slate-100 last:border-0"
+                        className={`p-3 sm:px-4 hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-4 border-b border-slate-100 last:border-0 ${student.status === "active" ? "even:bg-slate-50/30" : "bg-slate-100/40 opacity-70 grayscale-[0.3] relative"}`}
                       >
-                        <div className="flex items-start gap-2.5">
+                        <div className="flex items-start gap-2.5 relative z-10">
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm shrink-0 mt-0.5">
                             {student.number}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-slate-700 text-sm truncate whitespace-normal leading-tight flex items-center gap-2 flex-wrap">
-                              <span>
+                              <span className={student.status !== "active" ? "line-through text-slate-400" : ""}>
                                 {student.firstName} {student.lastName}
                                 {student.nickname && <span className="block sm:inline sm:ml-1 text-slate-500 font-normal">({student.nickname})</span>}
                               </span>
@@ -932,13 +932,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                                 <span className="bg-pink-50 text-pink-600 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">หญิง</span>
                               )}
                               <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${student.status === "active" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${student.status === "active" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600 border border-rose-200"}`}
                               >
                                 {student.status === "active" ? "ปกติ" : "ย้าย/ออก"}
                               </span>
                             </div>
                             <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5">
-                              <span>รหัส: {student.studentId}</span>
+                              <span className={student.status !== "active" ? "line-through" : ""}>รหัส: {student.studentId}</span>
                               <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
                               <span>ชั้น: {student.gradeLevel || '-'}</span>
                             </div>
@@ -972,7 +972,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-row items-center justify-end md:justify-center gap-1 sm:gap-2 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-0 border-slate-100">
+                        <div className="flex flex-row items-center justify-end md:justify-center gap-1 sm:gap-2 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-0 border-slate-100 relative z-10">
                           {(isStudentManager || currentTeacher?.role === 'staff' || (currentTeacher && (currentTeacher.homeroomClass === student.gradeLevel || currentTeacher.coHomeroomClass === student.gradeLevel))) && (
                             <button
                               onClick={() => setViewingStudent(student)}
@@ -995,16 +995,26 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                           
                           {isStudentManager && (
                             <div className="flex gap-1 ml-auto md:ml-0">
-                              <button
-                                onClick={() => {
-                                  setEditingStudent(student);
-                                  setShowStudentModal(true);
-                                }}
-                                className="p-1.5 sm:p-2 text-slate-400 hover:text-sky-600 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-200 rounded-lg transition-colors"
-                                title="แก้ไขข้อมูล"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
+                              {(student.status === "active" || currentTeacher?.role === 'admin') ? (
+                                <button
+                                  onClick={() => {
+                                    setEditingStudent(student);
+                                    setShowStudentModal(true);
+                                  }}
+                                  className="p-1.5 sm:p-2 text-slate-400 hover:text-sky-600 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-200 rounded-lg transition-colors"
+                                  title="แก้ไขข้อมูล"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              ) : (
+                                <div
+                                  className="p-1.5 sm:p-2 text-slate-300 bg-slate-50 border border-slate-100 rounded-lg cursor-not-allowed opacity-50"
+                                  title="นักเรียนย้าย/ลาออกไปแล้ว (Admin เท่านั้นที่สามารถแก้ไขได้)"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </div>
+                              )}
+                              
                               {canDeleteStudent && (
                                 <button
                                   onClick={() =>

@@ -93,7 +93,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
               <span className="text-xl opacity-90">(LessonAcad)</span>
             </h2>
             <p className="text-indigo-100 font-medium mt-1">
-              ปีการศึกษา {systemAcademicYear} ภาคเรียนที่ {systemSemester}
+              {String(systemAcademicYear).startsWith("ปี") ? systemAcademicYear : `ปีการศึกษา ${systemAcademicYear}`} {String(systemSemester).startsWith("ภาคเรียน") ? systemSemester : `ภาคเรียนที่ ${systemSemester}`}
             </p>
           </div>
         </div>
@@ -242,7 +242,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
 
       {activeTab === "curriculum" && (
-        <CurriculumManager />
+        <CurriculumManager currentUserRole={currentTeacher.role} />
       )}
     </div>
   );

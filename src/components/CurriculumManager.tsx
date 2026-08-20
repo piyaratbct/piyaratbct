@@ -5,7 +5,13 @@ import { collection, query, getDocs, doc, setDoc, deleteDoc, orderBy } from 'fir
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { CurriculumSubject, CurriculumStandard, CurriculumIndicator, GRADE_LEVELS, SUBJECTS } from '../types';
 
-export const CurriculumManager: React.FC = () => {
+interface CurriculumManagerProps {
+  currentUserRole?: string;
+}
+
+export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUserRole = 'teacher' }) => {
+  const canEdit = currentUserRole === 'admin' || currentUserRole === 'academic' || currentUserRole === 'deputy' || currentUserRole === 'staff';
+
   const [curriculums, setCurriculums] = useState<CurriculumSubject[]>([]);
   const [selectedCurriculumId, setSelectedCurriculumId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -391,7 +397,8 @@ export const CurriculumManager: React.FC = () => {
           <BookOpen className="h-6 w-6 text-indigo-500" />
           ระบบจัดการหลักสูตรและรายวิชา
         </h2>
-        <div className="flex gap-2">
+        {canEdit && (
+<div className="flex gap-2">
           
           <input 
             type="file" 
@@ -425,6 +432,7 @@ export const CurriculumManager: React.FC = () => {
             <Plus className="h-4 w-4" /> เพิ่มรายวิชา
           </button>
         </div>
+)}
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -457,7 +465,7 @@ export const CurriculumManager: React.FC = () => {
                       <div className="line-clamp-1">{c.subjectName}</div>
                       <div className="text-[10px] text-slate-400 mt-0.5">{c.gradeLevel}</div>
                     </button>
-                    {selectedCurriculumId === c.id && (
+                    {canEdit && selectedCurriculumId === c.id && (
                       <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 bg-indigo-50 pl-2">
                         <button 
                           onClick={(e) => { e.stopPropagation(); setEditingSubject(c); setShowSubjectForm(true); }}
@@ -487,6 +495,7 @@ export const CurriculumManager: React.FC = () => {
                   <h3 className="text-xl font-black text-slate-800">{selectedCurriculum.subjectName}</h3>
                   <p className="text-slate-500 text-sm mt-1">{selectedCurriculum.gradeLevel}</p>
                 </div>
+                {canEdit && (
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button 
                     onClick={() => {
@@ -520,6 +529,7 @@ export const CurriculumManager: React.FC = () => {
                     <Plus className="h-4 w-4" /> เพิ่มมาตรฐาน
                   </button>
                 </div>
+                )}
               </div>
 
               <div className="space-y-6">
@@ -533,6 +543,7 @@ export const CurriculumManager: React.FC = () => {
                             {standard.indicators?.length || 0} ตัวชี้วัด
                           </span>
                         </div>
+                        {canEdit && (
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => {
@@ -548,6 +559,7 @@ export const CurriculumManager: React.FC = () => {
                           <button onClick={() => { setEditingStandard({ id: standard.id, title: standard.title }); setShowStandardForm(true); }} className="text-slate-400 hover:text-indigo-600"><Edit className="h-4 w-4" /></button>
                           <button onClick={() => deleteStandard(standard.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                         </div>
+                        )}
                       </div>
                       
                       <div className="divide-y divide-slate-100">
@@ -572,10 +584,12 @@ export const CurriculumManager: React.FC = () => {
                                 </div>
                                 <p className="text-sm text-slate-600 whitespace-pre-line">{ind.description}</p>
                               </div>
+                              {canEdit && (
                               <div className="flex gap-2 text-slate-400">
                                 <button onClick={() => { setTargetStandardId(standard.id); setEditingIndicator(ind); setShowIndicatorForm(true); }} className="hover:text-indigo-600"><Edit className="h-4 w-4" /></button>
                                 <button onClick={() => deleteIndicator(standard.id, ind.id)} className="hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                               </div>
+                              )}
                             </div>
                           ))
                         ) : (

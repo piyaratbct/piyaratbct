@@ -158,7 +158,7 @@ export function DailyNotificationPopup({
                       คาบ {schedule.period}
                     </div>
                     <div className="ml-3 flex-1 min-w-0">
-                      <div className="font-bold text-slate-800 text-sm truncate">{schedule.subject}</div>
+                      <div className="font-bold text-slate-800 text-sm truncate">{schedule.subject === 'อื่นๆ' ? (schedule.customSubject || 'อื่นๆ') : schedule.subject}</div>
                       <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                         <Users className="h-3 w-3" /> {schedule.gradeLevel}
                       </div>

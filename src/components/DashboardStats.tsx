@@ -18,12 +18,26 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const [localAcademicYear, setLocalAcademicYear] = useState<string>("ทั้งหมด");
   const [localSemester, setLocalSemester] = useState<string>("ทั้งหมด");
 
-  const uniqueYears = Array.from(new Set(records.map(r => r.academicYear).filter(Boolean))).sort().reverse();
-  const uniqueSemesters = Array.from(new Set(records.map(r => r.semester).filter(Boolean))).sort();
+
+  const normalizeTerm = (term) => (term || '').replace(/^ภาคเรียนที่\s*/, '').trim();
+  const normalizeYear = (year) => (year || '').replace(/^ปีการศึกษา\s*/, '').replace(/^ปี\s*/, '').trim();
+
+  const uniqueYearsMap = new Map();
+  records.forEach(r => {
+    if (r.academicYear) uniqueYearsMap.set(normalizeYear(r.academicYear), normalizeYear(r.academicYear));
+  });
+  const uniqueYears = Array.from(uniqueYearsMap.values()).sort().reverse();
+
+  const uniqueSemestersMap = new Map();
+  records.forEach(r => {
+    if (r.semester) uniqueSemestersMap.set(normalizeTerm(r.semester), normalizeTerm(r.semester));
+  });
+  const uniqueSemesters = Array.from(uniqueSemestersMap.values()).sort();
+
 
   const filteredRecords = records.filter(r => 
-    (localAcademicYear === "ทั้งหมด" || r.academicYear === localAcademicYear || (!r.academicYear && localAcademicYear === systemAcademicYear)) &&
-    (localSemester === "ทั้งหมด" || r.semester === localSemester || (!r.semester && localSemester === systemSemester))
+    (localAcademicYear === "ทั้งหมด" || normalizeYear(r.academicYear) === normalizeYear(localAcademicYear) || (!r.academicYear && normalizeYear(localAcademicYear) === normalizeYear(systemAcademicYear))) &&
+    (localSemester === "ทั้งหมด" || normalizeTerm(r.semester) === normalizeTerm(localSemester) || (!r.semester && normalizeTerm(localSemester) === normalizeTerm(systemSemester)))
   );
 
   const totalLogs = filteredRecords.length;
@@ -66,7 +80,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
 
   const WEEKS_PER_SEMESTER = 20; // จำนวนสัปดาห์ใน 1 ภาคเรียน (โดยประมาณ)
   const allSubjectGrades = new Set([
-    ...records.map(r => {
+    ...filteredRecords.map(r => {
       const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
       const grade = r.gradeLevel || 'ไม่ระบุชั้น';
       return `${subj}|${grade}`;
@@ -80,7 +94,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
 
   const subjectDistribution = Array.from(allSubjectGrades).map(key => {
     const [subj, grade] = key.split('|');
-    const logs = records.filter(p => 
+    const logs = filteredRecords.filter(p => 
       ((p.subject === 'อื่นๆ' && p.customSubject === subj) || p.subject === subj) && 
       (p.gradeLevel === grade || (!p.gradeLevel && grade === 'ไม่ระบุชั้น'))
     );
@@ -133,12 +147,18 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
       const targetSemester = localSemester === "ทั้งหมด" ? systemSemester : localSemester;
       const targetYear = localAcademicYear === "ทั้งหมด" ? systemAcademicYear : localAcademicYear;
       
-      conditions.push(where('semester', '==', targetSemester));
-      conditions.push(where('academicYear', '==', targetYear));
+      // Handle both formats (with or without prefix) for backward compatibility
+      const semesterOptions = [targetSemester, `ภาคเรียนที่ ${targetSemester}`];
+      const yearOptions = [targetYear, `ปีการศึกษา ${targetYear}`, `ปี ${targetYear}`];
+      
+      conditions.push(where('semester', 'in', semesterOptions));
+      // Note: Firestore doesn't support multiple 'in' clauses easily in a single query
+      // but we can filter academicYear client-side after fetching
 
       const q = query(collection(db, 'schedules'), ...conditions);
       const snapshot = await getDocs(q);
-      const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule));
+      const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule))
+        .filter(s => yearOptions.includes(s.academicYear) || !s.academicYear);
       setSchedules(scheduleList);
     } catch (error) {
       console.error("Error fetching schedules:", error);
@@ -166,25 +186,25 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
           </h2>
           <p className="text-sm text-slate-500">ผลรวมการสอนและข้อมูลสถิติย้อนหลัง</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
           <select
             value={localSemester}
             onChange={(e) => setLocalSemester(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50"
+            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50 flex-1 sm:flex-none min-w-0"
           >
             <option value="ทั้งหมด">ภาคเรียนทั้งหมด</option>
             {uniqueSemesters.map(term => (
-              <option key={term as string} value={term as string}>ภาคเรียนที่ {term as string}</option>
+              <option key={term as string} value={term as string}>{`ภาคเรียนที่ ${term}`}</option>
             ))}
           </select>
           <select
             value={localAcademicYear}
             onChange={(e) => setLocalAcademicYear(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50"
+            className="px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold bg-slate-50 flex-1 sm:flex-none min-w-0"
           >
             <option value="ทั้งหมด">ปีการศึกษาทั้งหมด</option>
             {uniqueYears.map(year => (
-              <option key={year as string} value={year as string}>ปี {year as string}</option>
+              <option key={year as string} value={year as string}>{`ปีการศึกษา ${year}`}</option>
             ))}
           </select>
         </div>

@@ -97,7 +97,7 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Teaching Schedule */}
       <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
               <Clock className="h-5 w-5" />
@@ -107,11 +107,11 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
               <p className="text-sm font-medium text-slate-500">{formattedDate}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={handlePrevDay} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <button onClick={handleToday} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold">
+            <button onClick={handleToday} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold whitespace-nowrap shrink-0">
               วันนี้
             </button>
             <button onClick={handleNextDay} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
@@ -138,7 +138,7 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
                         {session.period}
                       </span>
                     </div>
-                    <h4 className="font-black text-slate-800 text-lg mb-1 group-hover:text-indigo-600 transition-colors">{session.subject}</h4>
+                    <h4 className="font-black text-slate-800 text-lg mb-1 group-hover:text-indigo-600 transition-colors break-words whitespace-normal">{session.subject === 'อื่นๆ' ? (session.customSubject || 'อื่นๆ') : session.subject}</h4>
                     <div className="flex items-center gap-2 text-sm text-slate-600 font-medium mt-3">
                       <BookOpen className="h-4 w-4 text-slate-400" />
                       ชั้น {session.gradeLevel}

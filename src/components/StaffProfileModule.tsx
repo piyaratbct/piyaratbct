@@ -176,7 +176,7 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
               className="text-lg font-bold text-slate-800 whitespace-nowrap truncate px-2" 
               title={displayTeacher.thaiName}
             >
-              ครู{displayTeacher.displayName}
+              {displayTeacher.displayName?.startsWith('ครู') ? displayTeacher.displayName : `ครู${displayTeacher.displayName}`}
             </h3>
             <p className="text-xs text-slate-500 mt-1" title={displayTeacher.thaiName}>{displayTeacher.thaiName}</p>
             <p className="text-xs text-slate-500 mt-1">รหัสประจำตัว: {displayTeacher.employeeId || '-'}</p>
