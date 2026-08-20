@@ -38,9 +38,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   currentTeacher,
   systemAcademicYear,
   systemSemester,
-  students,
+  students: allStudents,
   teachers,
 }) => {
+  const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum" | "eportfolio">("calendar");
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 

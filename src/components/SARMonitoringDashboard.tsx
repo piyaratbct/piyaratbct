@@ -11,7 +11,8 @@ interface Props {
   currentTeacher: Teacher;
 }
 
-export function SARMonitoringDashboard({ teachers, students, systemAcademicYear, currentTeacher }: Props) {
+export function SARMonitoringDashboard({ teachers, students: allStudents, systemAcademicYear, currentTeacher }: Props) {
+  const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [pdRecords, setPdRecords] = useState<PDRecord[]>([]);
   const [lessonPlans, setLessonPlans] = useState<any[]>([]);
   const [disciplineIncidents, setDisciplineIncidents] = useState<any[]>([]);

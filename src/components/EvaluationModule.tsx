@@ -20,7 +20,8 @@ interface EvaluationModuleProps {
   students: Student[];
 }
 
-export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students }) => {
+export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents }) => {
+  const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);

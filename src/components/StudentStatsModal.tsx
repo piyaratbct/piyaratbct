@@ -11,7 +11,10 @@ interface StudentStatsModalProps {
 
 export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsModalProps) {
   const stats = useMemo(() => {
-    const summary = students.reduce((acc, student) => {
+    // Only count active students for statistics
+    const activeStudents = students.filter(s => s.status === 'active' || !s.status);
+    
+    const summary = activeStudents.reduce((acc, student) => {
       // Clean up legacy grade level format that might have "(ป.x/x)"
       const rawGrade = student.gradeLevel || 'ไม่ระบุชั้น';
       const grade = rawGrade.replace(/\s*\(ป\..*\)/g, '');

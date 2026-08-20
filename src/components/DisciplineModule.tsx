@@ -22,8 +22,9 @@ export function DisciplineModule({
   currentTeacher,
   systemSemester,
   systemAcademicYear,
-  students
+  students: allStudents
 }: DisciplineModuleProps) {
+  const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [incidents, setIncidents] = useState<DisciplineIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

@@ -607,7 +607,7 @@ export default function App() {
         const activeStudents = fetchedStudents.filter(s => s.status === 'active' || !s.status);
         
         setStudentsCount(activeStudents.length);
-        setStudents(activeStudents);
+        setStudents(fetchedStudents); // Pass ALL students to the app, but rely on activeStudents for count
       },
       (err) => {
         console.error("Students lookup error:", err);

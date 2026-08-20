@@ -253,21 +253,17 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   // Calculate counts based on displayed students (or just grade level students if not searching)
   const studentsInGrade = students.filter(s => {
-    if (selectedGrade === 'จบการศึกษา') return s.status === 'graduated' || s.gradeLevel === 'จบการศึกษา';
-    
-    // For all other views, hide graduated and inactive students
-    if (s.status === 'graduated' || s.status === 'inactive') return false;
-    
     if (selectedGrade === 'ภาพรวม') return true;
+    if (selectedGrade === 'จบการศึกษา') return s.status === 'graduated' || s.gradeLevel === 'จบการศึกษา';
     if (selectedGrade === 'ระดับอนุบาล') return (s.gradeLevel || '').startsWith('อนุบาล');
     if (selectedGrade === 'ระดับประถมศึกษา') return (s.gradeLevel || '').startsWith('ประถม');
     return s.gradeLevel === selectedGrade;
   });
   const countSource = searchQuery !== "" ? displayedStudents : studentsInGrade;
   
-  const totalCount = countSource.length;
-  const maleCount = countSource.filter((s) => s.gender === "male").length;
-  const femaleCount = countSource.filter((s) => s.gender === "female").length;
+  const totalCount = countSource.filter(s => s.status === 'active' || !s.status).length;
+  const maleCount = countSource.filter((s) => s.gender === "male" && (s.status === 'active' || !s.status)).length;
+  const femaleCount = countSource.filter((s) => s.gender === "female" && (s.status === 'active' || !s.status)).length;
   
   const allergicFoodStudents = countSource.filter((s) => s.allergicFood);
   const congenitalDiseaseStudents = countSource.filter((s) => s.congenitalDisease);
@@ -542,9 +538,9 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   const printBatchReport = () => {
     // Print all students in the current grade who have been assessed
-    const assessedStudents = displayedStudents.filter((s) => assessments[s.id]);
+    const assessedStudents = displayedStudents.filter((s) => assessments[s.id] && (s.status === 'active' || !s.status));
     if (assessedStudents.length === 0) {
-      alert("ยังไม่มีข้อมูลการประเมินในระดับชั้นนี้");
+      alert("ยังไม่มีข้อมูลการประเมินในระดับชั้นนี้สำหรับนักเรียนปกติ");
       return;
     }
     setPrintStudents(assessedStudents);

@@ -223,7 +223,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     }
   };
 
-  const activeStudents = students.filter(s => s.status === 'active');
+  const activeStudents = students.filter(s => s.status === 'active' || !s.status);
   const sortedStudents = [...activeStudents].sort((a, b) => a.number - b.number);
 
   const stats = {
