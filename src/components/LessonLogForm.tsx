@@ -579,7 +579,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-indigo-500" />
-            6. แบบประเมินการจัดการเรียนรู้
+            7. แบบประเมินการจัดการเรียนรู้
           </label>
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
@@ -768,7 +768,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
           </div>
         </div>
 
-        {/* 7. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
+        {/* 8. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
         <AttachmentManager 
           attachments={attachments}
           onAddAttachment={(att) => setAttachments(prev => [...prev, att])}

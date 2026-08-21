@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS } from "../types";
+import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
 
 import { Save, BookOpen,  Target,  RefreshCw, ChevronDown, Sparkles, BookCheck, ClipboardList, AlertTriangle, MessageSquareCode, CalendarDays, Paperclip, Link2, FileImage, FileText, Video as VideoIcon, Plus, X, Globe, Eye } from 'lucide-react';
 import { AttachmentManager } from './AttachmentManager';
@@ -148,6 +148,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   const [limitations, setLimitations] = useState('');
   const [suggestions, setSuggestions] = useState('');
   const [strengths, setStrengths] = useState('');
+  const [sarTags, setSarTags] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<{ planning: Record<string, number>; time: Record<string, number>; media: Record<string, number>; teacher: Record<string, number>; learner: Record<string, number>; }>(DEFAULT_EVALUATIONS);
 
   // Attachment states
@@ -177,6 +178,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       setLimitations(initialRecord.limitations);
       setSuggestions(initialRecord.suggestions);
       setStrengths(initialRecord.strengths || '');
+      setSarTags(initialRecord.sarTags || []);
       setAttachments(initialRecord.attachments || []);
       if (initialRecord.evaluations) {
         setEvaluations({
@@ -253,6 +255,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       limitations: limitations.trim(),
       suggestions: suggestions.trim(),
       strengths: strengths.trim(),
+      sarTags,
       evaluations,
       attachments,
       createdAt: initialRecord?.createdAt || new Date().toISOString(),
@@ -557,11 +560,43 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
           ></textarea>
         </div>
 
+        {/* แท็กมาตรฐาน SAR (SAR Tags) */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+            <ClipboardList className="h-4 w-4 text-purple-500" />
+            6. แท็กมาตรฐานคุณภาพ (SAR Tags)
+          </label>
+          <p className="text-[10px] text-slate-400 mb-2">เลือกแท็กที่ตรงกับการสอนในคาบนี้ เพื่อใช้ประกอบการทำรายงานประเมินตนเอง (SAR)</p>
+          <div className="flex flex-wrap gap-2">
+            {SAR_TAGS.map(tag => {
+              const isSelected = sarTags.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => {
+                    setSarTags(prev => 
+                      isSelected ? prev.filter(t => t !== tag.id) : [...prev, tag.id]
+                    );
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium transition-all ${
+                    isSelected 
+                      ? 'bg-purple-100 text-purple-700 border-2 border-purple-300 shadow-sm' 
+                      : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* แบบประเมินการจัดการเรียนรู้ */}
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
             <Sparkles className="h-4 w-4 text-indigo-500" />
-            6. แบบประเมินการจัดการเรียนรู้
+            7. แบบประเมินการจัดการเรียนรู้
           </label>
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
@@ -750,7 +785,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
           </div>
         </div>
 
-        {/* 7. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
+        {/* 8. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
         <AttachmentManager 
           attachments={attachments}
           onAddAttachment={(att) => setAttachments(prev => [...prev, att])}

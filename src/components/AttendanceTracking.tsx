@@ -234,7 +234,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     late: Object.values(attendanceData).filter(s => s === 'late').length,
   };
 
-  const standardPeriods = PERIODS;
+  const standardPeriods = PERIODS.filter(p => !p.includes('พักเบรก') && !p.includes('พักกลางวัน'));
   
   // Suggest periods based on teacher's schedule for this day and grade
   const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;

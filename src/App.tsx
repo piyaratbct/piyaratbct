@@ -1952,6 +1952,27 @@ export default function App() {
           </div>
         ) : activeModule === "teaching" ? (
           <div className="space-y-6 animate-in fade-in duration-300 relative">
+            {(currentTeacher.role !== 'admin' && currentTeacher.role !== 'academic' && currentTeacher.role !== 'deputy') && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh] -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
+                  <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
+                    <Wrench className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    ปิดปรับปรุงชั่วคราว
+                  </h3>
+                  <p className="text-slate-500 mt-2 text-sm font-medium">
+                    โมดูล "1. จัดการผู้สอน" กำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
+                  </p>
+                  <button
+                    onClick={() => setActiveModule("home")}
+                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
+                  >
+                    กลับสู่หน้าหลัก
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="space-y-6">
               {/* Module Header with attractive display */}
               <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden print:hidden">
