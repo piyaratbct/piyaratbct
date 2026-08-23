@@ -13,16 +13,19 @@ import { LessonAchieve } from './LessonAchieve';
 import { collection, query, onSnapshot, setDoc, doc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
+import { CharacterAssessmentView } from './CharacterAssessmentView';
+import { ShieldCheck } from 'lucide-react';
 
 interface EvaluationModuleProps {
   systemAcademicYear?: string;
   systemSemester?: string;
   students: Student[];
+  currentTeacher?: any;
 }
 
-export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents }) => {
+export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents, currentTeacher }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
   const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
   
@@ -361,6 +364,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             >
               <BookOpen className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">รายงานเวลาเรียน</span>
             </button>
+            <button
+              onClick={() => setActiveTab('character')}
+              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+                activeTab === 'character' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
+              }`}
+            >
+              <ShieldCheck className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">คุณลักษณะฯ 8 ประการ</span>
+            </button>
+
           </div>
 
           {/* Tab Content */}
@@ -783,6 +795,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
               students={students}
+            />
+          )}
+
+          {activeTab === 'character' && (
+            <CharacterAssessmentView 
+              students={students}
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+              currentTeacher={currentTeacher}
             />
           )}
 

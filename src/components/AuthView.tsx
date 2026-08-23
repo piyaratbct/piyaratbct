@@ -87,10 +87,42 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       }
     } catch (err: any) {
       console.error("Login failure:", err);
+      
+      // Auto-register logic for the primary admin if the account doesn't exist yet
+      if (email.trim() === 'piyarat.bct@gmail.com' && (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+          const uid = userCredential.user.uid;
+          const adminTeacher = {
+            id: uid,
+            email: email.trim(),
+            thaiName: 'ผู้ดูแลระบบ',
+            englishName: 'System Admin',
+            employeeId: 'ADMIN-01',
+            phoneNumber: '-',
+            affiliation: 'ฝ่ายบริหาร',
+            displayName: 'Admin',
+            role: 'admin' as const,
+            hasSeeded: true
+          };
+          await setDoc(doc(db, 'teachers', uid), adminTeacher);
+          setSuccessMsg('เข้าสู่ระบบครั้งแรก (สร้างบัญชีผู้ดูแลระบบอัตโนมัติ)');
+          setTimeout(() => {
+            onLogin(adminTeacher);
+          }, 800);
+          return;
+        } catch (registerErr: any) {
+          if (registerErr.code !== 'auth/email-already-in-use') {
+             setErrorMsg('ไม่สามารถสร้างบัญชีแอดมินอัตโนมัติได้: ' + registerErr.message);
+             setIsLoading(false);
+             return;
+          }
+        }
+      }
       let thaiError = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง';
       if (err.code === 'auth/invalid-email') thaiError = 'รูปแบบอีเมลไม่ถูกต้อง';
       if (err.code === 'auth/user-not-found') thaiError = 'ไม่พบผู้ใช้งานนี้ในระบบ';
-      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') thaiError = 'รหัสผ่านป้อนไม่ถูกต้อง';
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') thaiError = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง (หากยังไม่มีบัญชี กรุณาคลิก "ลงทะเบียนบัญชีใหม่")';
       if (err.code === 'auth/operation-not-allowed') {
         thaiError = 'ยังไม่ได้เปิดใช้งานผู้ให้บริการล็อกอินด้วย Email/Password ใน Firebase Console ของฝั่งผู้เริ่มโครงการ';
       }

@@ -1,4 +1,6 @@
-rules_version = '2';
+const fs = require('fs');
+
+const rules = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
@@ -46,7 +48,7 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\\\-]+$');
     }
 
     match /teachers/{teacherId} {
@@ -239,7 +241,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
-
+    
     match /characterAssessments/{assessmentId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
@@ -251,3 +253,6 @@ service cloud.firestore {
     }
   }
 }
+`;
+
+fs.writeFileSync('firestore.rules', rules);

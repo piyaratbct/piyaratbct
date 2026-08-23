@@ -2,169 +2,177 @@ const fs = require('fs');
 const file = 'src/components/SARMonitoringDashboard.tsx';
 let content = fs.readFileSync(file, 'utf8');
 
-// The marker for the start of the grid
-const gridStartMarker = `<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">`;
-// The marker for the end of the grid (before the SAR tags distribution section)
-const sarTagsStartMarker = `{/* SAR Tags Distribution Section */}`;
+// 1. Add studentAssessments state
+content = content.replace(
+  "const [kgAssessments, setKgAssessments] = useState<KindergartenAssessment[]>([]);",
+  "const [kgAssessments, setKgAssessments] = useState<KindergartenAssessment[]>([]);\n  const [studentAssessments, setStudentAssessments] = useState<any[]>([]);"
+);
 
-const headerEndMarker = `</div>\n\n      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">`;
+// 2. Fetch studentAssessments
+content = content.replace(
+  "      const kgUnsub = onSnapshot(query(collection(db, 'kindergartenAssessments')), (snap) => {",
+  `      const saUnsub = onSnapshot(query(collection(db, 'studentAssessments')), (snap) => {
+        setStudentAssessments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (err) => console.error("Error loading Student Assessments:", err));
 
-const gridStartIdx = content.indexOf(gridStartMarker);
-const sarTagsStartIdx = content.indexOf(sarTagsStartMarker);
+      const kgUnsub = onSnapshot(query(collection(db, 'kindergartenAssessments')), (snap) => {`
+);
+content = content.replace("        kgUnsub();\n      };\n    };\n\n    fetchData();", "        kgUnsub();\n        saUnsub();\n      };\n    };\n\n    fetchData();");
 
-if (gridStartIdx !== -1 && sarTagsStartIdx !== -1) {
-  const tabsString = `
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-px overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={\`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 \${
-            activeTab === 'overview'
-              ? 'text-indigo-600 border-indigo-600'
-              : 'text-slate-500 border-transparent hover:text-slate-800 hover:border-slate-300'
-          }\`}
-        >
-          ภาพรวม (Overview)
-        </button>
-        <button
-          onClick={() => setActiveTab('std1')}
-          className={\`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 \${
-            activeTab === 'std1'
-              ? 'text-sky-600 border-sky-600'
-              : 'text-slate-500 border-transparent hover:text-slate-800 hover:border-slate-300'
-          }\`}
-        >
-          ม.1 (คุณภาพผู้เรียน)
-        </button>
-        <button
-          onClick={() => setActiveTab('std2')}
-          className={\`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 \${
-            activeTab === 'std2'
-              ? 'text-fuchsia-600 border-fuchsia-600'
-              : 'text-slate-500 border-transparent hover:text-slate-800 hover:border-slate-300'
-          }\`}
-        >
-          ม.2 (กระบวนการบริหารฯ)
-        </button>
-        <button
-          onClick={() => setActiveTab('std3')}
-          className={\`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 \${
-            activeTab === 'std3'
-              ? 'text-amber-600 border-amber-600'
-              : 'text-slate-500 border-transparent hover:text-slate-800 hover:border-slate-300'
-          }\`}
-        >
-          ม.3 (การจัดการเรียนการสอน)
-        </button>
-      </div>
+// 3. Remove basicEduStd1Eval fetch and state
+content = content.replace(/  const \[basicEduStd1Eval.*?\n/, "");
+content = content.replace(/  const \[isEditingStd1.*?\n/, "");
+content = content.replace(/  const \[std1FormData.*?\}\);\n/s, "");
+content = content.replace(/  \/\/ --- FILTERING LOGIC ---\n\n  useEffect\(\(\) => \{\n    if \(\!systemAcademicYear\).*?  \};\n/s, "  // --- FILTERING LOGIC ---");
 
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">`;
+// 4. Compute basicEduStd1Eval dynamically
+const computationCode = `  const fStudentAssessments = React.useMemo(() => {
+    return studentAssessments.filter(a => validStudentIds.has(a.studentId) && a.academicYear === systemAcademicYear);
+  }, [studentAssessments, validStudentIds, systemAcademicYear]);
 
-  content = content.replace(gridStartMarker, tabsString);
-  
-  const sarTagsString = `        </div>
-      )}
+  // Compute Standard 1 for Basic Education dynamically
+  const computedStd1Eval = React.useMemo(() => {
+    const defaultVal = { c1_1_1: 0, c1_1_2: 0, c1_1_3: 0, c1_1_4: 0, c1_1_5: 0, c1_1_6: 0, c1_2_1: 0, c1_2_2: 0, c1_2_3: 0, c1_2_4: 0 };
+    if (!fStudents.length) return defaultVal;
+    
+    // Total students for percentage calculation
+    const total = fStudents.length;
+    const calcPerc = (count: number) => Math.round((count / total) * 100);
 
-      {activeTab === 'std1' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-sky-50/50 flex items-center gap-3">
-              <div className="h-10 w-10 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center shrink-0">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-black text-slate-800 text-lg">มาตรฐานที่ 1: คุณภาพของผู้เรียน</h2>
-                <p className="text-xs font-bold text-sky-600">เจาะลึกข้อมูลผลสัมฤทธิ์และคุณลักษณะ</p>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
-                <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-slate-700">อยู่ระหว่างการพัฒนา</h3>
-                <p className="text-slate-500 mt-2">ส่วนนี้เตรียมไว้สำหรับแสดงตารางเจาะลึกข้อมูลรายบุคคล เช่น ผลการเรียนเฉลี่ย และบันทึกพฤติกรรม</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    // 1.1.1 อ่าน เขียน สื่อสาร: readingWriting >= 2 & comp1 >= 2
+    const c1_1_1 = fStudentAssessments.filter(a => a.readingWriting >= 2 && a.competencies?.comp1 >= 2).length;
+    // 1.1.2 คิดวิเคราะห์ วิจารณญาณ: comp2 >= 2 & comp3 >= 2
+    const c1_1_2 = fStudentAssessments.filter(a => a.competencies?.comp2 >= 2 && a.competencies?.comp3 >= 2).length;
+    // 1.1.3 นวัตกรรม: Lesson records having 'innovation-creation' tag
+    let innovationPercentage = 0;
+    if (fLessonRecords.length > 0) {
+      const innovationLessons = fLessonRecords.filter(r => (r.sarTags || []).includes('innovation-creation')).length;
+      innovationPercentage = Math.round((innovationLessons / fLessonRecords.length) * 100);
+    }
+    // 1.1.4 ใช้เทคโนโลยี: comp5 >= 2
+    const c1_1_4 = fStudentAssessments.filter(a => a.competencies?.comp5 >= 2).length;
+    // 1.1.5 ผลสัมฤทธิ์: grade >= 3 or score >= 75
+    // Map latest grade for each student
+    const studentGrades = new Map<string, boolean>();
+    fSubjectScores.forEach(s => {
+      const isGood = s.score >= 75 || s.grade === '3' || s.grade === '3.5' || s.grade === '4';
+      if (!studentGrades.has(s.studentId) || isGood) studentGrades.set(s.studentId, isGood); // Take true if any is good, or we can average. Let's just say if they have good grades. 
+    });
+    // better logic: count students whose average score across subjects is good.
+    const studentAvgScore = new Map<string, {total: number, count: number}>();
+    fSubjectScores.forEach(s => {
+      if (!studentAvgScore.has(s.studentId)) studentAvgScore.set(s.studentId, {total: 0, count: 0});
+      const data = studentAvgScore.get(s.studentId)!;
+      data.total += s.score || 0;
+      data.count += 1;
+    });
+    let c1_1_5 = 0;
+    studentAvgScore.forEach(data => {
+      if (data.total / data.count >= 75) c1_1_5++;
+    });
 
-      {activeTab === 'std2' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-fuchsia-50/50 flex items-center gap-3">
-              <div className="h-10 w-10 bg-fuchsia-100 text-fuchsia-600 rounded-xl flex items-center justify-center shrink-0">
-                <BookOpen className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-black text-slate-800 text-lg">มาตรฐานที่ 2: กระบวนการบริหารและการจัดการ</h2>
-                <p className="text-xs font-bold text-fuchsia-600">เจาะลึกข้อมูลการพัฒนาครู (PD/PLC)</p>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
-                <BookOpen className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-slate-700">อยู่ระหว่างการพัฒนา</h3>
-                <p className="text-slate-500 mt-2">ส่วนนี้เตรียมไว้สำหรับแสดงตารางรายชื่อครู พร้อมชั่วโมง PD และ PLC แบบเจาะลึกรายบุคคล</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    // 1.1.6 งานอาชีพ: comp4 >= 2
+    const c1_1_6 = fStudentAssessments.filter(a => a.competencies?.comp4 >= 2).length;
 
-      {activeTab === 'std3' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-amber-50/50 flex items-center gap-3">
-              <div className="h-10 w-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                <Layers className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-black text-slate-800 text-lg">มาตรฐานที่ 3: การจัดการเรียนการสอนที่เน้นผู้เรียน</h2>
-                <p className="text-xs font-bold text-amber-600">เจาะลึกข้อมูลการสอนและการบูรณาการ</p>
-              </div>
-            </div>
-            <div className="p-6 bg-slate-50/50">
-              <div className="text-center py-8 mb-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white">
-                <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-lg font-bold text-slate-700">อยู่ระหว่างการพัฒนา</h3>
-                <p className="text-slate-500 mt-2">ส่วนนี้เตรียมไว้สำหรับแสดงตารางสรุปการส่งแผนการสอนและงานวิจัยแยกตามหมวดวิชา</p>
+    // 1.2.1 ค่านิยมที่ดี: Average traits >= 2. We'll check trait1..8 >= 2 as a whole or sum >= 16
+    const c1_2_1 = fStudentAssessments.filter(a => {
+       const t = a.characterTraits || {};
+       return ((t.trait1||0) + (t.trait2||0) + (t.trait3||0) + (t.trait4||0) + (t.trait5||0) + (t.trait6||0) + (t.trait7||0) + (t.trait8||0)) >= 16;
+    }).length;
+    // 1.2.2 ภูมิใจในท้องถิ่น: trait7 >= 2
+    const c1_2_2 = fStudentAssessments.filter(a => a.characterTraits?.trait7 >= 2).length;
+    // 1.2.3 การอยู่ร่วมกัน: trait8 >= 2 and NO fighting/bullying discipline incidents
+    const badDisciplineIds = new Set(fDisciplineIncidents.filter(d => ['ทะเลาะวิวาท', 'กลั่นแกล้ง', 'บูลลี่'].some(t => d.type?.includes(t) || d.description?.includes(t))).map(d => d.studentId));
+    const c1_2_3 = fStudentAssessments.filter(a => a.characterTraits?.trait8 >= 2 && !badDisciplineIds.has(a.studentId)).length;
+    // 1.2.4 สุขภาวะ: has weight & height
+    const c1_2_4 = fStudentAssessments.filter(a => a.weight > 0 && a.height > 0).length;
+
+    return {
+      c1_1_1: calcPerc(c1_1_1),
+      c1_1_2: calcPerc(c1_1_2),
+      c1_1_3: innovationPercentage,
+      c1_1_4: calcPerc(c1_1_4),
+      c1_1_5: calcPerc(c1_1_5),
+      c1_1_6: calcPerc(c1_1_6),
+      c1_2_1: calcPerc(c1_2_1),
+      c1_2_2: calcPerc(c1_2_2),
+      c1_2_3: calcPerc(c1_2_3),
+      c1_2_4: calcPerc(c1_2_4)
+    };
+  }, [fStudentAssessments, fStudents.length, fLessonRecords, fSubjectScores, fDisciplineIncidents]);`;
+
+content = content.replace("  const fLessonPlans = React.useMemo(() => {\n    if (educationLevelFilter === 'kindergarten') return lessonPlans.filter(p => p.gradeLevel && p.gradeLevel.includes('อนุบาล'));\n    if (educationLevelFilter === 'primary') return lessonPlans.filter(p => p.gradeLevel && !p.gradeLevel.includes('อนุบาล'));\n    return lessonPlans;\n  }, [lessonPlans, educationLevelFilter]);\n\n  // --- CALCULATION LOGIC ---", "  const fLessonPlans = React.useMemo(() => {\n    if (educationLevelFilter === 'kindergarten') return lessonPlans.filter(p => p.gradeLevel && p.gradeLevel.includes('อนุบาล'));\n    if (educationLevelFilter === 'primary') return lessonPlans.filter(p => p.gradeLevel && !p.gradeLevel.includes('อนุบาล'));\n    return lessonPlans;\n  }, [lessonPlans, educationLevelFilter]);\n\n" + computationCode + "\n\n  // --- CALCULATION LOGIC ---");
+
+// 5. Replace view logic
+const viewStart = content.indexOf('<div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-4 flex justify-between items-center">');
+const viewEnd = content.indexOf('</>', viewStart) + 3;
+
+if (viewStart !== -1 && viewEnd !== -1) {
+  const replacementView = `<div className="bg-gradient-to-r from-sky-500 to-indigo-500 rounded-xl shadow-sm border-0 p-6 mb-4 text-white">
+                <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                  การประเมินคุณภาพผู้เรียน (คำนวณอัตโนมัติ)
+                </h3>
+                <p className="text-sky-100 text-sm">ข้อมูลถูกประมวลผลอัตโนมัติแบบ Real-time จากระบบฐานข้อมูล (เกรด, ประเมินพัฒนาการ, สมรรถนะ, บันทึกวินัย, และบันทึกหลังสอน)</p>
               </div>
 
-              {/* SAR Tags Distribution Section */}`;
-              
-  content = content.replace(sarTagsStartMarker, sarTagsString);
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-6 animate-in fade-in">
+                  <div className="mb-6">
+                    <h4 className="font-bold text-slate-800 mb-4 text-lg border-b pb-2">1.1 ผลสัมฤทธิ์ทางวิชาการของผู้เรียน</h4>
+                    <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden">
+                      {[
+                        { id: 'c1_1_1', title: '1.มีความสามารถในการอ่าน การเขียน การสื่อสาร และการคิดคำนวณ' },
+                        { id: 'c1_1_2', title: '2.มีความสามารถในการคิดวิเคราะห์ คิดอย่างมีวิจารณญาณ อภิปรายแลกเปลี่ยนความคิดเห็น และแก้ปัญหา' },
+                        { id: 'c1_1_3', title: '3.มีความสามารถในการสร้างนวัตกรรม' },
+                        { id: 'c1_1_4', title: '4.มีความสามารถในการใช้เทคโนโลยีสารสนเทศและการสื่อสาร' },
+                        { id: 'c1_1_5', title: '5.มีผลสัมฤทธิ์ทางการเรียนตามหลักสูตรสถานศึกษา' },
+                        { id: 'c1_1_6', title: '6.มีความรู้ ทักษะพื้นฐาน และเจตคติที่ดีต่องานอาชีพ' }
+                      ].map(c => (
+                        <div key={c.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-700">{c.title}</p>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-3 min-w-[200px]">
+                            <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-sky-500 h-full rounded-full transition-all duration-1000" style={{ width: \`\${computedStd1Eval?.[c.id as keyof typeof computedStd1Eval] || 0}%\` }}></div>
+                            </div>
+                            <span className="text-sm font-bold text-slate-700 w-12 text-right">{computedStd1Eval?.[c.id as keyof typeof computedStd1Eval] || 0}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                    <div className="p-4 bg-emerald-50 border-b border-slate-200">
+                       <h4 className="font-bold text-slate-800 text-base">1.2 คุณลักษณะที่พึงประสงค์ของผู้เรียน</h4>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {[
+                        { id: 'c1_2_1', title: '1.การมีคุณลักษณะและค่านิยมที่ดีตามที่สถานศึกษากำหนด' },
+                        { id: 'c1_2_2', title: '2.ความภูมิใจในท้องถิ่นและความเป็นไทย' },
+                        { id: 'c1_2_3', title: '3.การยอมรับที่จะอยู่ร่วมกันบนความแตกต่างและหลากหลาย' },
+                        { id: 'c1_2_4', title: '4.สุขภาวะทางร่างกาย และจิตสังคม' }
+                      ].map(c => (
+                        <div key={c.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-700">{c.title}</p>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-3 min-w-[200px]">
+                            <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: \`\${computedStd1Eval?.[c.id as keyof typeof computedStd1Eval] || 0}%\` }}></div>
+                            </div>
+                            <span className="text-sm font-bold text-slate-700 w-12 text-right">{computedStd1Eval?.[c.id as keyof typeof computedStd1Eval] || 0}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>`;
 
-  // We need to close the std3 div.
-  // The end of the file is:
-  //       </div>
-  //     </div>
-  //   );
-  // }
-  
-  const endMarker = `    </div>
-  );
-}`;
-  const replaceEnd = `          </div>
-        </div>
-      )}
-    </div>
-  );
-}`;
-  content = content.replace(endMarker, replaceEnd);
-  
-  // also need to remove the shadow-sm border border-slate-100 from the SAR tags container
-  // to make it look native inside the p-6 of std3 tab.
-  // original: <div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
-  // replace: <div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
-  
-  content = content.replace(
-    `<div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">`,
-    `<div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">`
-  );
-
-  fs.writeFileSync(file, content);
-  console.log("Success");
-} else {
-  console.log("Markers not found.");
+  content = content.substring(0, viewStart) + replacementView + content.substring(viewEnd);
+  // Also we need to make sure basicEduStd1Eval references are gone from the file, wait I replaced it with computedStd1Eval
 }
+fs.writeFileSync(file, content, 'utf8');

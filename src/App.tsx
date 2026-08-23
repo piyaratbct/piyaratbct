@@ -25,6 +25,7 @@ import { DailyNotificationPopup } from "./components/DailyNotificationPopup";
 import { OnlineUsersIndicator } from "./components/OnlineUsersIndicator";
 import { DisciplineModule } from "./components/DisciplineModule";
 import { LessonAdmitModule } from './components/LessonAdmitModule';
+import { BadgeAwardModal } from './components/BadgeAwardModal';
 
 import {
   BookOpen,
@@ -67,6 +68,7 @@ import {
   List,
   History,
   UserPlus,
+  Medal
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, storage, handleFirestoreError, OperationType } from "./lib/firebase";
@@ -177,6 +179,7 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsCount, setStudentsCount] = useState<number>(0);
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
+  const [showBadgeModal, setShowBadgeModal] = useState<boolean>(false);
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
@@ -1643,8 +1646,26 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              
+              <button
+                onClick={() => setShowBadgeModal(true)}
+                className="bg-gradient-to-br from-indigo-500 to-purple-500 p-4 sm:p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-lg hover:scale-[1.02] transition-all text-left text-white cursor-pointer"
+              >
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Medal className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-medium text-white/80">
+                    Quick Action
+                  </div>
+                  <div className="text-base sm:text-lg font-black text-white leading-tight">
+                    แจกเหรียญความดี
+                  </div>
+                </div>
+              </button>
               <button
                 onClick={() => setShowStudentStatsModal(true)}
+
                 className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md hover:border-pink-200 transition-all text-left text-inherit cursor-pointer"
               >
                 <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
@@ -1986,7 +2007,7 @@ export default function App() {
                     <Presentation className="h-8 w-8" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex flex-col">
+                    <h2 className="text-2xl font-black tracking-tight drop-shadow-sm flex items-center flex-wrap gap-2">
                       <span>1. จัดการผู้สอน</span>
                       <span className="text-xl opacity-90">(LessonTeach)</span>
                     </h2>
@@ -2168,6 +2189,7 @@ export default function App() {
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
               students={students}
+              currentTeacher={currentTeacher}
             />
           </div>
 
@@ -2870,6 +2892,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Badge Award Modal */}
+      <BadgeAwardModal
+        isOpen={showBadgeModal}
+        onClose={() => setShowBadgeModal(false)}
+        students={students}
+        currentTeacher={currentTeacher}
+        systemAcademicYear={systemAcademicYear}
+        systemSemester={systemSemester}
+      />
 
       {/* Student Stats Modal */}
       <StudentStatsModal

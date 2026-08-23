@@ -424,7 +424,8 @@ export const SAR_TAGS = [
   { id: 'moral-ethics', label: 'คุณธรรมจริยธรรม (Moral & Ethics)' },
   { id: 'local-wisdom', label: 'บูรณาการภูมิปัญญาท้องถิ่น (Local Wisdom)' },
   { id: 'differentiated', label: 'ตอบสนองความแตกต่างผู้เรียน (Differentiated)' },
-  { id: 'authentic-assessment', label: 'การประเมินตามสภาพจริง (Authentic Assessment)' }
+  { id: 'authentic-assessment', label: 'การประเมินตามสภาพจริง (Authentic Assessment)' },
+  { id: 'innovation-creation', label: 'สร้างนวัตกรรม/ชิ้นงาน (Innovation & Creation)' }
 ];
 
 export const GRADE_LEVELS = [
@@ -632,4 +633,49 @@ export interface PDRecord {
   attachments?: Attachment[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BasicEduStandard1Evaluation {
+  id?: string;
+  academicYear: string;
+  c1_1_1: number;
+  c1_1_2: number;
+  c1_1_3: number;
+  c1_1_4: number;
+  c1_1_5: number;
+  c1_1_6: number;
+  c1_2_1: number;
+  c1_2_2: number;
+  c1_2_3: number;
+  c1_2_4: number;
+  updatedAt?: any;
+}
+
+export interface CharacterAssessment {
+  id?: string;
+  studentId: string;
+  academicYear: string;
+  semester: string;
+  t1: number;
+  t2: number;
+  t3: number;
+  t4: number;
+  t5: number;
+  t6: number;
+  t7: number;
+  t8: number;
+  updatedAt?: string;
+}
+
+export interface StudentBadge {
+  id?: string;
+  studentId: string;
+  teacherId: string;
+  teacherName: string;
+  badgeType: 'honesty' | 'public_mind' | 'discipline' | 'learning' | 'sufficient';
+  description?: string;
+  date: string;
+  academicYear: string;
+  semester: string;
+  createdAt: string;
 }
