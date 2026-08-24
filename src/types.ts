@@ -459,8 +459,12 @@ export const PERIODS = [
 
 export interface DisciplineIncident {
   id: string;
-  studentIds: string[];
-  studentNames: string[]; // For easy display without joining
+  studentIds: string[]; // Legacy or all involved
+  studentNames: string[]; // Legacy or all involved
+  offenderIds?: string[]; // New: explicitly offenders
+  offenderNames?: string[]; 
+  victimIds?: string[]; // New: victims or involved
+  victimNames?: string[];
   description: string;
   type: 'fight' | 'assault' | 'feud' | 'bullying' | 'misunderstanding' | 'disruption' | 'accident' | 'illness' | 'vandalism' | 'other' | string;
   otherTypeDetail?: string;

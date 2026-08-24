@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight, BookOpen, AlertCircle, CheckSquare } from 'lucide-react';
+import { EventAttendanceModal } from './EventAttendanceModal';
 import { collection, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Teacher, TeacherSchedule } from '../types';
@@ -10,15 +11,19 @@ const MONTH_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.�
 import { PERIODS } from '../types';
 const periodsOrder = PERIODS;
 
+import { Student } from '../types';
+
 interface OverviewCalendarProps {
+  students?: Student[];
   currentTeacher: Teacher;
   systemSemester: string;
   systemAcademicYear: string;
   onNavigateToCalendar?: () => void;
 }
 
-export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademicYear, onNavigateToCalendar }: OverviewCalendarProps) {
+export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademicYear, onNavigateToCalendar, students }: OverviewCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [attendanceEvent, setAttendanceEvent] = useState<any>(null);
   
   const handlePrevDay = () => {
     const newDate = new Date(currentDate);
@@ -182,7 +187,7 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
                 const isUrgent = diffDays > 3 && diffDays <= 7;
                 
                 return (
-                  <div key={event.id} className={`p-4 rounded-xl border ${getColorByType(event.type)} transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden`}>
+                  <div key={event.id} className={`p-4 rounded-xl border ${getColorByType(event.type)} transition-all relative overflow-hidden flex flex-col ${event.attendeeIds !== undefined ? 'border-l-[6px] border-l-emerald-500' : ''}`}>
                     {(isVeryUrgent || isUrgent) && (
                       <div className={`absolute top-0 right-0 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1 shadow-sm ${isVeryUrgent ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`}>
                         <AlertCircle className="h-3 w-3" /> {isVeryUrgent ? 'เร่งด่วนมาก' : 'ใกล้ถึงแล้ว'}
@@ -203,11 +208,32 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
                         <p className="text-sm font-medium opacity-80 flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" /> {event.timeRange} น.
                         </p>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAttendanceEvent(event);
+                            }}
+                            className={`text-xs flex items-center gap-1 px-2.5 py-1.5 rounded-lg shadow-sm border transition-colors font-bold ${event.attendeeIds !== undefined ? 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600' : 'bg-white/60 hover:bg-white text-emerald-600 border-emerald-100'}`}
+                          >
+                            <CheckSquare className="h-3.5 w-3.5" />
+                            {event.attendeeIds !== undefined ? 'เช็คชื่อแล้ว' : 'เช็คชื่อ'}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+      
+      {/* Attendance Modal */}
+      {attendanceEvent && (
+        <EventAttendanceModal
+          attendanceEvent={attendanceEvent}
+          setAttendanceEvent={setAttendanceEvent}
+          students={students || []}
+        />
+      )}
+    </div>
+  );
+})}
             </div>
           )}
           
@@ -221,6 +247,15 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
           )}
         </div>
       </div>
+      
+      {/* Attendance Modal */}
+      {attendanceEvent && (
+        <EventAttendanceModal
+          attendanceEvent={attendanceEvent}
+          setAttendanceEvent={setAttendanceEvent}
+          students={students || []}
+        />
+      )}
     </div>
   );
 }

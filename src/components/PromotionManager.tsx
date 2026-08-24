@@ -110,7 +110,7 @@ export const PromotionManager: React.FC<{
               <button 
                 onClick={handlePromoteAll}
                 disabled={isProcessing}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold shadow-sm disabled:opacity-50"
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold shadow-sm disabled:opacity-50 whitespace-nowrap"
               >
                 {isProcessing ? 'กำลังดำเนินการ...' : 'ดำเนินการทั้งหมด'}
               </button>

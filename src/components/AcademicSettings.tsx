@@ -288,7 +288,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
                       <button
                         type="button"
                         onClick={calculateLearningDays}
-                        className="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold rounded hover:bg-emerald-200 transition-colors flex items-center gap-1 shadow-sm"
+                        className="text-xs px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold rounded hover:bg-emerald-200 transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
                       >
                         <Calendar className="h-3 w-3" />
                         คำนวณจากปฏิทิน
@@ -350,7 +350,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
             {canEdit && (
               <button
                 onClick={() => setHolidays([...holidays, { id: Date.now().toString(), date: '', description: '' }])}
-                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" /> เพิ่มวันหยุด
               </button>
@@ -413,7 +413,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
             <button
               onClick={handleSave}
               disabled={isProcessing}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50 shadow-sm"
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50 shadow-sm whitespace-nowrap"
             >
               {isProcessing ? (
                 <>กำลังบันทึก...</>

@@ -38,8 +38,6 @@ const MOCK_STUDENTS = [
         { name: "ภาษาไทย", score: 90, grade: "4" },
         { name: "วิทยาศาสตร์", score: 92, grade: "4" },
         { name: "ภาษาอังกฤษ", score: 88, grade: "4" },
-        { name: "สังคมศึกษา", score: 95, grade: "4" },
-        { name: "สุขศึกษา", score: 98, grade: "4" },
       ]
     },
     health: {
@@ -47,64 +45,16 @@ const MOCK_STUDENTS = [
       weight: 32,
       bmi: 17.5,
       vision: "ปกติ",
-      dental: "ฟันผุ 1 ซี่ (รักษากับทันตแพทย์แล้ว)"
+      dental: "ฟันผุ 1 ซี่"
     },
     behavior: {
       score: 95,
-      notes: "เป็นเด็กที่มีความรับผิดชอบสูง ชอบช่วยเหลือเพื่อนในชั้นเรียน มีความเป็นผู้นำ",
-      achievements: ["ชนะเลิศการประกวดวาดภาพระดับสายชั้น ป.3", "นักเรียนดีเด่นประจำเดือนสิงหาคม"]
+      notes: "เป็นเด็กตั้งใจเรียน มีความรับผิดชอบ",
+      achievements: ["รางวัลชนะเลิศ ประกวดวาดภาพระดับชั้นประถมศึกษา", "นักเรียนดีเด่น ประจำเดือนมิถุนายน"]
     },
     pastoralCare: [
-      { date: "15 ก.ค. 2026", type: "ให้คำปรึกษา", details: "นักเรียนมีความกังวลเรื่องการสอบ ได้พูดคุยและแนะนำวิธีการแบ่งเวลาอ่านหนังสือ" },
-      { date: "10 พ.ค. 2026", type: "เยี่ยมบ้าน", details: "สภาพแวดล้อมทางบ้านอบอุ่น ผู้ปกครองเอาใจใส่ดูแลเรื่องการเรียนเป็นอย่างดี" }
-    ]
-  },
-  {
-    id: "S-002",
-    studentId: "65088",
-    firstName: "ด.ญ. รินรดา",
-    lastName: "สุขใจ",
-    nickname: "ริน",
-    grade: "ป.3/1",
-    dob: "2015-08-24",
-    bloodType: "B",
-    allergies: "ไม่มี",
-    allergicFood: "ไม่มี",
-    allergicMedicine: "ไม่มี",
-    congenitalDisease: "ไม่มี",
-    medicalInfo: "ไม่มี",
-    fatherName: "นาย สมพล สุขใจ",
-    motherName: "นาง รัตนา สุขใจ",
-    parentPhone: "089-876-5432",
-    fatherPhone: "081-333-4444",
-    motherPhone: "089-876-5432",
-    academic: {
-      gpa: 3.25,
-      attendanceRate: 92,
-      subjects: [
-        { name: "คณิตศาสตร์", score: 65, grade: "2.5" },
-        { name: "ภาษาไทย", score: 82, grade: "4" },
-        { name: "วิทยาศาสตร์", score: 70, grade: "3" },
-        { name: "ภาษาอังกฤษ", score: 94, grade: "4" },
-        { name: "สังคมศึกษา", score: 85, grade: "4" },
-        { name: "สุขศึกษา", score: 90, grade: "4" },
-      ]
-    },
-    health: {
-      height: 130,
-      weight: 28,
-      bmi: 16.5,
-      vision: "สั้น 150 (สวมแว่นตา)",
-      dental: "ปกติ"
-    },
-    behavior: {
-      score: 85,
-      notes: "เป็นเด็กร่าเริง ชอบวิชาภาษาอังกฤษและศิลปะ แต่สมาธิสั้นเล็กน้อยในวิชาคำนวณ",
-      achievements: ["เข้าร่วมประกวดร้องเพลงประสานเสียงโรงเรียน"]
-    },
-    pastoralCare: [
-      { date: "05 ส.ค. 2026", type: "ติดตามผล", details: "ประสานงานกับครูคณิตศาสตร์เพื่อจัดหาแบบฝึกหัดเสริมให้ฝึกทำเพิ่มเติม" },
-      { date: "12 พ.ค. 2026", type: "เยี่ยมบ้าน", details: "อยู่กับคุณยายเป็นหลัก คุณแม่ทำงานต่างจังหวัด จะกลับมาช่วงวันหยุด" }
+      { date: "2023-08-15", type: "เยี่ยมบ้าน", summary: "ครอบครัวอบอุ่น มีความพร้อมในการสนับสนุนการเรียน", counselor: "ครู สมศรี" },
+      { date: "2023-09-10", type: "ปรึกษาหารือ", summary: "นักเรียนมีความกังวลเรื่องการสอบคณิตศาสตร์ ให้คำแนะนำเรื่องการแบ่งเวลา", counselor: "ครู สมชาย" }
     ]
   }
 ];
@@ -186,6 +136,7 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
   const [assessments, setAssessments] = React.useState<StudentAssessment[]>([]);
   const [kAssessments, setKAssessments] = React.useState<KindergartenAssessment[]>([]);
   const [subjectScores, setSubjectScores] = React.useState<SubjectScore[]>([]);
+  const [hiddenRadarSubjects, setHiddenRadarSubjects] = useState<Record<string, string[]>>({});
 
   React.useEffect(() => {
     const student = extendedStudents.find(s => s.id === selectedStudentId);
@@ -203,7 +154,21 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
 
         const q3 = query(collection(db, 'subject_scores'), where('studentId', '==', student.id));
         const snap3 = await getDocs(q3);
-        setSubjectScores(snap3.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore)));
+        let fetchedScores = snap3.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore));
+        
+        // Mock data specifically for Radar Chart demo if student is พัฒนพงษ์ and has no real scores
+        if (student.firstName.includes('พัฒนพงษ์') && fetchedScores.length === 0) {
+          fetchedScores = [
+            { id: 'm1', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'คณิตศาสตร์พื้นฐาน', teacherId: 'mock', totalScore: 85, grade: '4' },
+            { id: 'm2', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาไทย', teacherId: 'mock', totalScore: 90, grade: '4' },
+            { id: 'm3', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'วิทยาศาสตร์', teacherId: 'mock', totalScore: 92, grade: '4' },
+            { id: 'm4', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาอังกฤษ', teacherId: 'mock', totalScore: 88, grade: '4' },
+            { id: 'm5', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'สังคมศึกษา', teacherId: 'mock', totalScore: 78, grade: '3.5' },
+            { id: 'm6', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ศิลปะและดนตรี', teacherId: 'mock', totalScore: 96, grade: '4' },
+          ];
+        }
+        
+        setSubjectScores(fetchedScores);
       } catch (err) {
         console.error("Error fetching assessments:", err);
       }
@@ -501,7 +466,9 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                         }, {} as Record<string, SubjectScore[]>)
                       ) as [string, SubjectScore[]][]).map(([term, scores]) => {
                         // Prepare data for Radar Chart
-                        const radarData = scores.map(s => ({
+                        const hiddenForTerm = hiddenRadarSubjects[term] || [];
+                        const visibleScores = scores.filter(s => !hiddenForTerm.includes(s.id));
+                        const radarData = visibleScores.map(s => ({
                           subject: s.subject.length > 15 ? s.subject.substring(0,15)+'...' : s.subject,
                           score: s.totalScore || 0,
                           fullMark: 100
@@ -516,25 +483,49 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                             
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                               {/* Spider Chart */}
-                              {scores.length >= 3 ? (
-                                <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-2">
-                                  <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-                                      <PolarGrid stroke="#e2e8f0" />
-                                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                                      <Tooltip 
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                      />
-                                      <Radar name="คะแนนรวม" dataKey="score" stroke="#6366f1" fill="#818cf8" fillOpacity={0.5} />
-                                    </RadarChart>
-                                  </ResponsiveContainer>
+                              <div className="flex flex-col gap-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {scores.map(sub => {
+                                    const isHidden = hiddenForTerm.includes(sub.id);
+                                    return (
+                                      <button
+                                        key={`filter-${sub.id}`}
+                                        onClick={() => {
+                                          setHiddenRadarSubjects(prev => {
+                                            const hidden = prev[term] || [];
+                                            if (hidden.includes(sub.id)) {
+                                              return { ...prev, [term]: hidden.filter(id => id !== sub.id) };
+                                            }
+                                            return { ...prev, [term]: [...hidden, sub.id] };
+                                          });
+                                        }}
+                                        className={`text-[10px] px-2.5 py-1 rounded-full border transition-all ${isHidden ? 'bg-white border-slate-200 text-slate-400 hover:border-slate-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100'}`}
+                                      >
+                                        {sub.subject}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
-                              ) : (
-                                <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-6 text-center">
-                                  <p className="text-sm text-slate-500">กราฟใยแมงมุมจะแสดงเมื่อมีคะแนนอย่างน้อย 3 วิชา</p>
-                                </div>
-                              )}
+                                {visibleScores.length >= 3 ? (
+                                  <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-2">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+                                        <PolarGrid stroke="#e2e8f0" />
+                                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                        <Tooltip 
+                                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        />
+                                        <Radar name="คะแนนรวม" dataKey="score" stroke="#6366f1" fill="#818cf8" fillOpacity={0.5} />
+                                      </RadarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                ) : (
+                                  <div className="h-[300px] w-full bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-6 text-center">
+                                    <p className="text-sm text-slate-500">กรุณาเลือกวิชาอย่างน้อย 3 วิชาเพื่อแสดงกราฟใยแมงมุม</p>
+                                  </div>
+                                )}
+                              </div>
                               
                               {/* Subject Cards */}
                               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">

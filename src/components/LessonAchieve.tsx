@@ -49,7 +49,7 @@ export function LessonAchieve() {
         <h2 className="text-xl font-black text-slate-800">สรุปผลสัมฤทธิ์</h2>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-bold text-sm shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-bold text-sm shadow-sm whitespace-nowrap"
         >
           <Printer className="h-4 w-4" />
           พิมพ์รายงาน (PDF)

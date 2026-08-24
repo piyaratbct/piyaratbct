@@ -103,10 +103,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 md:flex md:flex-wrap bg-white rounded-xl p-1 shadow-sm border border-slate-100 custom-scrollbar gap-1">
+      <div className="flex overflow-x-auto custom-scrollbar bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full gap-1">
         <button
           onClick={() => setActiveTab("calendar")}
-          className={`relative flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+          className={`relative flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === "calendar"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
@@ -122,7 +122,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         </button>
         <button
           onClick={() => setActiveTab("schedule")}
-          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === "schedule"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
@@ -133,7 +133,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
           <button
             onClick={() => setActiveTab("settings")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === "settings"
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-500 hover:bg-slate-50"
@@ -145,7 +145,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
           <button
             onClick={() => setActiveTab("staff")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === "staff" || activeTab === "eportfolio"
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-500 hover:bg-slate-50"
@@ -157,7 +157,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
           <button
             onClick={() => setActiveTab("promotion")}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === "promotion"
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-500 hover:bg-slate-50"
@@ -169,7 +169,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
         <button
           onClick={() => setActiveTab("curriculum")}
-          className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all min-w-[150px] ${
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === "curriculum"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
@@ -181,7 +181,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
       {/* Tab Contents */}
       {activeTab === "calendar" && (
-        <SchoolEventCalendar currentTeacher={currentTeacher} />
+        <SchoolEventCalendar currentTeacher={currentTeacher} students={students} />
       )}
 
       {activeTab === "schedule" && (
@@ -194,10 +194,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
       {(activeTab === "staff" || activeTab === "eportfolio") && (
         <div className="space-y-4">
-          <div className="flex gap-2 border-b border-slate-200">
+          <div className="flex overflow-x-auto gap-2 border-b border-slate-200">
             <button
               onClick={() => setActiveTab("staff")}
-              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "staff"
                   ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-slate-500 hover:text-slate-700"
@@ -207,7 +207,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("eportfolio")}
-              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "eportfolio"
                   ? "border-fuchsia-600 text-fuchsia-600"
                   : "border-transparent text-slate-500 hover:text-slate-700"

@@ -33,6 +33,7 @@ export function DisciplineModule({
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<string>('ภาพรวม');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
 
   // Form State
   const [type, setType] = useState<DisciplineIncident['type']>('fight');
@@ -49,7 +50,9 @@ export function DisciplineModule({
   const [severity, setSeverity] = useState<DisciplineIncident['severity']>('none');
   const [actionTaken, setActionTaken] = useState<DisciplineIncident['actionTaken']>('none');
   const [actionTakenDetail, setActionTakenDetail] = useState('');
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [offenderIds, setOffenderIds] = useState<string[]>([]);
+  const [victimIds, setVictimIds] = useState<string[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]); // For legacy or non-disciplinary events
   const [studentSearch, setStudentSearch] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +77,7 @@ export function DisciplineModule({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedStudentIds.length === 0) {
+    if (offenderIds.length === 0 && victimIds.length === 0 && selectedStudentIds.length === 0) {
       alert("กรุณาเลือกนักเรียนที่เกี่ยวข้อง");
       return;
     }
@@ -85,12 +88,25 @@ export function DisciplineModule({
 
     setIsSubmitting(true);
     try {
-      const selectedStudents = students.filter(s => selectedStudentIds.includes(s.id));
-      const studentNames = selectedStudents.map(s => `${s.firstName} ${s.lastName} ${s.nickname ? `(${s.nickname})` : ''} - ${s.gradeLevel}`);
+      
+      const allSelectedIds = Array.from(new Set([...offenderIds, ...victimIds, ...selectedStudentIds]));
+      const allSelectedStudents = students.filter(s => allSelectedIds.includes(s.id));
+      const studentNames = allSelectedStudents.map(s => `${s.firstName} ${s.lastName} ${s.nickname ? `(${s.nickname})` : ''} - ${s.gradeLevel}`);
+      
+      const offenders = students.filter(s => offenderIds.includes(s.id));
+      const offenderNames = offenders.map(s => `${s.firstName} ${s.lastName}`);
+      
+      const victims = students.filter(s => victimIds.includes(s.id));
+      const victimNames = victims.map(s => `${s.firstName} ${s.lastName}`);
 
       const dataToSave = {
-        studentIds: selectedStudentIds,
+        studentIds: allSelectedIds,
         studentNames,
+        offenderIds,
+        offenderNames,
+        victimIds,
+        victimNames,
+
         description,
         type,
         otherTypeDetail: type === 'other' ? otherTypeDetail : '',
@@ -145,6 +161,8 @@ export function DisciplineModule({
     setActionTaken('none');
     setActionTakenDetail('');
     setSelectedStudentIds([]);
+    setOffenderIds([]);
+    setVictimIds([]);
     setEditingId(null);
     setShowForm(false);
   };
@@ -214,6 +232,8 @@ export function DisciplineModule({
     }
     
     setSelectedStudentIds(incident.studentIds || []);
+    setOffenderIds(incident.offenderIds || []);
+    setVictimIds(incident.victimIds || []);
     setShowForm(true);
   };
   const handleDelete = async (id: string) => {
@@ -334,6 +354,7 @@ export function DisciplineModule({
     if (!matchesSearch) return false;
     
     if (selectedMonth && !i.date.startsWith(selectedMonth)) return false;
+    if (selectedTypeFilter !== 'all' && i.type !== selectedTypeFilter) return false;
     
     if (selectedGrade === 'ภาพรวม') return true;
     
@@ -353,7 +374,7 @@ export function DisciplineModule({
   });
 
   const filteredStudents = students.filter(s => 
-    !selectedStudentIds.includes(s.id) && 
+    !selectedStudentIds.includes(s.id) && !offenderIds.includes(s.id) && !victimIds.includes(s.id) && 
     (
       s.firstName.toLowerCase().includes(studentSearch.toLowerCase()) || 
       s.lastName.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -493,6 +514,24 @@ export function DisciplineModule({
           </div>
           
           <select
+            value={selectedTypeFilter}
+            onChange={(e) => setSelectedTypeFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white min-w-[150px]"
+          >
+            <option value="all">ทุกประเภทเหตุการณ์</option>
+            <option value="fight">ทะเลาะวิวาท / ชกต่อย</option>
+            <option value="assault">ทำร้ายร่างกาย</option>
+            <option value="feud">บาดหมาง / ไม่พอใจกัน</option>
+            <option value="bullying">กลั่นแกล้ง / รังแก (Bullying)</option>
+            <option value="misunderstanding">เข้าใจผิด / พูดจาผิดหู</option>
+            <option value="disruption">รบกวนการเรียนการสอน</option>
+            <option value="vandalism">ทำลายทรัพย์สิน</option>
+            <option value="accident">อุบัติเหตุ</option>
+            <option value="illness">เจ็บป่วยกะทันหัน</option>
+            <option value="other">อื่นๆ</option>
+          </select>
+          
+          <select
             value={selectedGrade}
             onChange={(e) => setSelectedGrade(e.target.value)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white min-w-[150px]"
@@ -574,17 +613,44 @@ export function DisciplineModule({
                   </div>
                   
                   <div className="space-y-3 mb-4">
+                    
                     <div className="flex items-start gap-2">
                       <UserX className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                      <div>
+                      <div className="w-full">
                         <p className="text-xs font-bold text-slate-500 mb-1">นักเรียนที่เกี่ยวข้อง:</p>
-                        <ul className="text-sm font-semibold text-slate-700 list-disc list-inside">
-                          {incident.studentNames.map((name, i) => (
-                            <li key={i}>{name}</li>
-                          ))}
-                        </ul>
+                        
+                        {(incident.offenderNames && incident.offenderNames.length > 0) && (
+                          <div className="mb-2">
+                            <span className="text-xs font-bold text-rose-600">ผู้กระทำผิด:</span>
+                            <ul className="text-sm font-semibold text-rose-700 list-disc list-inside">
+                              {incident.offenderNames.map((name, i) => (
+                                <li key={i}>{name}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {(incident.victimNames && incident.victimNames.length > 0) && (
+                          <div className="mb-2">
+                            <span className="text-xs font-bold text-amber-600">ผู้ถูกกระทำ/เกี่ยวข้อง:</span>
+                            <ul className="text-sm font-semibold text-amber-700 list-disc list-inside">
+                              {incident.victimNames.map((name, i) => (
+                                <li key={i}>{name}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {(!incident.offenderNames?.length && !incident.victimNames?.length && incident.studentNames && incident.studentNames.length > 0) && (
+                          <ul className="text-sm font-semibold text-slate-700 list-disc list-inside">
+                            {incident.studentNames.map((name, i) => (
+                              <li key={i}>{name}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     </div>
+
                     
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
@@ -803,29 +869,12 @@ export function DisciplineModule({
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-slate-700 flex justify-between items-center">
-                  <span>นักเรียนที่เกี่ยวข้อง <span className="text-rose-500">*</span></span>
-                  <span className="text-xs font-normal text-slate-500">เลือกแล้ว {selectedStudentIds.length} คน</span>
+              
+              <div className="space-y-4">
+                <label className="text-sm font-bold text-slate-700 flex flex-col">
+                  <span>รายชื่อนักเรียน <span className="text-rose-500">*</span></span>
+                  <span className="text-xs font-normal text-slate-500 mt-1">ค้นหาและระบุบทบาทของนักเรียนในเหตุการณ์</span>
                 </label>
-                
-                {/* Selected Students Tags */}
-                {selectedStudentIds.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {selectedStudentIds.map(id => {
-                      const student = students.find(s => s.id === id);
-                      if (!student) return null;
-                      return (
-                        <div key={id} className="bg-rose-50 border border-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2">
-                          <span className="font-semibold">{student.firstName} {student.lastName}</span>
-                          <button onClick={() => setSelectedStudentIds(prev => prev.filter(sId => sId !== id))} className="text-rose-400 hover:text-rose-600">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
                 
                 {/* Search & Add Students */}
                 <div className="relative">
@@ -842,28 +891,137 @@ export function DisciplineModule({
                 {studentSearch && filteredStudents.length > 0 && (
                   <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                     {filteredStudents.map(student => (
-                      <button
+                      <div
                         key={student.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudentIds(prev => [...prev, student.id]);
-                          setStudentSearch('');
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 text-sm flex justify-between items-center"
+                        className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 text-sm flex flex-col justify-between"
                       >
-                        <div>
-                          <span className="font-semibold text-slate-800">{student.firstName} {student.lastName} {student.nickname && `(${student.nickname})`}</span>
-                          <span className="text-slate-500 text-xs ml-2">{student.gradeLevel}</span>
+                        <div className="flex justify-between items-center mb-2">
+                          <div>
+                            <span className="font-semibold text-slate-800">{student.firstName} {student.lastName} {student.nickname && `(${student.nickname})`}</span>
+                            <span className="text-slate-500 text-xs ml-2">{student.gradeLevel}</span>
+                          </div>
                         </div>
-                        <PlusCircle className="h-4 w-4 text-emerald-500" />
-                      </button>
+                        
+                        <div className="flex gap-2">
+                          {(type === 'accident' || type === 'illness') ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudentIds(prev => [...prev, student.id]);
+                                setStudentSearch('');
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 text-xs font-bold rounded-lg transition-colors"
+                            >
+                              + เพิ่มนักเรียนที่ประสบเหตุ
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOffenderIds(prev => [...prev, student.id]);
+                                  setStudentSearch('');
+                                }}
+                                className="flex-1 px-2 py-1.5 bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100 text-xs font-bold rounded-lg transition-colors"
+                              >
+                                + ผู้กระทำผิด
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setVictimIds(prev => [...prev, student.id]);
+                                  setStudentSearch('');
+                                }}
+                                className="flex-1 px-2 py-1.5 bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 text-xs font-bold rounded-lg transition-colors"
+                              >
+                                + ผู้ถูกกระทำ/เกี่ยวข้อง
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedStudentIds(prev => [...prev, student.id]);
+                                  setStudentSearch('');
+                                }}
+                                className="flex-1 px-2 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 text-xs font-bold rounded-lg transition-colors"
+                              >
+                                + รวมๆ (แบบเก่า)
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                      </div>
                     ))}
                   </div>
                 )}
                 {studentSearch && filteredStudents.length === 0 && (
                   <div className="text-sm text-center py-2 text-slate-500">ไม่พบนักเรียนที่ค้นหา หรือเลือกนักเรียนคนนี้ไปแล้ว</div>
                 )}
+
+                {/* Selected Students Tags */}
+                <div className="space-y-3">
+                  {offenderIds.length > 0 && (
+                    <div className="border border-rose-200 bg-rose-50/50 p-3 rounded-xl">
+                      <p className="text-xs font-bold text-rose-700 mb-2">ผู้กระทำผิด ({offenderIds.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {offenderIds.map(id => {
+                          const student = students.find(s => s.id === id);
+                          if (!student) return null;
+                          return (
+                            <div key={id} className="bg-white border border-rose-200 text-rose-700 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 shadow-sm">
+                              <span className="font-semibold">{student.firstName} {student.lastName}</span>
+                              <button type="button" onClick={() => setOffenderIds(prev => prev.filter(sId => sId !== id))} className="text-rose-400 hover:text-rose-600">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {victimIds.length > 0 && (
+                    <div className="border border-amber-200 bg-amber-50/50 p-3 rounded-xl">
+                      <p className="text-xs font-bold text-amber-700 mb-2">ผู้ถูกกระทำ / ผู้เกี่ยวข้อง ({victimIds.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {victimIds.map(id => {
+                          const student = students.find(s => s.id === id);
+                          if (!student) return null;
+                          return (
+                            <div key={id} className="bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 shadow-sm">
+                              <span className="font-semibold">{student.firstName} {student.lastName}</span>
+                              <button type="button" onClick={() => setVictimIds(prev => prev.filter(sId => sId !== id))} className="text-amber-400 hover:text-amber-600">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedStudentIds.length > 0 && (
+                    <div className="border border-slate-200 bg-slate-50/50 p-3 rounded-xl">
+                      <p className="text-xs font-bold text-slate-600 mb-2">{(type === 'accident' || type === 'illness') ? 'นักเรียนที่ประสบเหตุ' : 'ระบุรวมๆ แบบเดิม'} ({selectedStudentIds.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedStudentIds.map(id => {
+                          const student = students.find(s => s.id === id);
+                          if (!student) return null;
+                          return (
+                            <div key={id} className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 shadow-sm">
+                              <span className="font-semibold">{student.firstName} {student.lastName}</span>
+                              <button type="button" onClick={() => setSelectedStudentIds(prev => prev.filter(sId => sId !== id))} className="text-slate-400 hover:text-slate-600">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
               
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700">รายละเอียดเหตุการณ์ <span className="text-rose-500">*</span></label>
@@ -910,7 +1068,7 @@ export function DisciplineModule({
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || selectedStudentIds.length === 0 || !description.trim() || (type === 'other' && !otherTypeDetail.trim()) || (type === 'accident' && (!accidentDetail.trim() || (accidentDetail === 'other' && !otherAccidentDetail.trim()))) || (type === 'illness' && (!illnessDetail.trim() || (illnessDetail === 'other' && !otherIllnessDetail.trim()))) || ((type === 'fight' || type === 'assault') && (!fightDetail.trim() || (fightDetail === 'other' && !otherFightDetail.trim()))) || (actionTaken === 'other' && !actionTakenDetail.trim())}
+                disabled={isSubmitting || (selectedStudentIds.length === 0 && offenderIds.length === 0 && victimIds.length === 0) || !description.trim() || (type === 'other' && !otherTypeDetail.trim()) || (type === 'accident' && (!accidentDetail.trim() || (accidentDetail === 'other' && !otherAccidentDetail.trim()))) || (type === 'illness' && (!illnessDetail.trim() || (illnessDetail === 'other' && !otherIllnessDetail.trim()))) || ((type === 'fight' || type === 'assault') && (!fightDetail.trim() || (fightDetail === 'other' && !otherFightDetail.trim()))) || (actionTaken === 'other' && !actionTakenDetail.trim())}
                 className="px-6 py-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-300 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
               >
                 {isSubmitting ? 'กำลังบันทึก...' : (

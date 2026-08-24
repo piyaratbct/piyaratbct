@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Student, AttendanceSession } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -158,6 +159,13 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
 
   // ฟอร์มต้นฉบับมี 31 วันเสมอ
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
+    useEffect(() => {
+    document.body.classList.add("print-mode-active");
+    return () => {
+      document.body.classList.remove("print-mode-active");
+    };
+  }, []);
+
   const PAGE_SIZE = 20;
   
   // กรองนักเรียนที่งดดื่มนมออก
@@ -178,7 +186,7 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
     );
   }
 
-  return (
+  const content = (
     <div className="print-root-wrap fixed inset-0 z-[200] bg-slate-500/90 backdrop-blur-sm overflow-y-auto cursor-default print:p-0 print:absolute print:inset-0 print:bg-white print:backdrop-blur-none font-sarabun">
       <div className="min-h-screen py-8 print:py-0 flex flex-col items-center gap-8 print:block">
         {studentPages.map((pageStudents, pageIndex) => (
@@ -338,4 +346,6 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
       `}} />
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };

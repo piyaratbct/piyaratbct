@@ -10,7 +10,7 @@ import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
 import { Printer } from 'lucide-react';
 
 import { LessonAchieve } from './LessonAchieve';
-import { collection, query, onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, setDoc, doc, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
 import { CharacterAssessmentView } from './CharacterAssessmentView';
@@ -27,7 +27,25 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character'>('overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
-  const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
+    const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
+  const [scoutCampAttendees, setScoutCampAttendees] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (selectedSubject === 'กิจกรรมลูกเสือ') {
+      const q = query(collection(db, 'schoolEvents'), where('type', '==', 'scout_camp'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let attendees = new Set<string>();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.attendeeIds) {
+            data.attendeeIds.forEach((id) => attendees.add(id));
+          }
+        });
+        setScoutCampAttendees(attendees);
+      });
+      return () => unsubscribe();
+    }
+  }, [selectedSubject]);
   
   const [scores, setScores] = useState<Record<string, SubjectScore>>({});
   const [draftScores, setDraftScores] = useState<Record<string, SubjectScore>>({});
@@ -121,8 +139,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   };
 
-  const calculateGrade = (total: number, subject: string): string => {
-    if (subject === 'กิจกรรมลูกเสือ') return total >= 80 ? "ผ" : "มผ";
+  const calculateGrade = (total: number, subject: string, activities?: any, isScoutAttended?: boolean): string => {
+    if (subject === 'กิจกรรมลูกเสือ') {
+      const campAttended = isScoutAttended || activities?.scoutCamp === 1;
+      return (total >= 80 && campAttended) ? "ผ" : "มผ";
+    }
     if (total >= 80) return "4";
     if (total >= 75) return "3.5";
     if (total >= 70) return "3";
@@ -323,54 +344,54 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         {/* Tabs and Content */}
         <div className="space-y-6">
           {/* Tabs */}
-          <div className="grid grid-cols-2 lg:flex lg:flex-wrap bg-white/50 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm border border-slate-100 max-w-2xl gap-1.5">
+          <div className="flex overflow-x-auto hide-scrollbar bg-white/50 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm border border-slate-100 w-full gap-1.5">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'overview' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <TrendingUp className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">ภาพรวมผลสัมฤทธิ์</span>
+              <TrendingUp className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">ภาพรวมผลสัมฤทธิ์</span>
             </button>
             <button
               onClick={() => setActiveTab('grades')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'grades' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <FileText className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">บันทึกคะแนน (ประถม)</span>
+              <FileText className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">บันทึกคะแนน (ประถม)</span>
             </button>
             <button
               onClick={() => setActiveTab('kindergarten')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'kindergarten' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <Award className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">ประเมินอนุบาล</span>
+              <Award className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">ประเมินอนุบาล</span>
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'attendance' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <CalendarDays className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">สรุปการเช็กชื่อ</span>
+              <CalendarDays className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">สรุปการเช็กชื่อ</span>
             </button>
             <button
               onClick={() => setActiveTab('learning_hours')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'learning_hours' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <BookOpen className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">รายงานเวลาเรียน</span>
+              <BookOpen className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">รายงานเวลาเรียน</span>
             </button>
             <button
               onClick={() => setActiveTab('character')}
-              className={`flex-1 flex flex-col lg:flex-row items-center justify-center gap-1.5 lg:gap-2 py-3 lg:py-2 px-2 rounded-xl text-xs lg:text-sm font-bold transition-all ${
+              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
                 activeTab === 'character' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <ShieldCheck className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-center lg:text-left leading-tight">คุณลักษณะฯ 8 ประการ</span>
+              <ShieldCheck className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">คุณลักษณะฯ 8 ประการ</span>
             </button>
 
           </div>
@@ -420,7 +441,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   </select>
                   <button 
                     onClick={() => setShowSettingsModal(true)}
-                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
                   >
                     <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
                   </button>
@@ -441,16 +462,16 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
               {selectedSubject !== 'กิจกรรมลูกเสือ' ? ( <>
               {/* Sub tabs for grades */}
-              <div className="flex border-b border-slate-200 mb-6">
+              <div className="flex overflow-x-auto border-b border-slate-200 mb-6">
                 <button
                   onClick={() => setGradesSubTab('part1')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors ${gradesSubTab === 'part1' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part1' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                   ส่วนที่ 1: เก็บระหว่างเรียน
                 </button>
                 <button
                   onClick={() => setGradesSubTab('part2')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                   ส่วนที่ 2: สอบ (กลางภาค/ปลายภาค)
                 </button>
@@ -699,7 +720,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
                         <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
                         <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">เวลาเรียน<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
-                        <th className="px-4 py-3 text-center bg-emerald-50">ผลการประเมิน<br/><span className="text-xs font-normal text-slate-400">(ผ/มผ)</span></th>
+                        <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">กิจกรรมเข้าค่าย<br/><span className="text-xs font-normal text-slate-400">(ผ่าน/ไม่ผ่าน)</span></th>
+                        <th className="px-4 py-3 text-center bg-emerald-50">ผลการประเมินรวม<br/><span className="text-xs font-normal text-slate-400">(ผ/มผ)</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -708,6 +730,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                           .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                           .map((student) => {
                             const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
                             const score = draftScores[key] || { totalScore: '' };
                             
                             return (
@@ -738,17 +761,61 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                           midtermScore: 0,
                                           afterMidKnowledgeScore: 0,
                                           afterMidSoftSkillScore: 0,
-                                          finalScore: 0
+                                          finalScore: 0,
+                                          activities: {}
                                         }),
                                         totalScore: numVal,
-                                        grade: calculateGrade(numVal, selectedSubject)
+                                        grade: calculateGrade(numVal, selectedSubject, prev[key]?.activities, isScoutCampAttended)
                                       }
                                     }));
                                   }}
                                 />
                               </td>
+                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
+                                <label className="flex items-center justify-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="checkbox"
+                                    className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                    checked={isScoutCampAttended || score.activities?.scoutCamp === 1}
+                                    disabled={isScoutCampAttended}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      setDraftScores(prev => {
+                                        const currentScore = prev[key] || {
+                                          id: `sc-${Date.now()}`,
+                                          studentId: student.id,
+                                          gradeLevel: selectedGrade,
+                                          academicYear: systemAcademicYear || '',
+                                          semester: systemSemester || '',
+                                          subject: selectedSubject,
+                                          teacherId: 'current-teacher',
+                                          beforeMidKnowledgeScore: 0,
+                                          beforeMidSoftSkillScore: 0,
+                                          midtermScore: 0,
+                                          afterMidKnowledgeScore: 0,
+                                          afterMidSoftSkillScore: 0,
+                                          finalScore: 0,
+                                          totalScore: 0,
+                                          activities: {}
+                                        };
+                                        const newActivities = { ...currentScore.activities, scoutCamp: isChecked ? 1 : 0 };
+                                        return {
+                                          ...prev,
+                                          [key]: {
+                                            ...currentScore,
+                                            activities: newActivities,
+                                            grade: calculateGrade(currentScore.totalScore, selectedSubject, newActivities, isScoutCampAttended)
+                                          }
+                                        };
+                                      });
+                                    }}
+                                  />
+                                  {isScoutCampAttended && <span className="absolute -top-2 -right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
+                                  <span className="text-xs font-medium text-slate-600">เข้าร่วม</span>
+                                </label>
+                              </td>
                               <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
-                                {score.grade || '-'}
+                                {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, isScoutCampAttended) || '-'}
                               </td>
                             </tr>
                             );

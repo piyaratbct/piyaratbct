@@ -1629,7 +1629,7 @@ export default function App() {
             <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
             
             {/* School Event Calendar in Overview */}
-            <OverviewCalendar currentTeacher={currentTeacher} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} onNavigateToCalendar={() => setActiveModule("academic")} />
+            <OverviewCalendar currentTeacher={currentTeacher} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} onNavigateToCalendar={() => setActiveModule("academic")} students={students} />
 
             {/* Quick Stats Cards (Mockup) */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -33,6 +33,7 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
   const [attendanceData, setAttendanceData] = useState<AttendanceSession[]>([]);
   const [disciplineData, setDisciplineData] = useState<DisciplineIncident[]>([]);
   const [scoresData, setScoresData] = useState<SubjectScore[]>([]);
+  const [schoolEvents, setSchoolEvents] = useState<any[]>([]);
 
   
   // If user is a homeroom teacher, maybe pre-select their grade? (Omitted for simplicity, default to P.1)
@@ -87,11 +88,17 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
     ), snap => {
       setScoresData(snap.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore)));
     });
+    
+    // School Events (for trait evaluation)
+    const unsubEvents = onSnapshot(collection(db, 'schoolEvents'), snap => {
+      setSchoolEvents(snap.docs.map(d => ({id: d.id, ...d.data()})));
+    });
 
     return () => {
       unsubAttendance();
       unsubDiscipline();
       unsubScores();
+      if(typeof unsubEvents === "function") unsubEvents();
     };
   }, [systemAcademicYear, systemSemester]);
 
@@ -158,18 +165,32 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
       const attendancePercent = totalCount > 0 ? (presentCount / totalCount) * 100 : 0;
       
       // Check discipline incidents (only behavioral infractions)
+      
+      // Check discipline incidents (only behavioral infractions)
       const badBehaviorTypes = ['fight', 'assault', 'feud', 'bullying', 'vandalism', 'disruption'];
-      const hasIncidents = disciplineData.some(inc => 
+      
+      const isOffender = disciplineData.some(inc => 
+        inc.offenderIds && 
+        inc.offenderIds.includes(student.id) && 
+        badBehaviorTypes.includes(inc.type)
+      );
+
+      // Legacy incidents where offenderIds isn't used, so we check studentIds
+      const isLegacy = disciplineData.some(inc => 
+        (!inc.offenderIds || inc.offenderIds.length === 0) &&
         inc.studentIds && 
         inc.studentIds.includes(student.id) && 
         badBehaviorTypes.includes(inc.type)
       );
       
-      if (attendancePercent >= 90 && !hasIncidents) {
+      if (attendancePercent >= 90 && !isOffender) {
         excellentTraits.add('t3'); // 90%+ and clean record = 3
-      } else if (hasIncidents) {
-        warningTraits.add('t3'); // Has incidents = maybe cap at 1
+      } 
+      if (isOffender) {
+        warningTraits.add('t3'); // Has explicit offender incidents = cap at 1
       }
+      // Note: If isLegacy, we don't auto-deduct. We leave it neutral or let the teacher decide.
+
 
       // 2. Learning & Commitment (t4: ใฝ่เรียนรู้, t6: มุ่งมั่นในการทำงาน)
       // Check academic scores
@@ -192,7 +213,19 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
         warningTraits.add('t6');
       }
 
+      
+      // 3. School Event Attendance
+      const attendedEvents = schoolEvents.filter(e => e.attendeeIds && e.attendeeIds.includes(student.id));
+      attendedEvents.forEach(e => {
+        if (e.evaluatedTraits && e.evaluatedTraits.length > 0) {
+          e.evaluatedTraits.forEach((traitId: string) => {
+            excellentTraits.add(traitId); // Auto-suggest excellent for attended traits
+          });
+        }
+      });
+      
       // Helper function to resolve final score
+
       const resolveScore = (traitId: string) => {
         if (warningTraits.has(traitId)) return 1; // Needs improvement
         if (excellentTraits.has(traitId)) return 3; // Excellent
@@ -387,6 +420,23 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
                   const avgScore = scoreCount > 0 ? (totalScoreSum / scoreCount) : 0;
 
                   const insights = [];
+                  
+                  const attendedEvents = schoolEvents.filter(e => e.attendeeIds && e.attendeeIds.includes(student.id));
+                  const eventTraitMap: Record<string, string[]> = {};
+                  attendedEvents.forEach(e => {
+                    if (e.evaluatedTraits) {
+                      e.evaluatedTraits.forEach((tId: string) => {
+                        if (!eventTraitMap[tId]) eventTraitMap[tId] = [];
+                        eventTraitMap[tId].push(e.title);
+                      });
+                    }
+                  });
+                  Object.keys(eventTraitMap).forEach(tId => {
+                    const trait = TRAITS.find(t => t.id === tId);
+                    if (trait) {
+                      insights.push({ type: 'positive', text: `เข้าร่วม ${eventTraitMap[tId].join(', ')} -> โดดเด่น (${trait.short})` });
+                    }
+                  });
                   
                   if (totalCount > 0) {
                     if (attendancePercent >= 90 && !hasIncidents) {

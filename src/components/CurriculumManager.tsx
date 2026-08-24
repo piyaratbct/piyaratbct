@@ -409,14 +409,14 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
           />
           <button 
             onClick={downloadTemplate}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg font-bold shadow-sm hover:bg-indigo-100 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg font-bold shadow-sm hover:bg-indigo-100 transition-colors whitespace-nowrap"
           >
             <Download className="h-4 w-4" /> โหลดไฟล์ตัวอย่าง (Excel)
           </button>
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg font-bold shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50 whitespace-nowrap"
           >
             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} 
             {isImporting ? 'กำลังนำเข้า...' : 'นำเข้าตัวชี้วัด (Excel)'}
@@ -427,7 +427,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
               setEditingSubject({ gradeLevel: GRADE_LEVELS[0], subjectName: SUBJECTS[0] });
               setShowSubjectForm(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition-colors whitespace-nowrap"
           >
             <Plus className="h-4 w-4" /> เพิ่มรายวิชา
           </button>
