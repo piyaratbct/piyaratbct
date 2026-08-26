@@ -1,12 +1,7 @@
 import React, { useState } from "react";
 import { Student, KindergartenAssessment, Teacher } from "../types";
-import { formatThaiMonthYear } from '../lib/dateUtils';
-import {
-  PDFPrintHelper,
-  PrintPageContainer,
-  PrintHeader,
-  PrintSignatureBox,
-} from "./PDFPrintHelper";
+import { PDFPrintHelper, PrintPageContainer, PrintHeader, PrintSignatureBox } from "./PDFPrintHelper";
+import { formatThaiMonthYear } from "../lib/dateUtils";
 
 interface KindergartenPrintTemplateProps {
   students: Student[];
@@ -25,210 +20,186 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
   semester,
   onClose,
 }) => {
+  const [isCompact, setIsCompact] = useState(false);
   const teacherIdentifier = (
     teacher.employeeId ||
     teacher.thaiName ||
     "ครูผู้สอน"
   ).replace(/[\/\\:*?"<>|\s]/g, "_");
-
-  const gradeLevel = students.length > 0 ? students[0].gradeLevel : "ไม่ระบุ";
+  const gradeLevel =
+    students[0]?.gradeLevel.replace(/[\/\\:*?"<>|\s]/g, "_") || "ไม่ระบุชั้น";
   
-  // Try to find the assessment month from the first available assessment
-  const sampleAssessment = Object.values(assessments).find(a => (a as any).studentId) as any;
-  const assessmentMonth = sampleAssessment?.month;
-
-  
-  const getDomainSummary = (scores: number[]) => {
-    const validScores = scores.filter(s => s > 0);
-    if (validScores.length === 0) return 0;
-    const sum = validScores.reduce((a, b) => a + b, 0);
-    return Math.round(sum / validScores.length);
-  };
-
-  const getScoreText = (score: number) => {
-    if (score === 3) return "ดี";
-    if (score === 2) return "พอใช้";
-    if (score === 1) return "ควรส่งเสริม";
-    return "-";
-  };
+  const documentTitle = `แบบประเมินพัฒนาการปฐมวัย_${gradeLevel}_${teacherIdentifier}_${academicYear}_${semester}`;
 
   return (
-    <PDFPrintHelper
-      title="พิมพ์แบบประเมินพัฒนาการเด็กปฐมวัย"
-      documentTitle={`Kindergarten_Assessment_${gradeLevel}_${teacherIdentifier}`}
-      onClose={onClose}
+    <PDFPrintHelper 
+      onClose={onClose} 
+      documentTitle={documentTitle}
+      isCompact={isCompact}
+      onToggleCompact={() => setIsCompact(!isCompact)}
     >
-      <PrintPageContainer>
-        <PrintHeader
-          title="แบบประเมินพัฒนาการเด็กปฐมวัย"
-          subtitle={`ชั้น${gradeLevel} ภาคเรียนที่ ${semester} ปีการศึกษา ${academicYear}`}
-        />
+      {students.map((student, index) => {
+        const assessment = assessments[student.id];
+        if (!assessment) return null;
         
-        {assessmentMonth && (
-          <div className="text-center mb-6 font-bold">
-            ประจำเดือน: {formatThaiMonthYear(assessmentMonth)}
-          </div>
-        )}
+        const assessmentMonth = assessment.month || `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`;
 
-                {students.map((student, idx) => {
-          const assessment = assessments[student.id];
-          if (!assessment) return null;
-          
-          const physicalScores = [assessment.standard1, assessment.standard2];
-          const physicalSummary = getDomainSummary(physicalScores);
+        return (
+          <PrintPageContainer
+            key={student.id}
+            className={
+              isCompact
+                ? "!p-[0.7cm] !mb-0 !mt-0 !rounded-none !rounded-b-xl !shadow-md"
+                : ""
+            }
+          >
+            <PrintHeader 
+              title="รายงานผลการพัฒนาเด็กปฐมวัยรายบุคคล" 
+              className={isCompact ? "mb-4" : "mb-8"}
+              subtitle={
+                <p
+                  className={`${isCompact ? "text-xs px-3 py-1 mt-1" : "text-sm px-5 py-1.5"} font-semibold text-pink-700 bg-pink-50 rounded-full border border-pink-100`}
+                >
+                  ภาคเรียนที่ {semester} ปีการศึกษา{" "}
+                  {academicYear} • ระดับชั้น{" "}
+                  {student.gradeLevel.replace(/\s*\(.*?\)/g, "")}
+                </p>
+              }
+            />
 
-          const emotionalScores = [assessment.standard3, assessment.standard4, assessment.standard5];
-          const emotionalSummary = getDomainSummary(emotionalScores);
-
-          const socialScores = [assessment.standard6, assessment.standard7, assessment.standard8];
-          const socialSummary = getDomainSummary(socialScores);
-
-          const cognitiveScores = [assessment.standard9, assessment.standard10, assessment.standard11, assessment.standard12];
-          const cognitiveSummary = getDomainSummary(cognitiveScores);
-
-          const overallScores = [...physicalScores, ...emotionalScores, ...socialScores, ...cognitiveScores];
-          const overallSummary = getDomainSummary(overallScores);
-
-          return (
-            <div key={student.id} className="mb-12 page-break-inside-avoid border border-slate-200 rounded-lg p-6">
-              <div className="flex justify-between items-end mb-4 pb-2 border-b-2 border-slate-800">
+            {/* Student Info */}
+            <div
+              className={`border border-sky-200 bg-sky-50/50 rounded-xl text-slate-800 ${isCompact ? "p-3 mb-3 mt-1" : "p-5 mb-6 mt-2"}`}
+            >
+              <div
+                className={`grid grid-cols-2 ${isCompact ? "gap-2 text-xs" : "gap-4 text-base"}`}
+              >
                 <div>
-                  <h3 className="font-bold text-lg">
-                    {student.firstName} {student.lastName}
-                  </h3>
-                  <p className="text-sm">
-                    เลขที่: {student.number} | รหัสประจำตัว: {student.studentId}
-                  </p>
+                  <span className="font-bold text-sky-900">
+                    รหัสประจำตัวนักเรียน:
+                  </span>{" "}
+                  {student.studentId || student.id}
                 </div>
-                <div className="text-right text-sm">
-                  {assessmentMonth && <p>ประจำเดือน: {formatThaiMonthYear(assessmentMonth)}</p>}
+                <div>
+                  <span className="font-bold text-sky-900">เลขที่:</span>{" "}
+                  {student.number}
+                </div>
+                <div className="col-span-2">
+                  <span className="font-bold text-sky-900">ชื่อ-นามสกุล:</span>{" "}
+                  {student.firstName} {student.lastName}{" "}
+                  {student.nickname && (
+                    <span className="text-slate-600">({student.nickname})</span>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-8 mb-6">
-                <div>
-                  <h4 className="font-bold mb-2">ด้านร่างกาย</h4>
-                  <table className="w-full text-sm border-collapse mb-4">
-                    <tbody>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 1 ร่างกายเจริญเติบโตตามวัยฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard1)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 2 กล้ามเนื้อแข็งแรงคล่องแคล่วฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard2)}</td>
-                      </tr>
-                      <tr className="bg-slate-100 font-bold">
-                        <td className="border p-2 text-right">สรุปผลด้านร่างกาย</td>
-                        <td className="border p-2 text-center text-pink-700">{getScoreText(physicalSummary)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+            {/* Assessment Data */}
+            <div className={`text-sm ${isCompact ? "space-y-3" : "space-y-6"}`}>
+              <div
+                className={`border border-pink-200 bg-pink-50/40 rounded-xl ${isCompact ? "p-3 space-y-3" : "p-5 space-y-5"}`}
+              >
+                <h3
+                  className={`font-bold text-pink-700 border-b border-pink-200 pb-1 flex items-center gap-2 ${isCompact ? "text-sm" : "text-lg pb-2"}`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                  ผลการประเมินพัฒนาการ
+                </h3>
+                <div
+                  className={`flex flex-wrap gap-x-8 gap-y-3 bg-white rounded-lg border border-pink-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}
+                >
+                  <div>
+                    <span className="font-bold text-slate-700">
+                      การประเมินประจำเดือน:
+                    </span>{" "}{formatThaiMonthYear(assessmentMonth)}
+                  </div>
+                </div>
+
+                <div className={isCompact ? "space-y-2" : "space-y-4"}>
+                  <div>
+                    <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                      1. ด้านสุขภาวะทางกาย
+                    </h4>
+                    <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                      {assessment.physicalDev || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                      2. ด้านอารมณ์ จิตใจ และสังคม
+                    </h4>
+                    <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                      {assessment.emotionalDev || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                      3. ด้านความเป็นพลเมืองและความเป็นไทย
+                    </h4>
+                    <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                      {assessment.citizenshipDev || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                      4. ด้านสติปัญญา
+                    </h4>
+                    <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                      {assessment.intellectualDev || "-"}
+                    </p>
+                  </div>
                   
-                  <h4 className="font-bold mb-2">ด้านอารมณ์ จิตใจ</h4>
-                  <table className="w-full text-sm border-collapse">
-                    <tbody>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 3 มีสุขภาพจิตดีและมีความสุข</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard3)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 4 ชื่นชมศิลปะ ดนตรี การเคลื่อนไหว</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard4)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 5 มีคุณธรรม จริยธรรมฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard5)}</td>
-                      </tr>
-                      <tr className="bg-slate-100 font-bold">
-                        <td className="border p-2 text-right">สรุปผลด้านอารมณ์ จิตใจ</td>
-                        <td className="border p-2 text-center text-pink-700">{getScoreText(emotionalSummary)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                  {assessment.teacherNotes && (
+                    <div>
+                      <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                        ข้อเสนอแนะเพิ่มเติม:
+                      </h4>
+                      <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                        {assessment.teacherNotes}
+                      </p>
+                    </div>
+                  )}
 
-                <div>
-                  <h4 className="font-bold mb-2">ด้านสังคม</h4>
-                  <table className="w-full text-sm border-collapse mb-4">
-                    <tbody>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 6 มีทักษะชีวิตและหลักเศรษฐกิจพอเพียง</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard6)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 7 รักธรรมชาติ สิ่งแวดล้อม วัฒนธรรมฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard7)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 8 อยู่ร่วมกับผู้อื่นอย่างมีความสุข</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard8)}</td>
-                      </tr>
-                      <tr className="bg-slate-100 font-bold">
-                        <td className="border p-2 text-right">สรุปผลด้านสังคม</td>
-                        <td className="border p-2 text-center text-pink-700">{getScoreText(socialSummary)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  {assessment.hasAchievement && assessment.achievementContent && (
+                    <div>
+                      <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                        ผลงานและความภาคภูมิใจ:
+                      </h4>
+                      <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                        {assessment.achievementContent}
+                      </p>
+                    </div>
+                  )}
 
-                  <h4 className="font-bold mb-2">ด้านสติปัญญา</h4>
-                  <table className="w-full text-sm border-collapse">
-                    <tbody>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 9 ใช้ภาษาสื่อสารได้เหมาะสมกับวัย</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard9)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 10 มีความสามารถในการคิดพื้นฐานฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard10)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 11 มีจินตนาการและความคิดสร้างสรรค์</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard11)}</td>
-                      </tr>
-                      <tr>
-                        <td className="border p-2">มาตรฐานที่ 12 มีเจตคติที่ดีต่อการเรียนรู้ฯ</td>
-                        <td className="border p-2 text-center w-24">{getScoreText(assessment.standard12)}</td>
-                      </tr>
-                      <tr className="bg-slate-100 font-bold">
-                        <td className="border p-2 text-right">สรุปผลด้านสติปัญญา</td>
-                        <td className="border p-2 text-center text-pink-700">{getScoreText(cognitiveSummary)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  {assessment.hasPastoralCare && assessment.pastoralCareContent && (
+                    <div>
+                      <h4 className={`font-bold text-slate-800 ${isCompact ? "text-xs mb-0.5" : "text-sm mb-1"}`}>
+                        การดูแลช่วยเหลือนักเรียน:
+                      </h4>
+                      <p className={`whitespace-pre-wrap text-slate-700 bg-white rounded border border-slate-100 ${isCompact ? "text-xs p-2" : "text-sm p-3"}`}>
+                        {assessment.pastoralCareContent}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              {assessment.teacherNotes && (
-                <div className="mb-6 border p-4 bg-slate-50 text-sm">
-                  <span className="font-bold">ข้อเสนอแนะเพิ่มเติม: </span>
-                  {assessment.teacherNotes}
-                </div>
-              )}
-              {assessment.hasAchievement && assessment.achievementContent && (
-                <div className="mb-6 border p-4 bg-slate-50 text-sm mt-[-1rem]">
-                  <span className="font-bold">ผลงานและความภาคภูมิใจ: </span>
-                  <span className="whitespace-pre-wrap">{assessment.achievementContent}</span>
-                </div>
-              )}
-              {assessment.hasPastoralCare && assessment.pastoralCareContent && (
-                <div className="mb-6 border p-4 bg-slate-50 text-sm mt-[-1rem]">
-                  <span className="font-bold">การดูแลช่วยเหลือนักเรียน: </span>
-                  <span className="whitespace-pre-wrap">{assessment.pastoralCareContent}</span>
-                </div>
-              )}
-
-              <div className="flex justify-end mt-8">
+            {/* Signatures */}
+            <div
+              className={`border-t border-slate-200 flex justify-end font-serif ${isCompact ? "mt-8 pt-4" : "mt-12 pt-6"}`}
+            >
+              <div className="w-64">
                 <PrintSignatureBox
-                  role="ผู้ประเมิน"
-                  name={teacher.thaiName}
-                  label="ครูประจำชั้น"
+                  role="ครูประจำชั้น / ผู้ประเมิน"
+                  name={teacher.thaiName || teacher.displayName}
+                  label="ลงชื่อ"
                 />
               </div>
             </div>
-          );
-        })}
-      </PrintPageContainer>
+          </PrintPageContainer>
+        );
+      })}
     </PDFPrintHelper>
   );
 };

@@ -234,18 +234,10 @@ export interface KindergartenAssessment {
   // อารมณ์ จิตใจ: มาตรฐาน 3-5
   // สังคม: มาตรฐาน 6-8
   // สติปัญญา: มาตรฐาน 9-12
-  standard1: number;
-  standard2: number;
-  standard3: number;
-  standard4: number;
-  standard5: number;
-  standard6: number;
-  standard7: number;
-  standard8: number;
-  standard9: number;
-  standard10: number;
-  standard11: number;
-  standard12: number;
+  physicalDev: string;
+  emotionalDev: string;
+  citizenshipDev: string;
+  intellectualDev: string;
   
   month?: string;
   teacherNotes?: string;
@@ -395,6 +387,7 @@ export const SEMESTERS = [
 ];
 
 export const SUBJECTS: string[] = [
+  'การศึกษาปฐมวัย',
   'ภาษาไทย',
   'คณิตศาสตร์',
   'วิทยาศาสตร์และเทคโนโลยี',
@@ -583,6 +576,12 @@ export interface AdmissionRecord {
   emergencyContactName?: string;
   emergencyContactRelation?: string;
   emergencyContactPhone?: string;
+  
+  surveySource?: string[];
+  surveySourceOther?: string;
+  surveyReasons?: string[];
+  surveyExpectations?: string[];
+  surveyPlan?: string;
   
   status: 'pending' | 'approved' | 'rejected' | 'enrolled';
   appliedAt: string;

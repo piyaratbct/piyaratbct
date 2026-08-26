@@ -9,25 +9,46 @@ interface EventAttendanceModalProps {
   setAttendanceEvent: (event: any) => void;
   students: Student[];
   onSuccess?: () => void;
+  currentTeacher?: any;
 }
 
-export function EventAttendanceModal({ attendanceEvent, setAttendanceEvent, students, onSuccess }: EventAttendanceModalProps) {
+export function EventAttendanceModal({ attendanceEvent, setAttendanceEvent, students, onSuccess, currentTeacher }: EventAttendanceModalProps) {
   const [currentAttendees, setCurrentAttendees] = useState<string[]>([]);
   const [attendanceSearch, setAttendanceSearch] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
 
   useEffect(() => {
     if (attendanceEvent) {
       setCurrentAttendees(attendanceEvent.attendeeIds || []);
       setAttendanceSearch('');
+      // Default to homeroom class if available
+      if (currentTeacher?.homeroomClass) {
+        if (!attendanceEvent.targetGrades || attendanceEvent.targetGrades.length === 0 || attendanceEvent.targetGrades.includes(currentTeacher.homeroomClass)) {
+          setGradeFilter(currentTeacher.homeroomClass);
+        } else {
+          setGradeFilter('');
+        }
+      } else {
+        setGradeFilter('');
+      }
     }
-  }, [attendanceEvent]);
+  }, [attendanceEvent, currentTeacher]);
+
+  
 
   if (!attendanceEvent) return null;
+
+  const availableGrades = Array.from(new Set(students.map(s => s.gradeLevel))).filter(Boolean).sort();
+  const displayedGrades = attendanceEvent.targetGrades && attendanceEvent.targetGrades.length > 0
+    ? attendanceEvent.targetGrades
+    : availableGrades;
 
   const modalFilteredStudents = (students?.filter(s => {
     if (attendanceEvent.targetGrades && attendanceEvent.targetGrades.length > 0) {
       if (!attendanceEvent.targetGrades.includes(s.gradeLevel)) return false;
     }
+    if (gradeFilter && s.gradeLevel !== gradeFilter) return false;
+    
     if (attendanceSearch) {
       return s.firstName.includes(attendanceSearch) || s.lastName.includes(attendanceSearch) || s.studentId.includes(attendanceSearch);
     }
@@ -52,13 +73,25 @@ export function EventAttendanceModal({ attendanceEvent, setAttendanceEvent, stud
         </div>
         
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <input
-            type="text"
-            placeholder="ค้นหาชื่อ หรือรหัสนักเรียน..."
-            value={attendanceSearch}
-            onChange={e => setAttendanceSearch(e.target.value)}
-            className="w-full sm:w-64 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
+          <div className="flex gap-2 w-full sm:w-auto flex-1 sm:flex-none">
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อ..."
+              value={attendanceSearch}
+              onChange={e => setAttendanceSearch(e.target.value)}
+              className="w-full sm:w-48 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <select
+              value={gradeFilter}
+              onChange={e => setGradeFilter(e.target.value)}
+              className="w-full sm:w-36 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">ทุกระดับชั้น</option>
+              {displayedGrades.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="flex gap-2">
               <button 

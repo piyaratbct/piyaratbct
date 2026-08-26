@@ -18,14 +18,14 @@ export const ParentFeedbackPrintTemplate: React.FC<
 
   const FeedbackForm = () => (
     <div
-      className={`flex flex-col justify-center h-[125mm] ${isCompact ? "py-1" : "py-2"}`}
+      className={`flex flex-col justify-center flex-1 ${isCompact ? "py-1" : "py-2"}`}
     >
       {/* Header */}
       <div className="text-center mb-4 border-b border-slate-800 pb-3">
         <h2
           className={`font-black text-slate-800 ${isCompact ? "text-base mb-1" : "text-lg mb-1"}`}
         >
-          แบบตอบกลับจากผู้ปกครอง (ส่วนที่ 2)
+          แบบตอบกลับจากผู้ปกครอง
         </h2>
         <h3
           className={`font-bold text-slate-600 ${isCompact ? "text-xs" : "text-sm"}`}
@@ -132,20 +132,14 @@ export const ParentFeedbackPrintTemplate: React.FC<
       onToggleCompact={() => setIsCompact(!isCompact)}
     >
       <PrintPageContainer>
-        <div className="flex flex-col h-[255mm] justify-between">
+        <div className="flex flex-col h-[230mm] justify-between">
           <FeedbackForm />
-
           {/* Tear-off Line */}
           <div className="relative flex items-center justify-center w-full py-2">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t-2 border-dashed border-slate-300"></div>
             </div>
-            <div className="relative bg-white px-4 text-slate-400 text-xs flex items-center gap-2 font-medium">
-              <span className="text-sm">✂️</span>
-              <span>สำหรับตัดแบ่ง 2 ส่วน</span>
-            </div>
           </div>
-
           <FeedbackForm />
         </div>
       </PrintPageContainer>

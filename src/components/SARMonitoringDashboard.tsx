@@ -241,8 +241,8 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
   let studentsWithScores = 0;
   if (educationLevelFilter === 'kindergarten') {
     studentsWithScores = fKgAssessments.length > 0 
-      ? new Set(fKgAssessments.filter(a => ((a.standard1 + a.standard2) / 2) >= 2 || ((a.standard3 + a.standard4 + a.standard5) / 3) >= 2).map(a => a.studentId)).size
-      : Math.floor(fStudents.length * 0.75);
+      ? new Set(fKgAssessments.filter(a => (a.physicalDev && a.physicalDev.length > 0) || (a.intellectualDev && a.intellectualDev.length > 0)).map(a => a.studentId)).size
+      : 0;
   } else {
     studentsWithScores = fSubjectScores.length > 0 
       ? new Set(fSubjectScores.filter(s => (s.score >= 75 || s.grade >= 3)).map(s => s.studentId)).size
@@ -307,10 +307,10 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
       
       if (count > 0) {
         assessments.forEach(a => {
-          if (((a.standard1 + a.standard2) / 2) >= 2) physical++;
-          if (((a.standard3 + a.standard4 + a.standard5) / 3) >= 2) emotional++;
-          if (((a.standard6 + a.standard7 + a.standard8) / 3) >= 2) social++;
-          if (((a.standard9 + a.standard10 + a.standard11 + a.standard12) / 4) >= 2) cognitive++;
+          if (a.physicalDev && a.physicalDev.length > 0) physical++;
+          if (a.emotionalDev && a.emotionalDev.length > 0) emotional++;
+          if (a.citizenshipDev && a.citizenshipDev.length > 0) social++;
+          if (a.intellectualDev && a.intellectualDev.length > 0) cognitive++;
         });
       }
       
@@ -353,15 +353,10 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
     if (count === 0) return { physical: 0, emotional: 0, social: 0, cognitive: 0, count: 0 };
     
     fKgAssessments.forEach(a => {
-      const p = (a.standard1 + a.standard2) / 2;
-      const e = (a.standard3 + a.standard4 + a.standard5) / 3;
-      const s = (a.standard6 + a.standard7 + a.standard8) / 3;
-      const c = (a.standard9 + a.standard10 + a.standard11 + a.standard12) / 4;
-      
-      if (p >= 2) physical++;
-      if (e >= 2) emotional++;
-      if (s >= 2) social++;
-      if (c >= 2) cognitive++;
+      if (a.physicalDev && a.physicalDev.length > 0) physical++;
+      if (a.emotionalDev && a.emotionalDev.length > 0) emotional++;
+      if (a.citizenshipDev && a.citizenshipDev.length > 0) social++;
+      if (a.intellectualDev && a.intellectualDev.length > 0) cognitive++;
     });
     
     return {

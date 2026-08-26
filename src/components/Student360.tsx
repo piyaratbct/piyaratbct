@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, StudentAssessment, KindergartenAssessment, SubjectScore } from "../types";
+import { Student, StudentAssessment, KindergartenAssessment, SubjectScore, DisciplineIncident } from "../types";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -83,6 +83,43 @@ const formatThaiDateAndAge = (dobString: string) => {
   return `${d} ${m} ${y} (อายุ ${age} ปี)`;
 };
 
+
+const getDisciplineTypeLabel = (type: string) => {
+  const map: Record<string, string> = {
+    fight: 'ทะเลาะวิวาท',
+    assault: 'ทำร้ายร่างกาย',
+    feud: 'ความบาดหมาง',
+    bullying: 'กลั่นแกล้ง',
+    misunderstanding: 'ความเข้าใจผิด',
+    disruption: 'ก่อความวุ่นวาย',
+    accident: 'อุบัติเหตุ',
+    illness: 'เจ็บป่วยกะทันหัน',
+    vandalism: 'ทำลายทรัพย์สิน',
+    other: 'อื่นๆ',
+    late: 'มาสาย',
+    absent: 'ขาดเรียน',
+    uniform: 'แต่งกายผิดระเบียบ',
+    homework: 'ไม่ส่งงาน',
+  };
+  return map[type] || type;
+};
+
+const getDisciplineActionLabel = (action: string) => {
+  const map: Record<string, string> = {
+    none: 'ไม่มี',
+    warning: 'ตักเตือนด้วยวาจา',
+    written_warning: 'ทำทัณฑ์บน',
+    parent_meeting: 'เชิญผู้ปกครอง',
+    suspension: 'พักการเรียน',
+    expulsion: 'ไล่ออก',
+    counseling: 'ให้คำปรึกษา',
+    first_aid: 'ปฐมพยาบาลเบื้องต้น',
+    hospital: 'นำส่งโรงพยาบาล',
+    other: 'อื่นๆ',
+  };
+  return map[action] || action;
+};
+
 export function Student360({ initialStudent }: { initialStudent?: Student | null }) {
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -136,6 +173,7 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
   const [assessments, setAssessments] = React.useState<StudentAssessment[]>([]);
   const [kAssessments, setKAssessments] = React.useState<KindergartenAssessment[]>([]);
   const [subjectScores, setSubjectScores] = React.useState<SubjectScore[]>([]);
+  const [disciplineIncidents, setDisciplineIncidents] = React.useState<DisciplineIncident[]>([]);
   const [hiddenRadarSubjects, setHiddenRadarSubjects] = useState<Record<string, string[]>>({});
 
   React.useEffect(() => {
@@ -155,6 +193,21 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
         const q3 = query(collection(db, 'subject_scores'), where('studentId', '==', student.id));
         const snap3 = await getDocs(q3);
         let fetchedScores = snap3.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore));
+        
+        // Fetch Discipline Incidents
+        const q4 = query(collection(db, 'disciplineIncidents'));
+        const snap4 = await getDocs(q4);
+        const allIncidents = snap4.docs.map(d => ({id: d.id, ...d.data()} as DisciplineIncident));
+        const studentIncidents = allIncidents.filter(inc => {
+          if (inc.offenderIds && inc.offenderIds.length > 0) {
+            return inc.offenderIds.includes(student.id);
+          }
+          if ((!inc.offenderIds || inc.offenderIds.length === 0) && (!inc.victimIds || inc.victimIds.length === 0)) {
+            return inc.studentIds?.includes(student.id);
+          }
+          return false;
+        });
+        setDisciplineIncidents(studentIncidents);
         
         // Mock data specifically for Radar Chart demo if student is พัฒนพงษ์ and has no real scores
         if (student.firstName.includes('พัฒนพงษ์') && fetchedScores.length === 0) {
@@ -627,7 +680,34 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                       <p className="text-sm text-slate-700 leading-relaxed">{student.behavior.notes}</p>
                     </div>
 
-                    {/* Linked Assessments */}
+                    
+                    {disciplineIncidents.length > 0 && (
+                      <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100/50 mb-6">
+                        <h4 className="text-sm font-bold text-rose-800 mb-3 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-rose-500" /> ข้อมูลจากระบบงานปกครอง
+                        </h4>
+                        <div className="space-y-3">
+                          {disciplineIncidents.map(inc => (
+                            <div key={inc.id} className="bg-white p-3 rounded-xl border border-rose-100 shadow-sm relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-rose-400"></div>
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-md">
+                                  {inc.date ? new Date(inc.date).toLocaleDateString('th-TH') : 'ไม่ระบุวันที่'}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500 px-2 py-0.5 rounded-full bg-slate-100">
+                                  {getDisciplineTypeLabel(inc.type)}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-slate-800 mt-2">{inc.description}</p>
+                              {inc.actionTaken && inc.actionTaken !== 'none' && (
+                                <p className="text-xs text-rose-600 mt-1"><strong>การดำเนินการ:</strong> {getDisciplineActionLabel(inc.actionTaken)}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+{/* Linked Assessments */}
                     {(assessments.some(a => a.publishContentToStudent360 || a.publishActivitiesToStudent360) || 
                       kAssessments.some(a => a.publishNotesToStudent360)) && (
                       <div>

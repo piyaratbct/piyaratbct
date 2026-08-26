@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { AdmissionPrintTemplate } from './AdmissionPrintTemplate';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
@@ -1301,6 +1301,164 @@ const AdmissionManager: React.FC<{
             </div>
           </div>
 
+          
+          {/* Survey Section */}
+          <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 mt-6 mb-6">
+            <h3 className="text-md font-bold text-indigo-800 mb-4 flex items-center gap-2">
+              <span className="p-1 bg-indigo-100 rounded-md"><FileText className="w-4 h-4 text-indigo-600" /></span>
+              แบบสำรวจความสนใจและความคาดหวัง
+            </h3>
+            
+            <div className="space-y-6">
+              {/* Q1 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">1. ท่านรู้จักโรงเรียนของเราผ่านช่องทางใด?</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {[
+                    'แฟนเพจ Facebook / Social Media',
+                    'เว็บไซต์ของโรงเรียน',
+                    'คนรู้จัก / ญาติ / ผู้ปกครองศิษย์เก่าแนะนำมา',
+                    'ป้ายประชาสัมพันธ์ / แผ่นพับ',
+                    'ขับรถผ่าน / อยู่ใกล้บ้าน',
+                  ].map(opt => (
+                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.surveySource?.includes(opt) || false}
+                        onChange={(e) => {
+                          const current = formData.surveySource || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, surveySource: [...current, opt]});
+                          } else {
+                            setFormData({...formData, surveySource: current.filter(x => x !== opt)});
+                          }
+                        }}
+                        className="rounded text-indigo-500 focus:ring-indigo-500 w-4 h-4 border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">{opt}</span>
+                    </label>
+                  ))}
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.surveySource?.includes('อื่นๆ') || false}
+                        onChange={(e) => {
+                          const current = formData.surveySource || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, surveySource: [...current, 'อื่นๆ']});
+                          } else {
+                            setFormData({...formData, surveySource: current.filter(x => x !== 'อื่นๆ')});
+                          }
+                        }}
+                        className="rounded text-indigo-500 focus:ring-indigo-500 w-4 h-4 border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">อื่นๆ</span>
+                    </label>
+                    {formData.surveySource?.includes('อื่นๆ') && (
+                      <input 
+                        type="text"
+                        placeholder="โปรดระบุ"
+                        value={formData.surveySourceOther || ''}
+                        onChange={e => setFormData({...formData, surveySourceOther: e.target.value})}
+                        className="w-full text-sm border-b border-slate-300 px-2 py-1 bg-transparent focus:outline-none focus:border-indigo-500"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Q2 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">2. เหตุผลสำคัญที่ท่านสนใจให้บุตรหลานเข้าศึกษาที่โรงเรียนของเราคืออะไร? (เลือกได้มากกว่า 1 ข้อ)</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {[
+                    'ชื่อเสียงและมาตรฐานทางวิชาการ',
+                    'สภาพแวดล้อม อาคารสถานที่ และความปลอดภัย',
+                    'หลักสูตรเฉพาะทาง / โปรแกรมพิเศษ',
+                    'การดูแลเอาใจใส่ของครู / จำนวนนักเรียนต่อห้องที่เหมาะสม',
+                    'ทำเลที่ตั้งและการเดินทางสะดวก',
+                    'อัตราค่าธรรมเนียมการศึกษาเหมาะสม',
+                    'กิจกรรมเสริมทักษะและดนตรี/กีฬา'
+                  ].map(opt => (
+                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.surveyReasons?.includes(opt) || false}
+                        onChange={(e) => {
+                          const current = formData.surveyReasons || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, surveyReasons: [...current, opt]});
+                          } else {
+                            setFormData({...formData, surveyReasons: current.filter(x => x !== opt)});
+                          }
+                        }}
+                        className="rounded text-indigo-500 focus:ring-indigo-500 w-4 h-4 border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Q3 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">3. ท่านคาดหวังให้โรงเรียนพัฒนาบุตรหลานของท่านในด้านใดเป็นพิเศษ?</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {[
+                    'ความเป็นเลิศทางวิชาการ (เตรียมพร้อมสู่การแข่งขัน/สอบเข้า)',
+                    'ทักษะชีวิตและการช่วยเหลือตัวเอง (ความรับผิดชอบ, ระเบียบวินัย)',
+                    'ทักษะภาษาต่างประเทศและการสื่อสาร',
+                    'ความสุขในการเรียนรู้ / สุขภาพจิตที่ดี / ไม่เครียดจนเกินไป',
+                    'คุณธรรม จริยธรรม และมารยาททางสังคม'
+                  ].map(opt => (
+                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.surveyExpectations?.includes(opt) || false}
+                        onChange={(e) => {
+                          const current = formData.surveyExpectations || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, surveyExpectations: [...current, opt]});
+                          } else {
+                            setFormData({...formData, surveyExpectations: current.filter(x => x !== opt)});
+                          }
+                        }}
+                        className="rounded text-indigo-500 focus:ring-indigo-500 w-4 h-4 border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Q4 */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">4. ท่านวางแผนให้บุตรหลานศึกษาต่อเนื่องที่โรงเรียนของเราจนถึงระดับชั้นใด?</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {[
+                    'จบระดับชั้นอนุบาล',
+                    'จบระดับชั้นประถมศึกษา'
+                  ].map(opt => (
+                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="surveyPlan"
+                        checked={formData.surveyPlan === opt}
+                        onChange={() => {
+                          setFormData({...formData, surveyPlan: opt});
+                        }}
+                        className="text-indigo-500 focus:ring-indigo-500 w-4 h-4 border-slate-300"
+                      />
+                      <span className="text-sm text-slate-700">{opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
             <button type="button" onClick={() => setShowForm(false)} className="px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
               ยกเลิก
@@ -1700,6 +1858,49 @@ const AdmissionManager: React.FC<{
               </div>
 
             </div>
+            
+              {/* Survey Data (ถ้ามี) */}
+              {(viewingApplicant.surveySource?.length > 0 || viewingApplicant.surveyReasons?.length > 0 || viewingApplicant.surveyExpectations?.length > 0 || viewingApplicant.surveyPlan) && (
+                <div className="md:col-span-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                  <h4 className="font-bold text-indigo-800 text-sm mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" /> ข้อมูลแบบสำรวจความสนใจ
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {viewingApplicant.surveySource?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">ช่องทางการรับข่าวสาร:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveySource.map(s => (
+                            <li key={s}>{s === 'อื่นๆ' && viewingApplicant.surveySourceOther ? `อื่นๆ (${viewingApplicant.surveySourceOther})` : s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyReasons?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">เหตุผลที่สนใจ:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveyReasons.map(s => <li key={s}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyExpectations?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">ความคาดหวัง:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveyExpectations.map(s => <li key={s}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyPlan && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">แผนการศึกษาต่อ:</span>
+                        <p className="text-sm text-slate-700">{viewingApplicant.surveyPlan}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
               <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors">
                 ปิดหน้าต่าง
