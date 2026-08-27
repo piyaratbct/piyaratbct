@@ -57,7 +57,7 @@ export function PBLLessonPlanForm({
       ? initialPlan.gradeLevel.split(',').map(s => s.trim()).filter(Boolean)
       : [GRADE_LEVELS[0]]
   );
-  const defaultSemester = systemSemester === '1' || systemSemester === '2' ? `${systemSemester}/${systemAcademicYear}` : `1/${systemAcademicYear}`;
+  const defaultSemester = `ภาคเรียนที่ ${systemSemester === '1' || systemSemester === '2' ? systemSemester : '1'}/${systemAcademicYear || '2567'}`;
   const [semester, setSemester] = useState(initialPlan?.semester || defaultSemester);
   const subject = "บูรณาการ (PBL)";
     const [date, setDate] = useState(initialPlan?.date || "");
@@ -92,6 +92,21 @@ export function PBLLessonPlanForm({
       });
     });
   });
+
+  
+  const isKindergarten = selectedGrades.some(g => g.includes('อนุบาล'));
+  
+  const [kgMovementActivity, setKgMovementActivity] = useState(initialPlan?.kgMovementActivity || "");
+  const [kgCircleActivity, setKgCircleActivity] = useState(initialPlan?.kgCircleActivity || "");
+  const [kgArtActivity, setKgArtActivity] = useState(initialPlan?.kgArtActivity || "");
+  const [kgFreePlayActivity, setKgFreePlayActivity] = useState(initialPlan?.kgFreePlayActivity || "");
+  const [kgOutdoorActivity, setKgOutdoorActivity] = useState(initialPlan?.kgOutdoorActivity || "");
+  const [kgEducationalGame, setKgEducationalGame] = useState(initialPlan?.kgEducationalGame || "");
+  
+  const [kgPhysicalDev, setKgPhysicalDev] = useState(initialPlan?.kgPhysicalDev || false);
+  const [kgEmotionalDev, setKgEmotionalDev] = useState(initialPlan?.kgEmotionalDev || false);
+  const [kgSocialDev, setKgSocialDev] = useState(initialPlan?.kgSocialDev || false);
+  const [kgCognitiveDev, setKgCognitiveDev] = useState(initialPlan?.kgCognitiveDev || false);
 
   const [activities, setActivities] = useState(initialPlan?.activities || "");
   const [materials, setMaterials] = useState(initialPlan?.materials || "");
@@ -230,7 +245,7 @@ export function PBLLessonPlanForm({
       setErrorMsg("กรุณาเลือกระดับชั้นอย่างน้อย 1 ระดับ");
       return;
     }
-    if (!title.trim() || !objectives.trim() || !activities.trim() || (!pblDrivingQuestion.trim() || !pblInvestigationSteps.trim() || !pblPresentation.trim())) {
+    if (!title.trim() || !objectives.trim() || (!isKindergarten && !activities.trim()) || (!pblDrivingQuestion.trim() || !pblInvestigationSteps.trim() || !pblPresentation.trim())) {
       setErrorMsg("กรุณากรอกข้อมูลให้ครบถ้วนในช่องที่มีเครื่องหมายดอกจัน (*)");
       return;
     }
@@ -263,6 +278,19 @@ export function PBLLessonPlanForm({
       activities,
       materials,
       evaluation,
+      
+      isKindergarten,
+      kgMovementActivity,
+      kgCircleActivity,
+      kgArtActivity,
+      kgFreePlayActivity,
+      kgOutdoorActivity,
+      kgEducationalGame,
+      kgPhysicalDev,
+      kgEmotionalDev,
+      kgSocialDev,
+      kgCognitiveDev,
+
       date,
       semester,
       attachments,
@@ -505,11 +533,11 @@ export function PBLLessonPlanForm({
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <BookType className="h-4 w-4 text-blue-500" />
-              1. ชื่อหน่วยการเรียนรู้ / เรื่อง (Topic/Title){" "}
+              {isKindergarten ? "1. ชื่อหน่วยการจัดประสบการณ์ / เรื่อง (Theme/Unit)" : "1. ชื่อหน่วยการเรียนรู้ / เรื่อง (Topic/Title)"}{" "}
               <span className="text-red-500">*</span>
             </label>
             <p className="text-[10px] text-slate-400 mb-2">
-              ระบุชื่อหน่วย หรือเรื่องที่จะใช้สอน
+              {isKindergarten ? "ระบุชื่อหน่วยการจัดประสบการณ์ หรือเรื่องที่จะใช้สอน" : "ระบุชื่อหน่วย หรือเรื่องที่จะใช้สอน"}
             </p>
             <input
               type="text"
@@ -591,7 +619,9 @@ export function PBLLessonPlanForm({
           </div>
 
           
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3 mb-4 shadow-sm">
+          {!isKindergarten && (
+            <>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3 mb-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-200 pb-3">
               <div className="flex items-start gap-3">
                 <Target className="h-5 w-5 text-indigo-500 mt-0.5 flex-shrink-0" />
@@ -757,14 +787,16 @@ export function PBLLessonPlanForm({
               placeholder="คลิกเลือกจากรายการด้านบน หรือพิมพ์เพิ่ม..."
             />
           </div>
+            </>
+          )}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <Target className="h-4 w-4 text-amber-500" />
-              2. จุดประสงค์การเรียนรู้ (Objectives){" "}
+              {isKindergarten ? "2. จุดประสงค์การจัดประสบการณ์" : "2. จุดประสงค์การเรียนรู้ (Objectives)"}{" "}
               <span className="text-red-500">*</span>
             </label>
             <p className="text-[10px] text-slate-400 mb-2">
-              จุดประสงค์ที่จะให้นักเรียนบรรลุในคาบนี้ (K P A)
+              {isKindergarten ? "จุดประสงค์ / สภาพที่พึงประสงค์ (สอดคล้องกับพัฒนาการ 4 ด้าน)" : "จุดประสงค์ที่จะให้นักเรียนบรรลุในคาบนี้ (K P A)"}
             </p>
             <textarea
               required
@@ -776,6 +808,87 @@ export function PBLLessonPlanForm({
             />
           </div>
 
+          {isKindergarten ? (
+            <>
+              {/* Kindergarten 6 Activities */}
+              <div className="bg-pink-50/50 p-4 rounded-2xl border border-pink-100 space-y-4">
+                <label className="block text-sm font-bold text-pink-700 mb-2 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-pink-500" />
+                  3. การจัดประสบการณ์ 6 กิจกรรมหลัก (Kindergarten Activities)
+                </label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.1 กิจกรรมเคลื่อนไหวและจังหวะ</label>
+                    <textarea value={kgMovementActivity} onChange={e => setKgMovementActivity(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="การเคลื่อนไหวร่างกายประกอบจังหวะ..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.2 กิจกรรมเสริมประสบการณ์</label>
+                    <textarea value={kgCircleActivity} onChange={e => setKgCircleActivity(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="การเรียนรู้เรื่องราวผ่านการสนทนา นิทาน สื่อ..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.3 กิจกรรมศิลปะสร้างสรรค์</label>
+                    <textarea value={kgArtActivity} onChange={e => setKgArtActivity(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="การวาดภาพ ปั้น ฉีกปะ..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.4 กิจกรรมเล่นตามมุม</label>
+                    <textarea value={kgFreePlayActivity} onChange={e => setKgFreePlayActivity(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="การเล่นมุมบล็อก มุมบทบาทสมมติ มุมหนังสือ..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.5 กิจกรรมกลางแจ้ง</label>
+                    <textarea value={kgOutdoorActivity} onChange={e => setKgOutdoorActivity(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="การเล่นเครื่องเล่นสนาม เกมการละเล่น..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">3.6 เกมการศึกษา</label>
+                    <textarea value={kgEducationalGame} onChange={e => setKgEducationalGame(e.target.value)} rows={3} className="w-full p-3 text-xs rounded-xl border border-pink-200 focus:ring-2 focus:ring-pink-500 bg-white" placeholder="เกมจับคู่ แยกประเภท เรียงลำดับ..." />
+                  </div>
+                </div>
+              </div>
+
+              {/* Kindergarten Materials */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Lightbulb className="h-4 w-4 text-emerald-500" />
+                  4. สื่อการจัดประสบการณ์ (Materials)
+                </label>
+                <textarea
+                  value={materials}
+                  onChange={(e) => setMaterials(e.target.value)}
+                  rows={2}
+                  className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
+                  placeholder="เช่น นิทาน, บล็อกไม้, สีเทียน..."
+                />
+              </div>
+
+              {/* Kindergarten Evaluation Domains */}
+              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
+                <label className="block text-sm font-bold text-emerald-700 mb-2 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-emerald-500" />
+                  5. การสังเกตและประเมินพัฒนาการ 4 ด้าน
+                </label>
+                <p className="text-[10px] text-emerald-600 mb-3">เลือกด้านพัฒนาการที่จะประเมินตามสภาพจริงในแผนนี้</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgPhysicalDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <input type="checkbox" checked={kgPhysicalDev} onChange={e => setKgPhysicalDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
+                    <span className="text-xs font-semibold">ด้านร่างกาย</span>
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgEmotionalDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <input type="checkbox" checked={kgEmotionalDev} onChange={e => setKgEmotionalDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
+                    <span className="text-xs font-semibold">ด้านอารมณ์/จิตใจ</span>
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgSocialDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <input type="checkbox" checked={kgSocialDev} onChange={e => setKgSocialDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
+                    <span className="text-xs font-semibold">ด้านสังคม</span>
+                  </label>
+                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgCognitiveDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <input type="checkbox" checked={kgCognitiveDev} onChange={e => setKgCognitiveDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
+                    <span className="text-xs font-semibold">ด้านสติปัญญา</span>
+                  </label>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-indigo-500" />
@@ -828,6 +941,8 @@ export function PBLLessonPlanForm({
               placeholder="เช่น วิธีการวัด / เครื่องมือที่ใช้ / เกณฑ์การผ่าน..."
             />
           </div>
+            </>
+          )}
         </div>
 
         {/* ๖. แนบรูป/สื่อประกอบ */}

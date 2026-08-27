@@ -77,6 +77,12 @@ export function LessonPlanList({
         sem = match[1];
         year = match[2];
       }
+    } else if (sem.includes("/")) {
+      const match = sem.match(/(\d)\/(\d{4})/);
+      if (match) {
+        sem = match[1];
+        year = match[2];
+      }
     }
     return `${sem}/${year}`;
   };
@@ -116,7 +122,7 @@ export function LessonPlanList({
       const duplicatedPlan = {
         ...planData,
         academicYear: systemAcademicYear,
-        semester: systemSemester,
+        semester: `ภาคเรียนที่ ${systemSemester === '1' || systemSemester === '2' ? systemSemester : '1'}/${systemAcademicYear}`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: "draft" // Reset status to draft for the new term

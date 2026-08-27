@@ -42,6 +42,21 @@ export interface LessonRecord {
   isIntegrated?: boolean;
   integratedSubjects?: string;
   isPBL?: boolean;
+  isKindergarten?: boolean;
+  
+  // อนุบาล: 6 กิจกรรมหลัก
+  kgMovementActivity?: string;
+  kgCircleActivity?: string;
+  kgArtActivity?: string;
+  kgFreePlayActivity?: string;
+  kgOutdoorActivity?: string;
+  kgEducationalGame?: string;
+  
+  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน
+  kgPhysicalDev?: boolean;
+  kgEmotionalDev?: boolean;
+  kgSocialDev?: boolean;
+  kgCognitiveDev?: boolean;
   pblDrivingQuestion?: string;
   pblInvestigationSteps?: string;
   pblPresentation?: string;
@@ -100,6 +115,21 @@ export interface LessonPlan {
   isIntegrated?: boolean;
   integratedSubjects?: string;
   isPBL?: boolean;
+  isKindergarten?: boolean;
+  
+  // อนุบาล: 6 กิจกรรมหลัก
+  kgMovementActivity?: string;
+  kgCircleActivity?: string;
+  kgArtActivity?: string;
+  kgFreePlayActivity?: string;
+  kgOutdoorActivity?: string;
+  kgEducationalGame?: string;
+  
+  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน
+  kgPhysicalDev?: boolean;
+  kgEmotionalDev?: boolean;
+  kgSocialDev?: boolean;
+  kgCognitiveDev?: boolean;
   pblDrivingQuestion?: string;
   pblInvestigationSteps?: string;
   pblPresentation?: string;

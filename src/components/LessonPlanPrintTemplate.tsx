@@ -107,6 +107,18 @@ export function LessonPlanPrintTemplate({
     return dateString;
   };
 
+
+  const showIndicators = !plan.isKindergarten && (plan.coreIndicators || plan.targetIndicators);
+  const showCompetencies = Boolean(plan.competencies);
+
+  let currentStep = 2;
+  const indicatorsStep = showIndicators ? currentStep++ : null;
+  const competenciesStep = showCompetencies ? currentStep++ : null;
+  const objectivesStep = currentStep++;
+  const activitiesStep = currentStep++;
+  const materialsStep = currentStep++;
+  const evaluationStep = currentStep++;
+
   return (
     <PDFPrintHelper
       onClose={onClose}
@@ -302,7 +314,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              1. ชื่อหน่วยการเรียนรู้ / เรื่อง (Topic)
+              {plan.isKindergarten ? "1. ชื่อหน่วยการจัดประสบการณ์ / เรื่อง (Theme/Unit)" : "1. ชื่อหน่วยการเรียนรู้ / เรื่อง (Topic)"}
             </h3>
             <p
               className={`text-slate-700 font-medium pl-4 ${isCompact ? "text-sm" : "text-base"}`}
@@ -311,12 +323,12 @@ export function LessonPlanPrintTemplate({
             </p>
           </div>
 
-          {(plan.coreIndicators || plan.targetIndicators) && (
+          {showIndicators && (
             <div>
               <h3
                 className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
               >
-                2. มาตรฐานการเรียนรู้และตัวชี้วัด (Indicators)
+                {indicatorsStep}. มาตรฐานการเรียนรู้และตัวชี้วัด (Indicators)
               </h3>
               <div className={`pl-4 space-y-3 bg-white ${isCompact ? "text-sm" : "text-base"}`}>
                 {plan.coreIndicators && (
@@ -340,7 +352,7 @@ export function LessonPlanPrintTemplate({
               <h3
                 className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
               >
-                {(plan.coreIndicators || plan.targetIndicators) ? '3.' : '2.'} สมรรถนะสำคัญของผู้เรียน (Competencies)
+                {competenciesStep}. สมรรถนะสำคัญของผู้เรียน (Competencies)
               </h3>
               <div
                 className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
@@ -354,7 +366,7 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '4.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '3.' : '2.'} จุดประสงค์การเรียนรู้ (Objectives)
+              {objectivesStep}. {plan.isKindergarten ? "จุดประสงค์การจัดประสบการณ์" : "จุดประสงค์การเรียนรู้ (Objectives)"}
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
@@ -363,11 +375,26 @@ export function LessonPlanPrintTemplate({
             </div>
           </div>
 
-          <div>
+          {plan.isKindergarten ? (
+            <div className="space-y-4">
+              <h3 className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}>
+                {activitiesStep}. การจัดประสบการณ์ 6 กิจกรรมหลัก
+              </h3>
+              <div className={`pl-4 grid grid-cols-1 md:grid-cols-2 gap-4 ${isCompact ? "text-sm" : "text-base"}`}>
+                <div><strong className="text-pink-600 block mb-1">กิจกรรมเคลื่อนไหวและจังหวะ:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgMovementActivity || "-"}</p></div>
+                <div><strong className="text-pink-600 block mb-1">กิจกรรมเสริมประสบการณ์:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgCircleActivity || "-"}</p></div>
+                <div><strong className="text-pink-600 block mb-1">กิจกรรมศิลปะสร้างสรรค์:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgArtActivity || "-"}</p></div>
+                <div><strong className="text-pink-600 block mb-1">กิจกรรมเล่นตามมุม:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgFreePlayActivity || "-"}</p></div>
+                <div><strong className="text-pink-600 block mb-1">กิจกรรมกลางแจ้ง:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgOutdoorActivity || "-"}</p></div>
+                <div><strong className="text-pink-600 block mb-1">เกมการศึกษา:</strong> <p className="whitespace-pre-wrap text-slate-700">{plan.kgEducationalGame || "-"}</p></div>
+              </div>
+            </div>
+          ) : (
+            <div>
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '5.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '4.' : '3.'} กิจกรรมการเรียนรู้ (Learning Activities)
+              {activitiesStep}. กิจกรรมการเรียนรู้ (Learning Activities)
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm min-h-[80px]" : "text-base min-h-[120px]"}`}
@@ -375,13 +402,12 @@ export function LessonPlanPrintTemplate({
               {plan.activities}
             </div>
           </div>
+          )}
 
           <div>
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
-            >
-              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '6.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '5.' : '4.'} สื่อการเรียนรู้ / แหล่งเรียนรู้ (Materials)
-            </h3>
+            >{materialsStep}. {plan.isKindergarten ? "สื่อการจัดประสบการณ์ (Materials)" : "สื่อการเรียนรู้ / แหล่งเรียนรู้ (Materials)"}</h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
             >
@@ -393,12 +419,30 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              {((plan.coreIndicators || plan.targetIndicators) && plan.competencies) ? '7.' : ((plan.coreIndicators || plan.targetIndicators) || plan.competencies) ? '6.' : '5.'} วัดและประเมินผล (Evaluation)
+              {plan.isKindergarten ? (
+                <>
+                  {evaluationStep}. การสังเกตและประเมินพัฒนาการ 4 ด้าน
+                </>
+              ) : (
+                <>
+                  {evaluationStep}. วัดและประเมินผล (Evaluation)
+                </>
+              )}
             </h3>
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
             >
-              {plan.evaluation || "-"}
+              {plan.isKindergarten ? (
+                <div className={`flex flex-wrap gap-4 ${isCompact ? "text-sm" : "text-base"}`}>
+                  {plan.kgPhysicalDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านร่างกาย</span>}
+                  {plan.kgEmotionalDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านอารมณ์/จิตใจ</span>}
+                  {plan.kgSocialDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านสังคม</span>}
+                  {plan.kgCognitiveDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านสติปัญญา</span>}
+                  {!plan.kgPhysicalDev && !plan.kgEmotionalDev && !plan.kgSocialDev && !plan.kgCognitiveDev && <span className="text-slate-500 italic">ไม่ได้ระบุด้านที่ประเมิน</span>}
+                </div>
+              ) : (
+                plan.evaluation || "-"
+              )}
             </div>
           </div>
         </div>

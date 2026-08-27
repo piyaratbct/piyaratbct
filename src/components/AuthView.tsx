@@ -86,7 +86,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
         }, 1000);
       }
     } catch (err: any) {
-      console.error("Login failure:", err);
+      console.warn("Login attempt failed:", err.message);
       
       // Auto-register logic for the primary admin if the account doesn't exist yet
       if (email.trim() === 'piyarat.bct@gmail.com' && err.code === 'auth/network-request-failed') {
@@ -172,7 +172,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       await sendPasswordResetEmail(auth, email.trim());
       setSuccessMsg(`📬 ส่งอีเมลรีเซ็ตรหัสผ่านไปยัง "${email.trim()}" เรียบร้อยแล้ว! กรุณาตรวจสอบกล่องจดหมายเข้า (และโฟลเดอร์จดหมายขยะ/Spam) ของคุณเพื่อกู้คืนรหัสผ่าน`);
     } catch (err: any) {
-      console.error("Password reset error:", err);
+      console.warn("Password reset error:", err.message);
       let thaiError = 'ไม่สามารถส่งอีเมลรีเซ็ตรหัสผ่านได้';
       if (err.code === 'auth/user-not-found') thaiError = 'ไม่พบผู้ใช้งานที่ใช้บัญชีอีเมลนี้ในระบบ';
       if (err.code === 'auth/invalid-email') thaiError = 'รูปแบบอีเมลไม่เหมาะสม';
@@ -254,7 +254,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
       }, 1500);
 
     } catch (err: any) {
-      console.error("Registration error:", err);
+      console.warn("Registration error:", err.message);
       let thaiError = 'ไม่สามารถสมัครสมาชิกได้ โปรดลองอีกครั้ง';
       if (err.code === 'auth/email-already-in-use') thaiError = 'อีเมลนี้ถูกเปิดใช้บริการในระบบเรียบร้อยแล้ว';
       if (err.code === 'auth/weak-password') thaiError = 'รหัสผ่านสั้นเกินไป (ต้องไม่ต่ำกว่า 6 ตัวอักษร)';
@@ -326,7 +326,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
             onLogin(demoTeacher);
           }, 800);
         } catch (innerError: any) {
-          console.error("Failed setting up automatic demo user profile:", innerError);
+          console.warn("Failed setting up automatic demo user profile:", innerError.message);
           setErrorMsg(`ไม่สามารถเริ่มบัญชีจำลองได้: ${innerError.message || innerError}`);
         }
       } else if (err.code === 'auth/network-request-failed') {
@@ -349,7 +349,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
           onLogin(demoTeacher);
         }, 800);
       } else {
-        console.error("General login error:", err);
+        console.warn("General login error:", err.message);
         setErrorMsg(`ปัญหาการตรวจสอบสิทธิ์: ${err.message || err}`);
       }
     } finally {

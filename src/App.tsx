@@ -4,6 +4,7 @@ Teacher, LessonRecord, LessonPlan, SUBJECTS, Student, AppNotification } from "./
 import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
 import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
+import { TodayAttendanceWidget } from "./components/TodayAttendanceWidget";
 import { StudentStatsModal } from "./components/StudentStatsModal";
 import { TeacherListModal } from "./components/TeacherListModal";
 import { LessonLogList } from "./components/LessonLogList";
@@ -1626,6 +1627,7 @@ export default function App() {
               </p>
             </div>
 
+            <TodayAttendanceWidget students={students} />
             <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
             
             {/* School Event Calendar in Overview */}
