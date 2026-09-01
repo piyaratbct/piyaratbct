@@ -1149,27 +1149,45 @@ export function PBLLessonPlanForm({
                       </label>
                       
                       {evalItem.autoGenerateColumn && (
-                        <div className="flex items-center gap-4 ml-6">
-                          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                            <input 
-                              type="radio" 
-                              name={`scorePeriod_${evalItem.id}`}
-                              checked={evalItem.scorePeriod !== 'after_mid'}
-                              onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'before_mid' } : p))}
-                              className="text-rose-500 focus:ring-rose-500"
-                            />
-                            ก่อนกลางภาค
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
-                            <input 
-                              type="radio" 
-                              name={`scorePeriod_${evalItem.id}`}
-                              checked={evalItem.scorePeriod === 'after_mid'}
-                              onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'after_mid' } : p))}
-                              className="text-rose-500 focus:ring-rose-500"
-                            />
-                            หลังกลางภาค
-                          </label>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 ml-6">
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name={`scorePeriod_${evalItem.id}`}
+                                checked={evalItem.scorePeriod !== 'after_mid'}
+                                onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'before_mid' } : p))}
+                                className="text-rose-500 focus:ring-rose-500"
+                              />
+                              ก่อนกลางภาค
+                            </label>
+                            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name={`scorePeriod_${evalItem.id}`}
+                                checked={evalItem.scorePeriod === 'after_mid'}
+                                onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'after_mid' } : p))}
+                                className="text-rose-500 focus:ring-rose-500"
+                              />
+                              หลังกลางภาค
+                            </label>
+                          </div>
+                          
+                          {true && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500">บันทึกลงวิชา:</span>
+                              <select
+                                value={evalItem.targetSubject || ''}
+                                onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, targetSubject: e.target.value } : p))}
+                                className="text-xs border border-slate-200 rounded p-1 focus:ring-rose-500 focus:border-rose-500"
+                              >
+                                <option value="">วิชาหลัก ({subject === 'อื่นๆ' ? customSubject : subject})</option>
+                                {integratedSubjects.split(',').map(s => s.trim()).filter(Boolean).map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

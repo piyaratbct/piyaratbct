@@ -1090,60 +1090,79 @@ export default function App() {
           
           const rawGrades = plan.gradeLevel ? plan.gradeLevel.split(',').map(g => g.trim()).filter(Boolean) : ["ประถมศึกษาปีที่ 1"];
           const gradesToProcess = Array.from(new Set(rawGrades));
+          
+          let subjectsToProcess = [plan.subject];
+          if (plan.isIntegrated && plan.integratedSubjects) {
+            const extraSubjects = plan.integratedSubjects.split(',').map(s => s.trim()).filter(Boolean);
+            subjectsToProcess = Array.from(new Set([...subjectsToProcess, ...extraSubjects]));
+          }
 
-          for (const grade of gradesToProcess) {
-            const settingsId = `${sAcadYear}_${sSem}_${grade}_${plan.subject}`.replace(/[\/]/g, '-');
-            
-            const settingsRef = doc(db, "subject_settings", settingsId);
-            const docSnap = await getDoc(settingsRef);
-            
-            let currentSettings = null;
-            if (docSnap.exists()) {
-              currentSettings = docSnap.data();
-              if (!currentSettings.beforeMidKnowledge) currentSettings.beforeMidKnowledge = [];
-              if (!currentSettings.beforeMidSoftSkill) currentSettings.beforeMidSoftSkill = [];
-              if (!currentSettings.afterMidKnowledge) currentSettings.afterMidKnowledge = [];
-              if (!currentSettings.afterMidSoftSkill) currentSettings.afterMidSoftSkill = [];
-            } else {
-              currentSettings = {
-                id: settingsId,
-                academicYear: sAcadYear,
-                semester: sSem,
-                gradeLevel: grade,
-                subject: plan.subject,
-                beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'งานที่ 1', maxScore: 20 }],
-                beforeMidSoftSkill: [{ id: 'default_bms_1', name: 'พฤติกรรม', maxScore: 10 }],
-                afterMidKnowledge: [{ id: 'default_amk_1', name: 'สอบกลางภาค', maxScore: 20 }],
-                afterMidSoftSkill: [{ id: 'default_ams_1', name: 'พฤติกรรม', maxScore: 10 }]
-              };
-            }
-            
-            let autoCols = 0;
-            // Append new columns to beforeMidKnowledge
-            for (const ev of autoEvals) {
-               // Check if it already exists by name (very basic duplicate prevention)
-               // and prevent adding if name is empty
-               if (!ev.name || ev.name.trim() === '') continue;
-               
-               const exists = currentSettings.beforeMidKnowledge.find((c) => c.name === ev.name);
-               if (!exists) {
-                   currentSettings.beforeMidKnowledge.push({
-                      id: ev.id || `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-                      name: ev.name,
-                      maxScore: ev.maxScore || 10
-                   });
-                   autoCols++;
-                   autoColsToastCount++; // Only increment overall if we added it (though multiplied by grades)
-               }
-            }
-            
-            if (autoCols > 0) {
-               await setDoc(settingsRef, currentSettings);
+          for (const subject of subjectsToProcess) {
+            for (const grade of gradesToProcess) {
+              const settingsId = `${sAcadYear}_${sSem}_${grade}_${subject}`.replace(/[\/]/g, '-');
+              
+              const settingsRef = doc(db, "subject_settings", settingsId);
+              const docSnap = await getDoc(settingsRef);
+              
+              let currentSettings = null;
+              if (docSnap.exists()) {
+                currentSettings = docSnap.data();
+                if (!currentSettings.beforeMidKnowledge) currentSettings.beforeMidKnowledge = [];
+                if (!currentSettings.beforeMidSoftSkill) currentSettings.beforeMidSoftSkill = [];
+                if (!currentSettings.afterMidKnowledge) currentSettings.afterMidKnowledge = [];
+                if (!currentSettings.afterMidSoftSkill) currentSettings.afterMidSoftSkill = [];
+              } else {
+                currentSettings = {
+                  id: settingsId,
+                  academicYear: sAcadYear,
+                  semester: sSem,
+                  gradeLevel: grade,
+                  subject: subject,
+                  beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'งานที่ 1', maxScore: 20 }],
+                  beforeMidSoftSkill: [{ id: 'default_bms_1', name: 'พฤติกรรม', maxScore: 10 }],
+                  afterMidKnowledge: [{ id: 'default_amk_1', name: 'สอบกลางภาค', maxScore: 20 }],
+                  afterMidSoftSkill: [{ id: 'default_ams_1', name: 'พฤติกรรม', maxScore: 10 }]
+                };
+              }
+              
+              let autoCols = 0;
+              for (const ev of autoEvals) { 
+                 if (!ev.name || ev.name.trim() === '') continue;
+                 
+                 // Check if this evaluation belongs to the current subject being processed
+                 const targetSubj = ev.targetSubject || plan.subject;
+                 if (targetSubj !== subject) continue;
+                 
+                 // Determine which category to push to based on KPA and scorePeriod
+                 const isAfter = ev.scorePeriod === 'after_mid';
+                 const isSoftSkill = ev.kpa && ev.kpa.includes('A') && !ev.kpa.includes('K') && !ev.kpa.includes('P');
+                 
+                 let targetArray = currentSettings.beforeMidKnowledge;
+                 if (isAfter && isSoftSkill) targetArray = currentSettings.afterMidSoftSkill;
+                 else if (isAfter && !isSoftSkill) targetArray = currentSettings.afterMidKnowledge;
+                 else if (!isAfter && isSoftSkill) targetArray = currentSettings.beforeMidSoftSkill;
+                 else targetArray = currentSettings.beforeMidKnowledge; // default (!isAfter && !isSoftSkill)
+                 
+                 const exists = targetArray.find((c) => c.name === ev.name);
+                 if (!exists) {
+                     targetArray.push({
+                        id: ev.id || `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                        name: ev.name,
+                        maxScore: ev.maxScore || 10
+                     });
+                     autoCols++;
+                     autoColsToastCount++;
+                 }
+              }
+              
+              if (autoCols > 0) { 
+                 await setDoc(settingsRef, currentSettings);
+              }
             }
           }
         }
       }
-
+      
       if (newlyAdded.length > 0 && currentTeacher) {
 
         const batch = writeBatch(db);

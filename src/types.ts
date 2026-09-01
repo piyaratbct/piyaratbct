@@ -120,6 +120,7 @@ export interface StructuredEvaluation {
   kpa: string[]; // K, P, A
   autoGenerateColumn?: boolean;
   scorePeriod?: "before_mid" | "after_mid";
+  targetSubject?: string;
   generatedColumnId?: string; // Track if created in SubjectSettings
 }
 

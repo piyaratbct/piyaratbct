@@ -253,13 +253,18 @@ export function LessonPlanPrintTemplate({
           title="แผนการจัดการเรียนรู้"
           className={isCompact ? "mb-4" : "mb-8"}
           subtitle={
-            <p
-              className={`${isCompact ? "text-sm" : "text-base"} text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100`}
-            >
-              กลุ่มสาระการเรียนรู้{" "}
-              {plan.subject === "อื่นๆ" || plan.subject === "อื่น ๆ" ? plan.customSubject : plan.subject}{" "}
-              ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, "")}
-            </p>
+            <div className="flex flex-col items-center gap-1.5">
+              <p className={`${isCompact ? "text-sm" : "text-base"} text-sky-800 bg-sky-50 inline-block px-4 py-1 rounded-full border border-sky-100`}>
+                กลุ่มสาระการเรียนรู้{" "}
+                {plan.subject === "อื่นๆ" || plan.subject === "อื่น ๆ" ? plan.customSubject : plan.subject}{" "}
+                ระดับชั้น {plan.gradeLevel.replace(/\s*\(.*?\)/g, "")}
+              </p>
+              {plan.isIntegrated && plan.integratedSubjects && (
+                <p className={`${isCompact ? "text-xs" : "text-sm"} text-emerald-700 bg-emerald-50 inline-block px-4 py-1 rounded-full border border-emerald-100`}>
+                  บูรณาการรายวิชา: {plan.integratedSubjects}
+                </p>
+              )}
+            </div>
           }
         />
 
@@ -307,6 +312,18 @@ export function LessonPlanPrintTemplate({
             >
               {teacher.thaiName || teacher.displayName}
             </p>
+            {((plan.coTeacherNames && plan.coTeacherNames.length > 0) || (plan.coTeachers && plan.coTeachers.length > 0)) && (
+              <p className={`text-slate-600 mt-1 leading-snug ${isCompact ? "text-[10px]" : "text-xs"}`}>
+                <span className="font-bold text-pink-700">ร่วมสอน:</span> {
+                  (plan.coTeacherNames && plan.coTeacherNames.length > 0) 
+                    ? plan.coTeacherNames.join(", ")
+                    : plan.coTeachers?.map(id => {
+                        const t = allTeachers.find(t => t.id === id);
+                        return t ? (t.thaiName || t.displayName) : id;
+                      }).join(", ")
+                }
+              </p>
+            )}
           </div>
         </div>
 

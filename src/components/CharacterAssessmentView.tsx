@@ -421,10 +421,11 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
                 <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-100 z-20 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ที่</th>
                 <th className="px-4 py-3 min-w-[250px] sticky left-[48px] bg-slate-100 z-20 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล / <span className="text-indigo-600">ร่องรอยหลักฐาน</span></th>
                 {TRAITS.map(t => (
-                  <th key={t.id} className="px-2 py-3 text-center w-16 border-r border-slate-200 last:border-r-0 leading-tight">
+                  <th key={t.id} className="px-2 py-3 text-center w-16 border-r border-slate-200 leading-tight">
                     <span title={t.label} className="text-xs">{t.short}</span>
                   </th>
                 ))}
+                <th className="px-3 py-3 text-center w-24 border-l border-slate-200 bg-indigo-50 font-bold text-indigo-700 leading-tight">สรุปผล</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -432,6 +433,26 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
                 filteredStudents.map(student => {
                   const studentData = assessments[student.id] || {};
                   const studentBadges = badges[student.id] || [];
+                  
+                  const getOverallSummary = () => {
+                    let count3 = 0; let count2 = 0; let count1 = 0; let count0 = 0;
+                    let totalAssessed = 0;
+                    TRAITS.forEach(t => {
+                      const val = studentData[t.id];
+                      if (val === 3) count3++;
+                      else if (val === 2) count2++;
+                      else if (val === 1) count1++;
+                      else if (val === 0) count0++;
+                      if (val !== undefined) totalAssessed++;
+                    });
+                    
+                    if (totalAssessed < 8) return { label: '-', class: 'text-slate-400 bg-slate-50' };
+                    if (count0 > 0) return { label: 'ไม่ผ่าน', class: 'text-rose-700 bg-rose-50 font-bold' };
+                    if (count3 >= 5 && count1 === 0 && count0 === 0) return { label: 'ดีเยี่ยม', class: 'text-emerald-700 bg-emerald-50 font-bold' };
+                    if ((count2 + count3) >= 5 && count0 === 0) return { label: 'ดี', class: 'text-indigo-700 bg-indigo-50 font-bold' };
+                    return { label: 'ผ่าน', class: 'text-amber-700 bg-amber-50 font-bold' };
+                  };
+                  const summary = getOverallSummary();
                   
                   // Calculate auto-insights
                   let presentCount = 0;
@@ -597,12 +618,15 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
                           </td>
                         );
                       })}
+                      <td className={`px-2 py-2 text-center text-xs border-l border-slate-200 ${summary.class}`}>
+                        {summary.label}
+                      </td>
                     </tr>
                   )
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                     ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
                   </td>
                 </tr>

@@ -33,7 +33,11 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         const sSnap = await getDocs(collection(db, 'schedules'));
         const relevantSchedules = sSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as TeacherSchedule))
-          .filter(s => s.semester === systemSemester && s.academicYear === systemAcademicYear);
+          .filter(s => {
+            // ถ้าระเบียนเก่าไม่มีข้อมูลเทอม ให้แสดงไปก่อน หรือตรงกับเทอมปัจจุบัน
+            if (!s.semester || !s.academicYear) return true;
+            return s.semester === systemSemester && s.academicYear === systemAcademicYear;
+          });
         setAllSchedules(relevantSchedules);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -43,10 +47,10 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   }, [systemSemester, systemAcademicYear]);
 
   useEffect(() => {
-    if (isReadOnly && currentTeacher?.id) {
+    if (currentTeacher?.id && !selectedTeacherId) {
       setSelectedTeacherId(currentTeacher.id);
     }
-  }, [isReadOnly, currentTeacher]);
+  }, [currentTeacher]);
 
   const schedules = allSchedules.filter(s => s.teacherId === selectedTeacherId);
   console.log("allSchedules:", allSchedules);
@@ -91,13 +95,17 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     }
   };
 
-  const handleDeleteSchedule = async (id: string) => {
-    if (!confirm('ยืนยันการลบคาบสอนนี้?')) return;
+  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    if (!scheduleToDelete) return;
     try {
-      await deleteDoc(doc(db, 'schedules', id));
-      setAllSchedules(allSchedules.filter(s => s.id !== id));
+      await deleteDoc(doc(db, 'schedules', scheduleToDelete));
+      setAllSchedules(allSchedules.filter(s => s.id !== scheduleToDelete));
     } catch (error) {
       console.error(error);
+    } finally {
+      setScheduleToDelete(null);
     }
   };
 
@@ -217,7 +225,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                               
                               <div className="w-full md:w-1/6 flex justify-end">
                                 {!isReadOnly && (
-                                  <button onClick={() => handleDeleteSchedule(schedule.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                  <button onClick={() => setScheduleToDelete(schedule.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
                                     <Trash2 className="h-4 w-4" />
                                   </button>
                                 )}
@@ -382,6 +390,36 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {scheduleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">ยืนยันการลบ?</h3>
+              <p className="text-sm text-slate-500 mb-6">คุณแน่ใจหรือไม่ที่จะลบตารางสอนคาบนี้? การกระทำนี้ไม่สามารถกู้คืนได้</p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setScheduleToDelete(null)}
+                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-3 px-4 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-colors"
+                >
+                  ลบข้อมูล
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
