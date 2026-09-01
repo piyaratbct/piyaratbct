@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Medal, Sparkles, User, AlertCircle, CheckCircle } from 'lucide-react';
 import { Student, StudentBadge } from '../types';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { db, handleFirestoreError } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface BadgeAwardModalProps {
   isOpen: boolean;
@@ -54,7 +54,7 @@ export const BadgeAwardModal: React.FC<BadgeAwardModalProps> = ({
       }, 2000);
     } catch (err) {
       console.error(err);
-      handleFirestoreError(err as Error, 'write', 'เพิ่มข้อมูลเหรียญความดี');
+      handleFirestoreError(err as Error, OperationType.WRITE, 'เพิ่มข้อมูลเหรียญความดี');
     } finally {
       setIsSaving(false);
     }

@@ -101,7 +101,7 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
           phoneNumber: '-',
           affiliation: 'ฝ่ายบริหาร',
           displayName: 'Admin (Offline)',
-          role: 'admin',
+          role: 'admin' as 'admin',
           hasSeeded: true
         };
         setSuccessMsg('เข้าสู่ระบบสำเร็จ (โหมดออฟไลน์สำหรับผู้ดูแลระบบ)');

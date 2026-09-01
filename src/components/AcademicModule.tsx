@@ -18,6 +18,7 @@ import { StaffProfileModule } from "./StaffProfileModule";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
 import { CurriculumManager } from "./CurriculumManager";
+import { ClassroomSettings } from "./ClassroomSettings";
 import { FileSpreadsheet, FileText } from "lucide-react";
 
 
@@ -42,7 +43,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   teachers,
 }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
-  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum" | "eportfolio">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum" | "eportfolio" | "classrooms">("calendar");
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 
   useEffect(() => {
@@ -146,12 +147,12 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
           <button
             onClick={() => setActiveTab("staff")}
             className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === "staff" || activeTab === "eportfolio"
+              activeTab === "staff" || activeTab === "eportfolio" || activeTab === "classrooms"
                 ? "bg-indigo-50 text-indigo-700"
                 : "text-slate-500 hover:bg-slate-50"
             }`}
           >
-            <Users className="h-4 w-4" /> ข้อมูลบุคลากร
+            <Users className="h-4 w-4" /> ข้อมูลครูและห้องเรียน
           </button>
         )}
         {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
@@ -192,7 +193,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
         <AcademicSettings currentTeacher={currentTeacher} />
       )}
 
-      {(activeTab === "staff" || activeTab === "eportfolio") && (
+      {(activeTab === "staff" || activeTab === "eportfolio" || activeTab === "classrooms") && (
         <div className="space-y-4">
           <div className="flex overflow-x-auto gap-2 border-b border-slate-200">
             <button
@@ -215,8 +216,22 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
             >
               แฟ้มสะสมผลงาน (e-Portfolio)
             </button>
+            <button
+              onClick={() => setActiveTab("classrooms")}
+              className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === "classrooms"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              จัดการโครงสร้างห้องเรียน
+            </button>
           </div>
           
+          {activeTab === "classrooms" && (
+            <ClassroomSettings currentTeacher={currentTeacher} students={students} teachers={teachers} />
+          )}
+
           {activeTab === "staff" && (
             <StaffManager currentTeacher={currentTeacher} />
           )}

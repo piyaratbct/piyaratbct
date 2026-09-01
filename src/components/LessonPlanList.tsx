@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Lock,
   Copy,
+  ClipboardCheck,
 } from "lucide-react";
 
 interface LessonPlanListProps {
@@ -34,6 +35,7 @@ interface LessonPlanListProps {
   onEdit: (plan: LessonPlan) => void;
   onDelete: (id: string) => void;
   onPrintPreview: (plan: LessonPlan) => void;
+  onEvaluate?: (plan: LessonPlan) => void;
 }
 
 export function LessonPlanList({
@@ -48,6 +50,7 @@ export function LessonPlanList({
   onEdit,
   onDelete,
   onPrintPreview,
+  onEvaluate,
 }: LessonPlanListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
@@ -509,6 +512,19 @@ export function LessonPlanList({
                           สั่งพิมพ์
                         </span>
                       </button>
+                      
+                      {onEvaluate && (
+                        <button
+                          onClick={() => onEvaluate(plan)}
+                          className="p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 rounded-lg shadow-sm transition-all flex items-center gap-1.5 ml-1"
+                          title="ประเมินผู้เรียน / บันทึกหลังสอน"
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                          <span className="text-xs font-bold hidden sm:inline">
+                            ประเมินผล
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

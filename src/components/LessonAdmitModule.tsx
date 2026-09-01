@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText } from 'lucide-react';
+import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText, Trash2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { AdmissionPrintTemplate } from './AdmissionPrintTemplate';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
@@ -225,6 +225,7 @@ const AdmissionManager: React.FC<{
   students: Student[];
 }> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher, students }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [appToDelete, setAppToDelete] = useState<AdmissionRecord | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [printingApplicant, setPrintingApplicant] = useState<AdmissionRecord | null>(null);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
@@ -445,6 +446,30 @@ const AdmissionManager: React.FC<{
       console.error(err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteApplicant = (app: AdmissionRecord) => {
+    if (currentTeacher.role === 'teacher') {
+      alert('คุณไม่มีสิทธิ์ในการลบข้อมูลการรับสมัคร');
+      return;
+    }
+    if (app.status === 'enrolled') {
+      alert('ไม่สามารถลบผู้สมัครที่ขึ้นทะเบียนเป็นนักเรียนแล้วได้ หากต้องการลบ กรุณาไปลบที่ฐานข้อมูลนักเรียน');
+      return;
+    }
+    setAppToDelete(app);
+  };
+
+  const confirmDeleteApplicant = async () => {
+    if (!appToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'admissions', appToDelete.id));
+      setAppToDelete(null);
+      refreshApplicants();
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการลบข้อมูล');
     }
   };
 
@@ -1672,6 +1697,13 @@ const AdmissionManager: React.FC<{
                     >
                       <Printer className="h-3.5 w-3.5" /> <span className="md:hidden">พิมพ์</span>
                     </button>
+                    <button 
+                      onClick={() => handleDeleteApplicant(app)}
+                      className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-md transition-colors text-xs font-semibold"
+                      title="ลบข้อมูล"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> <span className="md:hidden">ลบ</span>
+                    </button>
                   </div>
                   <select 
                     value={app.status}
@@ -1911,6 +1943,36 @@ const AdmissionManager: React.FC<{
       )}
 
 
+      
+      {appToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
+            <div className="p-6">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 mb-4">
+                <Trash2 className="h-6 w-6 text-rose-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">ยืนยันการลบข้อมูล</h3>
+              <p className="text-sm text-slate-500 text-center">
+                คุณต้องการลบข้อมูลใบสมัครของ <span className="font-bold text-slate-800">{appToDelete.firstName} {appToDelete.lastName}</span> ใช่หรือไม่? <br/>ข้อมูลที่ถูกลบจะไม่สามารถกู้คืนได้
+              </p>
+            </div>
+            <div className="p-4 bg-slate-50 flex gap-3">
+              <button 
+                onClick={() => setAppToDelete(null)}
+                className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={confirmDeleteApplicant}
+                className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700"
+              >
+                ยืนยันการลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <CapacityModal 
         isOpen={showCapacityModal} 
         onClose={() => setShowCapacityModal(false)} 

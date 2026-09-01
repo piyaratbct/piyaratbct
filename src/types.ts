@@ -70,6 +70,13 @@ export interface LessonRecord {
   suggestions: string;  // ข้อเสนอแนะ/ความคิดเห็นของผู้สอน
   strengths?: string;   // จุดเด่นในการสอนครั้งนี้
   sarTags?: string[];   // แท็กมาตรฐาน SAR
+  students?: { id: string; desirableScores?: Record<string, number>; }[];
+  importedDesirable?: string[];
+  studentDesirableScores?: Record<string, Record<string, number>>;
+  importedIndicators?: string[];
+  studentIndicatorScores?: Record<string, Record<string, number>>;
+  importedCompetencies?: string[];
+  studentCompetencyScores?: Record<string, Record<string, number>>;
   attachments?: Attachment[];
   semester?: string;
   evaluations?: {
@@ -103,6 +110,17 @@ export interface LessonRecord {
     editedBy: string;
     editedAt: string;
   }[];
+}
+
+export interface StructuredEvaluation {
+  id: string;
+  name: string;
+  method: string;
+  maxScore: number;
+  kpa: string[]; // K, P, A
+  autoGenerateColumn?: boolean;
+  scorePeriod?: "before_mid" | "after_mid";
+  generatedColumnId?: string; // Track if created in SubjectSettings
 }
 
 export interface LessonPlan {
@@ -142,6 +160,8 @@ export interface LessonPlan {
   activities: string;     // กิจกรรมการเรียนรู้
   materials: string;      // สื่อการเรียนรู้ / แหล่งเรียนรู้
   evaluation: string;     // การวัดและประเมินผล
+  desirableCharacteristics?: string[]; // คุณลักษณะอันพึงประสงค์ 8 ประการ
+  structuredEvaluations?: StructuredEvaluation[];
   date: string;           // วันที่สอน (หรือ คาบที่)
   semester?: string;
   academicYear?: string;
@@ -437,6 +457,7 @@ export const SUBJECTS: string[] = [
   'ดนตรีสากล',
   'กิจกรรมลูกเสือ',
   'กิจกรรมอ่าน-เขียน',
+  'บูรณาการ (PBL)',
   'อื่นๆ'
 ];
 
@@ -711,4 +732,12 @@ export interface StudentBadge {
   academicYear: string;
   semester: string;
   createdAt: string;
+}
+
+export interface ClassroomConfig {
+  id: string;
+  name: string;
+  baseLevel: string;
+  homeroomTeacherId?: string;
+  coHomeroomTeacherId?: string;
 }

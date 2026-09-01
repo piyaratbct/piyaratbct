@@ -1,0 +1,11 @@
+<<<<
+                                  if (totalInd >= 12) newGrade = "3 (ดีเยี่ยม)";
+                                  else if (totalInd >= 10) newGrade = "2 (ดี)";
+                                  else if (totalInd >= 5) newGrade = "1 (ผ่าน)";
+                                  else newGrade = "0 (ไม่ผ่าน)";
+====
+                                  if (totalInd >= 12) newGrade = "3 (ดีเยี่ยม)";
+                                  else if (totalInd >= 10) newGrade = "2 (ดี)";
+                                  else if (totalInd >= 8) newGrade = "1 (ผ่าน)";
+                                  else newGrade = "0 (ไม่ผ่าน)";
+>>>>

@@ -30,6 +30,27 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
   settings,
   onClose,
 }) => {
+  const calculateGrade = (total: number, subjectName: string, activities?: any, isScoutAttended?: boolean): string => {
+    if (subjectName === 'กิจกรรมลูกเสือ') {
+      const campAttended = isScoutAttended || activities?.scoutCamp === 1;
+      return (total >= 80 && campAttended) ? "ผ" : "มผ";
+    }
+    if (subjectName === 'กิจกรรมอ่าน-เขียน') {
+      if (total >= 80) return "3 (ดีเยี่ยม)";
+      if (total >= 65) return "2 (ดี)";
+      if (total >= 50) return "1 (ผ่าน)";
+      return "0 (ไม่ผ่าน)";
+    }
+    if (total >= 80) return "4";
+    if (total >= 75) return "3.5";
+    if (total >= 70) return "3";
+    if (total >= 65) return "2.5";
+    if (total >= 60) return "2";
+    if (total >= 55) return "1.5";
+    if (total >= 50) return "1";
+    return "0";
+  };
+
   const [isCompact, setIsCompact] = useState(false);
 
   const displayedStudents = students
@@ -77,7 +98,7 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
           />
 
           <div className="mt-6 mb-8">
-            {subject !== 'กิจกรรมลูกเสือ' ? (
+            {!['กิจกรรมลูกเสือ', 'กิจกรรมอ่าน-เขียน'].includes(subject) ? (
             <table className="w-full text-sm border-collapse border border-slate-900">
               <thead>
                 <tr className="bg-slate-100">
@@ -126,6 +147,46 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
                       <td className="border border-slate-900 px-2 py-1 text-center bg-slate-50">{score.midtermScore || 0}</td>
                       <td className="border border-slate-900 px-2 py-1 text-center bg-slate-50">{score.finalScore || 0}</td>
                       <td className="border border-slate-900 px-2 py-1 text-center font-bold bg-indigo-50/50">{score.totalScore || 0}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center font-bold text-lg">{calculateGrade(score.totalScore || 0, subject, score.activities) || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            ) : subject === 'กิจกรรมอ่าน-เขียน' ? (
+            <table className="w-full text-sm border-collapse border border-slate-900 mx-auto">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-900 px-2 py-2 text-center w-12" rowSpan={2}>เลขที่</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center w-24" rowSpan={2}>รหัสประจำตัว</th>
+                  <th className="border border-slate-900 px-4 py-2 text-left whitespace-nowrap" rowSpan={2}>ชื่อ-นามสกุล</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center" colSpan={5}>ตัวชี้วัด (3, 2, 1, 0)</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center w-32" rowSpan={2}>สรุปผลประเมิน</th>
+                </tr>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">การอ่าน</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จับประเด็น</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">วิเคราะห์</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ประเมินค่า</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">การเขียน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageStudents.map((st) => {
+                  const key = `${st.id}_${academicYear}_${semester}_${subject}`;
+                  const score = scores[key] || { grade: "-", activities: {} };
+                  return (
+                    <tr key={st.id}>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{st.number || "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{st.studentId}</td>
+                      <td className="border border-slate-900 px-4 py-1 text-left whitespace-nowrap">
+                        {st.firstName} {st.lastName}
+                      </td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw1 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw2 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw3 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw4 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw5 ?? "-"}</td>
                       <td className="border border-slate-900 px-2 py-1 text-center font-bold text-lg">{score.grade || "-"}</td>
                     </tr>
                   );
@@ -159,7 +220,7 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
                         {st.firstName} {st.lastName}
                       </td>
                       <td className="border border-slate-900 px-4 py-2 text-center bg-slate-50">{score.totalScore || 0}</td>
-                      <td className="border border-slate-900 px-4 py-2 text-center font-bold text-lg">{score.grade || "-"}</td>
+                      <td className="border border-slate-900 px-4 py-2 text-center font-bold text-lg">{calculateGrade(score.totalScore || 0, subject, score.activities) || "-"}</td>
                     </tr>
                   );
                 })}

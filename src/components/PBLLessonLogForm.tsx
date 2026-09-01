@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { LessonRecord, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
+import { LessonRecord, Student, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
 
 import { Save, BookOpen,  Target,  RefreshCw, ChevronDown, Sparkles, BookCheck, ClipboardList, AlertTriangle, MessageSquareCode, CalendarDays, Paperclip, Link2, FileImage, FileText, Video as VideoIcon, Plus, X, Globe, Eye } from 'lucide-react';
 import { AttachmentManager } from './AttachmentManager';
 import { Star } from 'lucide-react';
 import { formatThaiDate } from '../lib/dateUtils';
+import { DESIRABLE_CHARACTERISTICS } from '../data';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -64,9 +65,11 @@ interface PBLLessonLogFormProps {
   currentUserName?: string;
   systemAcademicYear?: string;
   systemSemester?: string;
+  preloadedPlan?: LessonPlan | null;
+  onClearPreloadedPlan?: () => void;
 }
 
-export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1' }: PBLLessonLogFormProps) {
+export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1', preloadedPlan, onClearPreloadedPlan }: PBLLessonLogFormProps) {
   const subject = "บูรณาการ (PBL)";
 
   const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
@@ -133,6 +136,16 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
     setPblInvestigationSteps(plan.pblInvestigationSteps || "");
     setPblPresentation(plan.pblPresentation || "");
     setLessonPlanId(plan.id);
+    setImportedDesirable(plan.desirableCharacteristics || []);
+    
+    const indicators = [];
+    if (plan.coreIndicators) indicators.push(...plan.coreIndicators.split('\n').filter(s => s.trim()));
+    if (plan.targetIndicators) indicators.push(...plan.targetIndicators.split('\n').filter(s => s.trim()));
+    setImportedIndicators(indicators);
+    
+    const comps = [];
+    if (plan.competencies) comps.push(...plan.competencies.split('\n').filter(s => s.trim()));
+    setImportedCompetencies(comps);
     setShowPlanModal(false);
     
     // Toast notification
@@ -144,6 +157,25 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       }
     }));
   };
+  
+  // Auto-import from preloaded plan
+  useEffect(() => {
+    if (preloadedPlan) {
+      handleImportPlan(preloadedPlan);
+      
+      // Delay scrolling to give time for UI to render tables
+      setTimeout(() => {
+        const evalHeader = document.getElementById("evaluation-section-header");
+        if (evalHeader) {
+          evalHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 500);
+      
+      if (onClearPreloadedPlan) {
+        onClearPreloadedPlan();
+      }
+    }
+  }, [preloadedPlan, onClearPreloadedPlan]);
   const [activities, setActivities] = useState('');
   const [limitations, setLimitations] = useState('');
   const [suggestions, setSuggestions] = useState('');
@@ -154,6 +186,39 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   // Attachment states
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+
+
+  const [importedDesirable, setImportedDesirable] = useState<string[]>(initialRecord?.importedDesirable || []);
+  const [studentDesirableScores, setStudentDesirableScores] = useState<Record<string, Record<string, number>>>(initialRecord?.studentDesirableScores || {});
+  const [importedIndicators, setImportedIndicators] = useState<string[]>(initialRecord?.importedIndicators || []);
+  const [studentIndicatorScores, setStudentIndicatorScores] = useState<Record<string, Record<string, number>>>(initialRecord?.studentIndicatorScores || {});
+  const [importedCompetencies, setImportedCompetencies] = useState<string[]>(initialRecord?.importedCompetencies || []);
+  const [studentCompetencyScores, setStudentCompetencyScores] = useState<Record<string, Record<string, number>>>(initialRecord?.studentCompetencyScores || {});
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (selectedGrades.length === 0) {
+        setStudents([]);
+        return;
+      }
+      setIsLoadingStudents(true);
+      try {
+        const gradeLevel = selectedGrades[0];
+        const q = query(collection(db, 'students'), where('gradeLevel', '==', gradeLevel), where('status', '==', 'active'));
+        const snap = await getDocs(q);
+        const studentList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+        studentList.sort((a, b) => a.number - b.number);
+        setStudents(studentList);
+      } catch(e) {
+        console.error(e);
+      }
+      setIsLoadingStudents(false);
+    };
+    fetchStudents();
+  }, [selectedGrades]);
+
 
   const removeAttachment = (id: string) => {
     setAttachments(prev => prev.filter(att => att.id !== id));
@@ -180,6 +245,13 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       setStrengths(initialRecord.strengths || '');
       setSarTags(initialRecord.sarTags || []);
       setAttachments(initialRecord.attachments || []);
+      setImportedDesirable(initialRecord.importedDesirable || []);
+      setStudentDesirableScores(initialRecord.studentDesirableScores || {});
+      setImportedIndicators(initialRecord.importedIndicators || []);
+      setStudentIndicatorScores(initialRecord.studentIndicatorScores || {});
+      setImportedCompetencies(initialRecord.importedCompetencies || []);
+      setStudentCompetencyScores(initialRecord.studentCompetencyScores || {});
+      
       if (initialRecord.evaluations) {
         setEvaluations({
           planning: initialRecord.evaluations.planning || DEFAULT_EVALUATIONS.planning,
@@ -211,6 +283,12 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
     setStrengths('');
     setEvaluations(DEFAULT_EVALUATIONS);
     setAttachments([]);
+    setImportedDesirable([]);
+    setStudentDesirableScores({});
+    setImportedIndicators([]);
+    setStudentIndicatorScores({});
+    setImportedCompetencies([]);
+    setStudentCompetencyScores({});
     setErrorMsg('');
   };
 
@@ -257,6 +335,12 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       strengths: strengths.trim(),
       sarTags,
       evaluations,
+      importedDesirable,
+      studentDesirableScores,
+      importedIndicators,
+      studentIndicatorScores,
+      importedCompetencies,
+      studentCompetencyScores,
       attachments,
       createdAt: initialRecord?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -593,206 +677,14 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
         </div>
 
         {/* แบบประเมินการจัดการเรียนรู้ */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-indigo-500" />
-            7. แบบประเมินการจัดการเรียนรู้
-          </label>
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="bg-slate-50/50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-indigo-800">เกณฑ์การประเมิน</span>
-              <div className="flex gap-3 text-[10px] font-bold text-slate-800">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>5 = ดีเยี่ยม</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-400"></div>4 = ดีมาก</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>3 = ดี</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500"></div>2 = พอใช้</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500"></div>1 = ปรับปรุง</span>
-              </div>
-            </div>
-            
-            <div className="divide-y divide-slate-100">
-              {/* ด้านการวางแผนการสอน */}
-              <div className="p-4 bg-slate-50/30">
-                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-violet-500 rounded-full"></div>
-                  ด้านการวางแผนการสอน
-                </h4>
-                <div className="space-y-3">
-                  {EVALUATION_CRITERIA.planning.map((item, index) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
-                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
-                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
-                        {item.label}
-                      </span>
-                      <div className="flex gap-1.5 self-end sm:self-auto">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            type="button"
-                            key={score}
-                            onClick={() => setEvaluations(prev => ({ ...prev, planning: { ...prev.planning, [item.id]: score } }))}
-                            className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              evaluations.planning[item.id] === score
-                                ? 'bg-violet-500 text-white shadow-md shadow-violet-200 scale-110'
-                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50'
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* ด้านบริหารเวลาการจัดการเรียนการเรียนรู้ */}
-              <div className="p-4 bg-slate-50/30">
-                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-orange-500 rounded-full"></div>
-                  ด้านบริหารเวลาการจัดการเรียนการเรียนรู้
-                </h4>
-                <div className="space-y-3">
-                  {EVALUATION_CRITERIA.time.map((item, index) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
-                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
-                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
-                        {item.label}
-                      </span>
-                      <div className="flex gap-1.5 self-end sm:self-auto">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            type="button"
-                            key={score}
-                            onClick={() => setEvaluations(prev => ({ ...prev, time: { ...prev.time, [item.id]: score } }))}
-                            className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              evaluations.time[item.id] === score
-                                ? 'bg-orange-500 text-white shadow-md shadow-orange-200 scale-110'
-                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50'
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* ด้านสื่อและแหล่งเรียนรู้ */}
-              <div className="p-4 bg-slate-50/30">
-                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
-                  ด้านสื่อและแหล่งเรียนรู้ (ม.3.2)
-                </h4>
-                <div className="space-y-3">
-                  {EVALUATION_CRITERIA.media.map((item, index) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
-                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
-                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
-                        {item.label}
-                      </span>
-                      <div className="flex gap-1.5 self-end sm:self-auto">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            type="button"
-                            key={score}
-                            onClick={() => setEvaluations(prev => ({ ...prev, media: { ...prev.media, [item.id]: score } }))}
-                            className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              evaluations.media[item.id] === score
-                                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 scale-110'
-                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-slate-700 hover:bg-emerald-50'
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* ด้านผู้สอน */}
-              <div className="p-4 bg-slate-50/30">
-                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-pink-500 rounded-full"></div>
-                  ด้านผู้สอน
-                </h4>
-                <div className="space-y-3">
-                  {EVALUATION_CRITERIA.teacher.map((item, index) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
-                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
-                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
-                        {item.label}
-                      </span>
-                      <div className="flex gap-1.5 self-end sm:self-auto">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            type="button"
-                            key={score}
-                            onClick={() => setEvaluations(prev => ({ ...prev, teacher: { ...prev.teacher, [item.id]: score } }))}
-                            className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              evaluations.teacher[item.id] === score
-                                ? 'bg-pink-500 text-white shadow-md shadow-pink-200 scale-110'
-                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-pink-300 hover:text-pink-600 hover:bg-pink-50'
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* ด้านผู้เรียน */}
-              <div className="p-4 bg-slate-50/30">
-                <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-sky-500 rounded-full"></div>
-                  ด้านผู้เรียน
-                </h4>
-                <div className="space-y-3">
-                  {EVALUATION_CRITERIA.learner.map((item, index) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl hover:bg-white transition-colors border border-transparent hover:border-slate-100 hover:shadow-sm">
-                      <span className="text-[11px] text-slate-700 flex-1 flex gap-2">
-                        <span className="text-slate-400 font-medium">{index + 1}.</span> 
-                        {item.label}
-                      </span>
-                      <div className="flex gap-1.5 self-end sm:self-auto">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            type="button"
-                            key={score}
-                            onClick={() => setEvaluations(prev => ({ ...prev, learner: { ...prev.learner, [item.id]: score } }))}
-                            className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black transition-all cursor-pointer ${
-                              evaluations.learner[item.id] === score
-                                ? 'bg-sky-500 text-white shadow-md shadow-sky-200 scale-110'
-                                : 'bg-slate-50 border border-slate-200 text-slate-500 hover:border-sky-300 hover:text-sky-600 hover:bg-sky-50'
-                            }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-            </div>
-          </div>
+
+                {/* Evaluation tables have been moved to a standalone popup for better UX */}
+        <div className="mb-8 p-6 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
+           <ClipboardList className="w-10 h-10 text-emerald-500 mb-3" />
+           <h3 className="text-emerald-800 font-bold text-lg mb-1">ตารางประเมินผลรายบุคคล</h3>
+           <p className="text-emerald-600 text-sm mb-4">เพื่อความสะดวก รวดเร็ว และเป็นระเบียบยิ่งขึ้น<br/>กรุณาให้คะแนนนักเรียนผ่านปุ่ม <b>"ประเมินผล"</b> สีเขียว ที่หน้ารายการบันทึกหลังสอน</p>
         </div>
 
-        {/* 8. แนบไฟล์และลิงก์เว็บไซต์ประกอบ */}
-        <AttachmentManager 
-          attachments={attachments}
-          onAddAttachment={(att) => setAttachments(prev => [...prev, att])}
-          onRemoveAttachment={removeAttachment}
-        />
-
-        {/* Submission Panel */}
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <button
             type="button"

@@ -544,38 +544,75 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
   const exportToCSV = () => {
     const headers = [
-      "เลขที่",
-      "รหัสนักเรียน",
-      "ชื่อ-สกุล",
-      "ชื่อเล่น",
-      "ระดับชั้น",
-      "เพศ",
-      "สถานะ",
-      "แพ้อาหาร",
-      "โรคประจำตัว",
-      "แพ้ยา",
-      "ข้อมูลอื่นๆ"
+      "เลขที่", "รหัสนักเรียน", "เลขประจำตัวประชาชน",
+      "ชื่อ", "นามสกุล", "ชื่อเล่น",
+      "ระดับชั้น", "เพศ", "วัน/เดือน/ปีเกิด",
+      "เชื้อชาติ", "สัญชาติ", "ศาสนา", "กรุ๊ปเลือด",
+      "ที่อยู่", "สถานภาพครอบครัว",
+      "ชื่อบิดา", "เบอร์โทรบิดา", "อาชีพบิดา", "รายได้บิดา", "สถานที่ทำงานบิดา",
+      "ชื่อมารดา", "เบอร์โทรมารดา", "อาชีพมารดา", "รายได้มารดา", "สถานที่ทำงานมารดา",
+      "ชื่อผู้ปกครอง", "ความสัมพันธ์ผู้ปกครอง", "อาชีพผู้ปกครอง", "รายได้ผู้ปกครอง", "สถานที่ทำงานผู้ปกครอง",
+      "น้ำหนัก", "ส่วนสูง",
+      "แพ้อาหาร", "แพ้ยา", "โรคประจำตัว", "การมองเห็น", "สุขภาพฟัน", "ข้อมูลทางการแพทย์อื่นๆ", "รับนมโรงเรียน",
+      "โรงเรียนเดิม", "สถานะ", "โรงเรียนที่ย้ายไป"
     ];
     
+    const escape = (val?: string | number | boolean) => {
+      if (val === null || val === undefined) return "";
+      const str = String(val);
+      // Escape double quotes by doubling them, and wrap in double quotes
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const csvContent = [
       headers.join(","),
       ...displayedStudents.map((student) => {
         return [
-          student.number || "",
-          student.studentId || "",
-          `"${student.firstName || ""} ${student.lastName || ""}"`,
-          `"${student.nickname || ""}"`,
-          `"${student.gradeLevel || ""}"`,
-          student.gender === "male" ? "ชาย" : "หญิง",
-          student.status === "active" ? "ปกติ" : "ย้าย/ออก",
-          student.allergicFood ? `"${student.allergicFood}"` : "",
-          student.congenitalDisease ? `"${student.congenitalDisease}"` : "",
-          student.allergicMedicine ? `"${student.allergicMedicine}"` : "",
-          student.medicalInfo ? `"${student.medicalInfo}"` : ""
+          escape(student.number),
+          escape(student.studentId),
+          escape(student.nationalId),
+          escape(student.firstName),
+          escape(student.lastName),
+          escape(student.nickname),
+          escape(student.gradeLevel),
+          escape(student.gender === "male" ? "ชาย" : student.gender === "female" ? "หญิง" : ""),
+          escape(student.dob),
+          escape(student.ethnicity),
+          escape(student.nationality),
+          escape(student.religion),
+          escape(student.bloodGroup),
+          escape(student.address),
+          escape(student.familyStatus),
+          escape(student.fatherName || `${student.fatherFirstName || ''} ${student.fatherLastName || ''}`.trim()),
+          escape(student.fatherPhone),
+          escape(student.fatherOccupation),
+          escape(student.fatherIncome),
+          escape(student.fatherWorkplace ? `${student.fatherWorkplace} ${student.fatherWorkplaceProvince || ''}`.trim() : ""),
+          escape(student.motherName || `${student.motherPrefix || ''}${student.motherFirstName || ''} ${student.motherLastName || ''}`.trim()),
+          escape(student.motherPhone),
+          escape(student.motherOccupation),
+          escape(student.motherIncome),
+          escape(student.motherWorkplace ? `${student.motherWorkplace} ${student.motherWorkplaceProvince || ''}`.trim() : ""),
+          escape(`${student.guardianFirstName || ''} ${student.guardianLastName || ''}`.trim()),
+          escape(student.guardianRelation),
+          escape(student.guardianOccupation),
+          escape(student.guardianIncome),
+          escape(student.guardianWorkplace ? `${student.guardianWorkplace} ${student.guardianWorkplaceProvince || ''}`.trim() : ""),
+          escape(student.weight),
+          escape(student.height),
+          escape(student.allergicFood),
+          escape(student.allergicMedicine),
+          escape(student.congenitalDisease),
+          escape(student.vision),
+          escape(student.dental),
+          escape(student.medicalInfo),
+          escape(student.noSchoolMilk ? "ไม่รับ (แพ้นมวัว)" : "รับปกติ"),
+          escape(student.previousSchool ? `${student.previousSchool} ${student.previousSchoolProvince || ''}`.trim() : ""),
+          escape(student.status === "active" ? "ปกติ" : student.status === "graduated" ? "จบการศึกษา" : "ย้าย/ออก"),
+          escape(student.destinationSchool)
         ].join(",");
       })
     ].join("\n");
-
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1295,7 +1332,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
             ข้อมูลสุขภาพนักเรียน
           </h3>
           <p className="text-slate-500 text-sm">
-            นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา โรคประจำตัว รวมถึงการประเมินน้ำหนักและส่วนสูง
+            นักเรียนที่มีข้อมูลสุขภาพ แพ้อาหาร แพ้ยา โรคประจำตัว รวมถึงการประเมิน<span className="whitespace-nowrap">น้ำหนักและส่วนสูง</span>
           </p>
         </div>
         <div className="flex flex-col md:items-end gap-3 justify-center h-full">

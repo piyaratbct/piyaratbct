@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle } from 'lucide-react';
+import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star } from 'lucide-react';
 import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { LearningHoursReport } from './LearningHoursReport';
@@ -21,14 +21,24 @@ interface EvaluationModuleProps {
   systemSemester?: string;
   students: Student[];
   currentTeacher?: any;
+  initialTab?: 'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character';
+  initialSubject?: string;
+  initialGrade?: string;
 }
 
-export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents, currentTeacher }) => {
+export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents, currentTeacher, initialTab, initialSubject, initialGrade }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character'>('overview');
-  const [selectedGrade, setSelectedGrade] = useState<string>(GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
-    const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character'>(initialTab || 'overview');
+  const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
+    const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || SUBJECTS[0]);
   const [scoutCampAttendees, setScoutCampAttendees] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+    if (initialSubject) setSelectedSubject(initialSubject);
+    if (initialGrade) setSelectedGrade(initialGrade);
+  }, [initialTab, initialSubject, initialGrade]);
+
 
   useEffect(() => {
     if (selectedSubject === 'กิจกรรมลูกเสือ') {
@@ -60,12 +70,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
 
   const uniqueGrades = React.useMemo(() => {
-    const dbGrades = new Set(students.map(s => s.gradeLevel));
-    const hideIfEmpty = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
-    const filteredGradeLevels = GRADE_LEVELS.filter(g => !hideIfEmpty.includes(g) || dbGrades.has(g));
+    const dbGrades = new Set(students.map(s => s.gradeLevel).filter(Boolean));
+    const hideGrades = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
     const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
     extraGrades.sort();
-    return [...filteredGradeLevels, ...extraGrades];
+    return [...GRADE_LEVELS.filter(g => !hideGrades.includes(g)), ...extraGrades];
   }, [students]);
 
   useEffect(() => {
@@ -143,6 +152,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     if (subject === 'กิจกรรมลูกเสือ') {
       const campAttended = isScoutAttended || activities?.scoutCamp === 1;
       return (total >= 80 && campAttended) ? "ผ" : "มผ";
+    }
+    if (subject === 'กิจกรรมอ่าน-เขียน') {
+      if (total >= 80) return "3 (ดีเยี่ยม)";
+      if (total >= 65) return "2 (ดี)";
+      if (total >= 50) return "1 (ผ่าน)";
+      return "0 (ไม่ผ่าน)";
     }
     if (total >= 80) return "4";
     if (total >= 75) return "3.5";
@@ -460,7 +475,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 </div>
               </div>
 
-              {selectedSubject !== 'กิจกรรมลูกเสือ' ? ( <>
+              {!['กิจกรรมลูกเสือ', 'กิจกรรมอ่าน-เขียน'].includes(selectedSubject) ? ( <>
               {/* Sub tabs for grades */}
               <div className="flex overflow-x-auto border-b border-slate-200 mb-6">
                 <button
@@ -519,6 +534,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                           .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                           .map((student) => {
                             const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
                             const score = draftScores[key] || { activities: {}, totalScore: '-', grade: '-' };
                             const part1Total = Number(((Number(score.beforeMidKnowledgeScore) || 0) + (Number(score.beforeMidSoftSkillScore) || 0) + (Number(score.afterMidKnowledgeScore) || 0) + (Number(score.afterMidSoftSkillScore) || 0)).toFixed(2));
                             
@@ -681,7 +697,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   {score.totalScore}
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-emerald-600 bg-indigo-50/30">
-                                  {score.grade}
+                                  {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id)) || '-'}
                                 </td>
                               </tr>
                             )})
@@ -712,6 +728,107 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               </div>
 
               </>
+              ) : selectedSubject === 'กิจกรรมอ่าน-เขียน' ? (
+                <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full mt-6">
+                  <div className="flex justify-between items-center px-4 py-3 bg-amber-50/50 border-b border-amber-200 rounded-t-xl">
+                    <h3 className="font-bold text-amber-800 text-sm flex items-center gap-2">
+                      <Star className="w-4 h-4 text-amber-500" /> การประเมินการอ่าน คิดวิเคราะห์ และเขียน (5 ตัวชี้วัด)
+                    </h3>
+                  </div>
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]" rowSpan={2}>เลขที่</th>
+                        <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]" rowSpan={2}>ชื่อ-นามสกุล</th>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50" colSpan={5}>ตัวชี้วัด (3=ดีเยี่ยม, 2=ดี, 1=ผ่าน, 0=ไม่ผ่าน)</th>
+                        <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50" rowSpan={2}>สรุปผลประเมิน<br/><span className="text-xs font-normal text-slate-400">(สพฐ.)</span></th>
+                      </tr>
+                      <tr>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50/50 font-medium text-xs whitespace-nowrap w-20">1. การอ่าน</th>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50/50 font-medium text-xs whitespace-nowrap w-20">2. จับประเด็น</th>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50/50 font-medium text-xs whitespace-nowrap w-20">3. วิเคราะห์</th>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50/50 font-medium text-xs whitespace-nowrap w-20">4. ประเมินค่า</th>
+                        <th className="px-2 py-2 text-center border-r border-slate-200 bg-sky-50/50 font-medium text-xs whitespace-nowrap w-20">5. การเขียน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
+                        students.filter(s => s.gradeLevel === selectedGrade)
+                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
+                          .map((student) => {
+                            const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const score = draftScores[key] || { grade: '', activities: {} };
+                            
+                            const setIndicatorScore = (indicatorId: string, val: string) => {
+                               const numVal = val === '' ? 0 : Number(val);
+                               setDraftScores(prev => {
+                                  const current = prev[key] || {
+                                      id: `sc-${Date.now()}`,
+                                      studentId: student.id,
+                                      gradeLevel: selectedGrade,
+                                      academicYear: systemAcademicYear || '',
+                                      semester: systemSemester || '',
+                                      subject: selectedSubject,
+                                      teacherId: 'current-teacher',
+                                      activities: {}
+                                  };
+                                  const newActivities = { ...current.activities, [indicatorId]: numVal };
+                                  // Auto calculate overall grade
+                                  const totalInd = ['rw1', 'rw2', 'rw3', 'rw4', 'rw5'].reduce((sum, id) => sum + (newActivities[id] || 0), 0);
+                                  let newGrade = "";
+                                  if (totalInd >= 12) newGrade = "3 (ดีเยี่ยม)";
+                                  else if (totalInd >= 10) newGrade = "2 (ดี)";
+                                  else if (totalInd >= 8) newGrade = "1 (ผ่าน)";
+                                  else newGrade = "0 (ไม่ผ่าน)";
+                                  
+                                  return {
+                                      ...prev,
+                                      [key]: {
+                                          ...current,
+                                          activities: newActivities,
+                                          grade: newGrade
+                                      }
+                                  };
+                               });
+                            };
+                            
+                            return (
+                            <tr key={student.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50">
+                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
+                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
+                              
+                              {['rw1', 'rw2', 'rw3', 'rw4', 'rw5'].map(indicatorId => (
+                                <td key={indicatorId} className="px-2 py-3 text-center border-r border-slate-100 bg-sky-50/10">
+                                  <select
+                                    className="w-14 p-1.5 border border-slate-200 rounded bg-white focus:ring-2 focus:ring-sky-500 outline-none text-slate-700 font-medium text-center appearance-none"
+                                    value={score.activities?.[indicatorId] ?? ''}
+                                    onChange={(e) => setIndicatorScore(indicatorId, e.target.value)}
+                                  >
+                                    <option value="">-</option>
+                                    <option value="3">3</option>
+                                    <option value="2">2</option>
+                                    <option value="1">1</option>
+                                    <option value="0">0</option>
+                                  </select>
+                                </td>
+                              ))}
+
+                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30 font-bold text-lg text-emerald-700">
+                                {score.grade || "-"}
+                              </td>
+                            </tr>
+                            );
+                          })
+                      ) : (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full mt-6">
                   <table className="w-full text-sm text-left">
@@ -815,7 +932,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                 </label>
                               </td>
                               <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
-                                {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, isScoutCampAttended) || '-'}
+                                {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id)) || '-'}
                               </td>
                             </tr>
                             );

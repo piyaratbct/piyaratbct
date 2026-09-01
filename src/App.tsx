@@ -23,6 +23,7 @@ import { SchoolEventCalendar } from "./components/SchoolEventCalendar";
 import { OverviewCalendar } from "./components/OverviewCalendar";
 import { AcademicModule } from "./components/AcademicModule";
 import { DailyNotificationPopup } from "./components/DailyNotificationPopup";
+import { StudentEvaluationModal } from "./components/StudentEvaluationModal";
 import { OnlineUsersIndicator } from "./components/OnlineUsersIndicator";
 import { DisciplineModule } from "./components/DisciplineModule";
 import { LessonAdmitModule } from './components/LessonAdmitModule';
@@ -187,6 +188,11 @@ export default function App() {
   const [activeModule, setActiveModule] = useState<
     "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission" | "sar"
   >("home");
+  
+  const [evalInitialTab, setEvalInitialTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character' | undefined>(undefined);
+  const [evalInitialSubject, setEvalInitialSubject] = useState<string | undefined>(undefined);
+  const [evalInitialGrade, setEvalInitialGrade] = useState<string | undefined>(undefined);
+
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
   >("pbl-log-form");
@@ -213,6 +219,8 @@ export default function App() {
 
   // Editing and preview modals/states
   const [editingRecord, setEditingRecord] = useState<LessonRecord | null>(null);
+  const [evaluatingModalRecord, setEvaluatingModalRecord] = useState<LessonRecord | null>(null);
+  const [preloadedPlanForLog, setPreloadedPlanForLog] = useState<LessonPlan | null>(null);
   const [editingPlan, setEditingPlan] = useState<LessonPlan | null>(null);
   const [activePrintPreview, setActivePrintPreview] =
     useState<LessonRecord | null>(null);
@@ -1069,9 +1077,75 @@ export default function App() {
         Object.entries(payload).filter(([_, v]) => v !== undefined),
       );
 
+      
       await setDoc(doc(db, "lessonPlans", plan.id), cleanPayload);
       
+      // AUTO-GENERATE GRADEBOOK COLUMNS
+      let autoColsToastCount = 0;
+      if (plan.structuredEvaluations && plan.structuredEvaluations.length > 0) {
+        const autoEvals = plan.structuredEvaluations.filter(e => e.autoGenerateColumn);
+        if (autoEvals.length > 0) {
+          const sAcadYear = systemAcademicYear || plan.academicYear || "2567";
+          const sSem = systemSemester || plan.semester || "1";
+          
+          const rawGrades = plan.gradeLevel ? plan.gradeLevel.split(',').map(g => g.trim()).filter(Boolean) : ["ประถมศึกษาปีที่ 1"];
+          const gradesToProcess = Array.from(new Set(rawGrades));
+
+          for (const grade of gradesToProcess) {
+            const settingsId = `${sAcadYear}_${sSem}_${grade}_${plan.subject}`.replace(/[\/]/g, '-');
+            
+            const settingsRef = doc(db, "subject_settings", settingsId);
+            const docSnap = await getDoc(settingsRef);
+            
+            let currentSettings = null;
+            if (docSnap.exists()) {
+              currentSettings = docSnap.data();
+              if (!currentSettings.beforeMidKnowledge) currentSettings.beforeMidKnowledge = [];
+              if (!currentSettings.beforeMidSoftSkill) currentSettings.beforeMidSoftSkill = [];
+              if (!currentSettings.afterMidKnowledge) currentSettings.afterMidKnowledge = [];
+              if (!currentSettings.afterMidSoftSkill) currentSettings.afterMidSoftSkill = [];
+            } else {
+              currentSettings = {
+                id: settingsId,
+                academicYear: sAcadYear,
+                semester: sSem,
+                gradeLevel: grade,
+                subject: plan.subject,
+                beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'งานที่ 1', maxScore: 20 }],
+                beforeMidSoftSkill: [{ id: 'default_bms_1', name: 'พฤติกรรม', maxScore: 10 }],
+                afterMidKnowledge: [{ id: 'default_amk_1', name: 'สอบกลางภาค', maxScore: 20 }],
+                afterMidSoftSkill: [{ id: 'default_ams_1', name: 'พฤติกรรม', maxScore: 10 }]
+              };
+            }
+            
+            let autoCols = 0;
+            // Append new columns to beforeMidKnowledge
+            for (const ev of autoEvals) {
+               // Check if it already exists by name (very basic duplicate prevention)
+               // and prevent adding if name is empty
+               if (!ev.name || ev.name.trim() === '') continue;
+               
+               const exists = currentSettings.beforeMidKnowledge.find((c) => c.name === ev.name);
+               if (!exists) {
+                   currentSettings.beforeMidKnowledge.push({
+                      id: ev.id || `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                      name: ev.name,
+                      maxScore: ev.maxScore || 10
+                   });
+                   autoCols++;
+                   autoColsToastCount++; // Only increment overall if we added it (though multiplied by grades)
+               }
+            }
+            
+            if (autoCols > 0) {
+               await setDoc(settingsRef, currentSettings);
+            }
+          }
+        }
+      }
+
       if (newlyAdded.length > 0 && currentTeacher) {
+
         const batch = writeBatch(db);
         for (const userId of newlyAdded) {
            const notifRef = doc(collection(db, "notifications"));
@@ -1088,13 +1162,26 @@ export default function App() {
         await batch.commit();
       }
 
+      
       setEditingPlan(null);
+      
+      let toastMsg = isEdit
+          ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" บนคลาวด์แล้ว 📝`
+          : `สร้างแผนการสอน "${plan.title}" และบันทึกบนคลาวด์แล้ว 🚀`;
+      
+      let autoColsToast = 0;
+      if (plan.structuredEvaluations) {
+         autoColsToast = plan.structuredEvaluations.filter(e => e.autoGenerateColumn).length;
+      }
+      
+      if (autoColsToast > 0) {
+         toastMsg += `\nสร้างคอลัมน์เก็บคะแนนอัตโนมัติ ${autoColsToast} รายการใน LessonAchieve`;
+      }
+
       addToast(
-        isEdit
-          ? `แก้ไขและอัปเดตแผนการสอน "${plan.title}" เรียบร้อยแล้ว ✨`
-          : `สร้างแผนการสอน "${plan.title}" สำเร็จ จัดเก็บเข้าคลาวด์แล้ว 🎉`,
+        toastMsg,
         "success",
-        isEdit ? "อัปเดตแผนการสอนสำเร็จ" : "บันทึกแผนการสอนสำเร็จ",
+        isEdit ? "อัปเดตสำเร็จ" : "บันทึกสำเร็จ",
       );
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `lessonPlans/${plan.id}`);
@@ -1552,9 +1639,9 @@ export default function App() {
 
           {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
             <button
-              onClick={() => setActiveModule("admin" as any)}
+              onClick={() => setActiveModule("users" as any)}
               className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all lg:min-w-[200px] flex-1 min-w-0 ${
-                activeModule === ("admin" as any)
+                activeModule === ("users" as any)
                   ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
@@ -1854,7 +1941,7 @@ export default function App() {
 
               {(currentTeacher.role === "admin" || currentTeacher.role === "staff") && (
                 <button
-                  onClick={() => setActiveModule("admin" as any)}
+                  onClick={() => setActiveModule("users" as any)}
                   className="bg-white p-8 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 hover:-translate-y-1 transition-all text-left flex flex-col items-center text-center group relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50 rounded-bl-[100px] -z-10 group-hover:scale-110 transition-transform duration-500"></div>
@@ -2090,6 +2177,9 @@ export default function App() {
                   }}
                   onDelete={handleDeleteRecord}
                   onPrintPreview={(r) => setActivePrintPreview(r)}
+                  onEvaluate={(r) => {
+                    setEvaluatingModalRecord(r);
+                  }}
                 />
               )}
 
@@ -2120,6 +2210,8 @@ export default function App() {
                   currentUserName={currentTeacher.name}
                   systemAcademicYear={systemAcademicYear}
                   systemSemester={systemSemester}
+                  preloadedPlan={preloadedPlanForLog}
+                  onClearPreloadedPlan={() => setPreloadedPlanForLog(null)}
                 />
               )}
 
@@ -2143,6 +2235,11 @@ export default function App() {
                   }}
                   onDelete={handleDeletePlan}
                   onPrintPreview={(p) => setActivePlanPrintPreview(p)}
+                  onEvaluate={(p) => {
+                    setEditingRecord(null); // start fresh
+                    setPreloadedPlanForLog(p); // preload the plan
+                    setActiveTab("pbl-log-form"); // switch to log form tab
+                  }}
                 />
               )}
             </div>
@@ -2166,179 +2263,81 @@ export default function App() {
           </div>
         ) : activeModule === "analytics" ? (
           <div className="relative animate-in fade-in duration-300">
-            {(currentTeacher.role === 'teacher' || currentTeacher.role === 'academic') && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
-                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                    <Wrench className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800">
-                    ปิดปรับปรุงชั่วคราว
-                  </h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">
-                    โมดูลการวัดและประเมินผลผู้เรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
-                  </p>
-                  <button
-                    onClick={() => setActiveModule("home")}
-                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                  >
-                    กลับสู่หน้าหลัก
-                  </button>
-                </div>
-              </div>
-            )}
-            <EvaluationModule 
+            <EvaluationModule
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
               students={students}
               currentTeacher={currentTeacher}
+              initialTab={evalInitialTab}
+              initialSubject={evalInitialSubject}
+              initialGrade={evalInitialGrade}
             />
           </div>
-
-        
-        ) : activeModule === "sar" ? (
-          <SARMonitoringDashboard 
-            teachers={teachers} 
-            students={students}
-            systemAcademicYear={systemAcademicYear} 
-            currentTeacher={currentTeacher} 
-          />
         ) : activeModule === "admin" ? (
-          <UserManagementModule
-            teachers={teachers}
+          <AdminMonitoringDashboard
             records={records}
-            currentTeacher={currentTeacher}
-            onDeleteTeacher={handleDeleteTeacher}
-            onUpdateTeacher={handleUpdateTeacher}
+            plans={plans}
+            teachers={teachers}
           />
-        ) : activeModule === "discipline" ? (
-          <DisciplineModule
-            currentTeacher={currentTeacher}
-            systemSemester={systemSemester}
-            systemAcademicYear={systemAcademicYear}
+        ) : activeModule === "sar" ? (
+          <SARMonitoringDashboard
+            teachers={teachers}
             students={students}
+            systemAcademicYear={systemAcademicYear}
+            currentTeacher={currentTeacher}
           />
-        ) : activeModule === "admission" ? (
+        ) : activeModule === "staff" ? (
           <div className="relative animate-in fade-in duration-300">
-            {currentTeacher.role === 'teacher' && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh]">
-                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                  <div className="h-16 w-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                    <Wrench className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800">
-                    ปิดปรับปรุงชั่วคราว
-                  </h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">
-                    โมดูลรับสมัครนักเรียนกำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
-                  </p>
-                  <button
-                    onClick={() => setActiveModule("home")}
-                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                  >
-                    กลับสู่หน้าหลัก
-                  </button>
-                </div>
-              </div>
-            )}
-            <LessonAdmitModule
+            <StaffProfileModule
+              currentTeacher={currentTeacher}
+              teachers={teachers}
               systemAcademicYear={systemAcademicYear}
               systemSemester={systemSemester}
-              students={students}
+              isPersonalView={true}
+            />
+          </div>
+        ) : activeModule === "discipline" ? (
+          <div className="relative animate-in fade-in duration-300">
+            <DisciplineModule
               currentTeacher={currentTeacher}
+              systemSemester={systemSemester}
+              systemAcademicYear={systemAcademicYear}
+              students={students}
+            />
+          </div>
+        ) : activeModule === "admission" ? (
+          <div className="relative animate-in fade-in duration-300">
+            <LessonAdmitModule
+              currentTeacher={currentTeacher}
+              systemSemester={systemSemester}
+              systemAcademicYear={systemAcademicYear}
+              students={students}
+            />
+          </div>
+        ) : activeModule === "users" ? (
+          <div className="relative animate-in fade-in duration-300">
+            <UserManagementModule
+              teachers={teachers}
+              records={records}
+              currentTeacher={currentTeacher}
+              onDeleteTeacher={async (id) => {
+                 setTeacherToDelete(id);
+              }}
+              onUpdateTeacher={async (id, updates) => {
+                 const tRef = doc(db, 'teachers', id);
+                 await setDoc(tRef, updates, { merge: true });
+              }}
             />
           </div>
         ) : null}
       </main>
 
-      {/* 3. Footer branding */}
-      <footer className="mt-16 py-8 border-t border-slate-100 bg-white print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
-          <p className="text-xs font-semibold text-slate-400">
-            LessonLog - ระบบสารสนเทศเพื่อการจัดการสถานศึกษา
-          </p>
-          <p className="text-[10px] text-slate-400 font-medium">
-            ออกรายงานสรุปและบันทึกผลเพื่อใช้ประกอบการสอนอย่างง่ายดาย
-          </p>
-        </div>
-      </footer>
-
-      {/* 4. Overlay Modals: */}
-
-      {/* 4.1. Print/PDF Template Viewer Overlay Modal */}
+      {/* Print Overlays */}
       {activePrintPreview && (
         <PrintTemplate
           record={activePrintPreview}
-          teacher={
-            teachers.find((t) => t.id === activePrintPreview.teacherId) ||
-            (currentTeacher?.role === "teacher"
-              ? currentTeacher
-              : DEFAULT_TEACHER)
-          }
-          academicHead={
-            teachers.find((t) => t.role === "academic" || t.role === "deputy" || t.role === "admin") ||
-            ((currentTeacher?.role === "academic" || currentTeacher?.role === "deputy" || currentTeacher?.role === "admin") ? currentTeacher : null)
-          }
-          currentUser={currentTeacher}
+          teacher={currentTeacher}
           customLogo={customLogo}
-          allowAcademicSignature={true}
-          onUpdateRecord={async (updated) => {
-            try {
-              let updatedHistory = updated.editHistory || [];
-              let lastEditedBy = updated.lastEditedBy;
-              let lastEditedAt = updated.lastEditedAt;
-
-              const roleMap: any = {
-                teacher: "คุณครูผู้สอน",
-                academic: "หัวหน้าฝ่ายวิชาการ",
-                deputy: "รองผู้อำนวยการ",
-                admin: "ผู้ดูแลระบบ",
-                discipline: "หัวหน้างานปกครอง",
-                staff: "เจ้าหน้าที่ธุรการ",
-              };
-              const currentRoleStr = currentTeacher
-                ? roleMap[currentTeacher.role || ""] || "ผู้ใช้งาน"
-                : "ผู้ใช้งาน";
-              const editorNameStr = currentTeacher
-                ? `${currentTeacher.thaiName || currentTeacher.displayName} (${currentRoleStr})`
-                : "ผู้ใช้งานระบบ";
-
-              lastEditedBy = editorNameStr;
-              lastEditedAt = new Date().toISOString();
-
-              updatedHistory = [
-                ...updatedHistory,
-                {
-                  editedBy: editorNameStr,
-                  editedAt: lastEditedAt,
-                },
-              ];
-
-              const dbPayload = {
-                ...updated,
-                lastEditedBy,
-                lastEditedAt,
-                editHistory: updatedHistory,
-                updatedAt: new Date().toISOString(),
-              };
-
-              const cleanDbPayload = Object.fromEntries(
-                Object.entries(dbPayload).filter(([_, v]) => v !== undefined),
-              );
-
-              await setDoc(
-                doc(db, "records", updated.id),
-                cleanDbPayload as any,
-              );
-              setActivePrintPreview(cleanDbPayload as any);
-            } catch (err) {
-              handleFirestoreError(
-                err,
-                OperationType.UPDATE,
-                `records/${updated.id}`,
-              );
-            }
-          }}
           onClose={() => setActivePrintPreview(null)}
         />
       )}
@@ -2364,6 +2363,13 @@ export default function App() {
             setActivePlanPrintPreview(updated);
           }}
           onClose={() => setActivePlanPrintPreview(null)}
+          onNavigateToGradebook={(subject, gradeLevel) => {
+            setActivePlanPrintPreview(null);
+            setEvalInitialSubject(subject);
+            setEvalInitialGrade(gradeLevel.split(',')[0].trim());
+            setEvalInitialTab('grades');
+            setActiveModule('analytics');
+          }}
         />
       )}
 
@@ -2910,6 +2916,16 @@ export default function App() {
         isOpen={showStudentStatsModal}
         onClose={() => setShowStudentStatsModal(false)}
         students={students}
+      />
+      {/* Student Evaluation Modal */}
+      <StudentEvaluationModal
+        isOpen={!!evaluatingModalRecord}
+        onClose={() => setEvaluatingModalRecord(null)}
+        record={evaluatingModalRecord}
+        plans={plans}
+        onSuccess={() => {
+          setEvaluatingModalRecord(null);
+        }}
       />
       <TeacherListModal
         isOpen={showTeacherListModal}

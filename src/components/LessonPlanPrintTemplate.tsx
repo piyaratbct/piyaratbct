@@ -17,6 +17,7 @@ interface LessonPlanPrintTemplateProps {
   allTeachers?: Teacher[];
   onUpdatePlan?: (plan: LessonPlan) => void;
   onClose: () => void;
+  onNavigateToGradebook?: (subject: string, gradeLevel: string) => void;
 }
 
 export function LessonPlanPrintTemplate({
@@ -27,6 +28,7 @@ export function LessonPlanPrintTemplate({
   onUpdatePlan,
   onClose,
   allTeachers = [],
+  onNavigateToGradebook,
 }: LessonPlanPrintTemplateProps) {
   const [signingRole, setSigningRole] = useState<"teacher" | "deptHead" | null>(
     null,
@@ -394,8 +396,26 @@ export function LessonPlanPrintTemplate({
             <h3
               className={`font-bold text-slate-800 border-b border-slate-200 ${isCompact ? "text-base pb-1 mb-2" : "text-lg pb-2 mb-3"}`}
             >
-              {activitiesStep}. กิจกรรมการเรียนรู้ (Learning Activities)
+              {activitiesStep}. {plan.isPBL ? "กระบวนการสืบเสาะและกิจกรรม (PBL)" : "กิจกรรมการเรียนรู้ (Learning Activities)"}
             </h3>
+            
+            {plan.isPBL && (
+              <div className="pl-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <strong className="text-emerald-600 block mb-1">ปัญหาหลัก (Driving Question):</strong>
+                  <p className="whitespace-pre-wrap text-slate-700 p-3 bg-emerald-50 rounded-lg border border-emerald-100">{plan.pblDrivingQuestion || "-"}</p>
+                </div>
+                <div>
+                  <strong className="text-emerald-600 block mb-1">ขั้นตอนการสืบเสาะ (Investigation Steps):</strong>
+                  <p className="whitespace-pre-wrap text-slate-700 p-3 bg-emerald-50 rounded-lg border border-emerald-100">{plan.pblInvestigationSteps || "-"}</p>
+                </div>
+                <div>
+                  <strong className="text-emerald-600 block mb-1">การนำเสนอผลงาน (Presentation):</strong>
+                  <p className="whitespace-pre-wrap text-slate-700 p-3 bg-emerald-50 rounded-lg border border-emerald-100">{plan.pblPresentation || "-"}</p>
+                </div>
+              </div>
+            )}
+            
             <div
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm min-h-[80px]" : "text-base min-h-[120px]"}`}
             >
@@ -441,7 +461,41 @@ export function LessonPlanPrintTemplate({
                   {!plan.kgPhysicalDev && !plan.kgEmotionalDev && !plan.kgSocialDev && !plan.kgCognitiveDev && <span className="text-slate-500 italic">ไม่ได้ระบุด้านที่ประเมิน</span>}
                 </div>
               ) : (
-                plan.evaluation || "-"
+                <div className="space-y-4">
+                  {plan.structuredEvaluations && plan.structuredEvaluations.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {plan.structuredEvaluations.map((evalItem, index) => (
+                        <div key={`${evalItem.id}-${index}`} className="flex items-center justify-between p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                          <div>
+                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                              {evalItem.name} 
+                              <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-medium">{evalItem.method}</span>
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              คะแนนเต็ม {evalItem.maxScore} คะแนน • วัดด้าน {evalItem.kpa.join(', ')}
+                            </div>
+                          </div>
+                          {evalItem.autoGenerateColumn && (
+                            <button 
+                              type="button"
+                              className="print:hidden flex items-center gap-1.5 px-3 py-1.5 bg-white text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                              onClick={() => {
+                                // Normally this would navigate to the gradebook module and select the column
+                                if (onNavigateToGradebook) {
+                                  onNavigateToGradebook(plan.subject, plan.gradeLevel);
+                                }
+                              }}
+                            >
+                              📝 ไปกรอกคะแนน
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {plan.evaluation && <div>{plan.evaluation}</div>}
+                  {!plan.evaluation && (!plan.structuredEvaluations || plan.structuredEvaluations.length === 0) && "-"}
+                </div>
               )}
             </div>
           </div>

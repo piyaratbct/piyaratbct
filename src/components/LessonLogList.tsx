@@ -20,6 +20,7 @@ import {
   History,
   Clock,
   Lock,
+  ClipboardCheck,
 } from "lucide-react";
 
 interface LessonLogListProps {
@@ -31,6 +32,7 @@ interface LessonLogListProps {
   onEdit: (record: LessonRecord) => void;
   onDelete: (id: string) => void;
   onPrintPreview: (record: LessonRecord) => void;
+  onEvaluate?: (record: LessonRecord) => void;
 }
 
 export function LessonLogList({
@@ -42,6 +44,7 @@ export function LessonLogList({
   onEdit,
   onDelete,
   onPrintPreview,
+  onEvaluate,
 }: LessonLogListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
@@ -604,6 +607,17 @@ export function LessonLogList({
                     <Printer className="h-3.5 w-3.5" />
                     <span>พิมพ์รายงาน / ส่งออก PDF</span>
                   </button>
+                  
+                  {onEvaluate && (
+                    <button
+                      onClick={() => onEvaluate(record)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg font-semibold transition cursor-pointer"
+                      title="ประเมินผลรายบุคคล"
+                    >
+                      <ClipboardCheck className="h-3.5 w-3.5" />
+                      <span>ประเมินผล</span>
+                    </button>
+                  )}
 
                   {/* Edit action */}
                   {(currentUserRole === "admin" ||

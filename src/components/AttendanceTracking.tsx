@@ -22,6 +22,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [period, setPeriod] = useState<string>(initialPeriod || PERIODS[1]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [applyToAllPeriods, setApplyToAllPeriods] = useState(false);
   const [attendanceData, setAttendanceData] = useState<Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -156,60 +157,116 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     setAttendanceData({});
   };
 
+
   const handleSave = async () => {
+    // Removed window.confirm due to iframe restrictions. Checkbox acts as explicit intent.
+
     setIsSaving(true);
     setSaveStatus(null);
     try {
       const now = new Date().toISOString();
-      
-      // Determine subject from schedules if it matches a valid schedule
       const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;
-      let matchingSchedule = schedules.find(s => s.dayOfWeek === selectedDayOfWeek && s.period === period);
-      
-      // Fallback: If no schedule matches this exact day, but there are schedules for this period on other days, use the first one
-      if (!matchingSchedule) {
-        matchingSchedule = schedules.find(s => s.period === period);
-      }
-      
-      const subject = matchingSchedule ? matchingSchedule.subject : undefined;
-      const classTeacherName = (matchingSchedule && matchingSchedule.teacherName) ? matchingSchedule.teacherName : teacherName;
 
-      const sessionData: any = {
-        gradeLevel,
-        date,
-        period,
-        teacherId,
-        semester,
-        academicYear,
-        attendanceData,
-        updatedAt: now
-      };
-      
-      if (subject) sessionData.subject = subject;
-      if (classTeacherName) sessionData.teacherName = classTeacherName;
+      if (applyToAllPeriods) {
+        // Save to all periods
+        const sessionsQuery = query(
+          collection(db, 'attendanceSessions'),
+          where('gradeLevel', '==', gradeLevel),
+          where('date', '==', date),
+          where('semester', '==', semester),
+          where('academicYear', '==', academicYear)
+        );
+        
+        const querySnapshot = await getDocs(sessionsQuery);
+        const existingSessions = querySnapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+        const targetPeriods = PERIODS.filter(p => !p.includes('พักเบรก') && !p.includes('พักกลางวัน'));
 
-      if (currentSessionId) {
-        // Update
-        await setDoc(doc(db, 'attendanceSessions', currentSessionId), sessionData, { merge: true });
-      } else {
-        // Create
-        const docRef = await addDoc(collection(db, 'attendanceSessions'), {
-          ...sessionData,
-          createdAt: now
-        });
-        setCurrentSessionId(docRef.id);
-      }
-      
-      setSaveStatus({ type: 'success', message: 'บันทึกข้อมูลการเข้าเรียนเรียบร้อยแล้ว' });
-      
-      // Also fire a global toast for clearer visibility
-      window.dispatchEvent(new CustomEvent('app-custom-toast', {
-        detail: {
-          message: `บันทึกการเช็กชื่อชั้น ${gradeLevel} (คาบ ${period}) วันที่ ${date} สำเร็จและจัดเก็บเข้าคลาวด์เรียบร้อยแล้ว ✅`,
-          type: 'success',
-          title: 'บันทึกการเข้าเรียนสำเร็จ'
+        for (const p of targetPeriods) {
+          let matchingSchedule = schedules.find(s => s.dayOfWeek === selectedDayOfWeek && s.period === p);
+          if (!matchingSchedule) {
+            matchingSchedule = schedules.find(s => s.period === p);
+          }
+          
+          const subject = matchingSchedule ? matchingSchedule.subject : undefined;
+          const classTeacherName = (matchingSchedule && matchingSchedule.teacherName) ? matchingSchedule.teacherName : teacherName;
+
+          const sessionData: any = {
+            gradeLevel,
+            date,
+            period: p,
+            teacherId,
+            semester,
+            academicYear,
+            attendanceData,
+            updatedAt: now
+          };
+          
+          if (subject) sessionData.subject = subject;
+          if (classTeacherName) sessionData.teacherName = classTeacherName;
+
+          const existingSession = existingSessions.find((s: any) => s.period === p);
+          
+          if (existingSession) {
+            await setDoc(doc(db, 'attendanceSessions', existingSession.id), sessionData, { merge: true });
+          } else {
+            await addDoc(collection(db, 'attendanceSessions'), {
+              ...sessionData,
+              createdAt: now
+            });
+          }
         }
-      }));
+
+        setSaveStatus({ type: 'success', message: 'บันทึกข้อมูลการเข้าเรียนสำหรับทุกคาบในวันนี้เรียบร้อยแล้ว' });
+        window.dispatchEvent(new CustomEvent('app-custom-toast', {
+          detail: {
+            message: `บันทึกการเช็กชื่อชั้น ${gradeLevel} สำหรับทุกคาบในวันที่ ${date} สำเร็จและจัดเก็บเข้าคลาวด์เรียบร้อยแล้ว ✅`,
+            type: 'success',
+            title: 'บันทึกสำเร็จ'
+          }
+        }));
+      } else {
+        // Normal single period save
+        let matchingSchedule = schedules.find(s => s.dayOfWeek === selectedDayOfWeek && s.period === period);
+        if (!matchingSchedule) {
+          matchingSchedule = schedules.find(s => s.period === period);
+        }
+        
+        const subject = matchingSchedule ? matchingSchedule.subject : undefined;
+        const classTeacherName = (matchingSchedule && matchingSchedule.teacherName) ? matchingSchedule.teacherName : teacherName;
+
+        const sessionData: any = {
+          gradeLevel,
+          date,
+          period,
+          teacherId,
+          semester,
+          academicYear,
+          attendanceData,
+          updatedAt: now
+        };
+        
+        if (subject) sessionData.subject = subject;
+        if (classTeacherName) sessionData.teacherName = classTeacherName;
+
+        if (currentSessionId) {
+          await setDoc(doc(db, 'attendanceSessions', currentSessionId), sessionData, { merge: true });
+        } else {
+          const docRef = await addDoc(collection(db, 'attendanceSessions'), {
+            ...sessionData,
+            createdAt: now
+          });
+          setCurrentSessionId(docRef.id);
+        }
+        
+        setSaveStatus({ type: 'success', message: 'บันทึกข้อมูลการเข้าเรียนเรียบร้อยแล้ว' });
+        window.dispatchEvent(new CustomEvent('app-custom-toast', {
+          detail: {
+            message: `บันทึกการเช็กชื่อชั้น ${gradeLevel} (คาบ ${period}) วันที่ ${date} สำเร็จและจัดเก็บเข้าคลาวด์เรียบร้อยแล้ว ✅`,
+            type: 'success',
+            title: 'บันทึกการเข้าเรียนสำเร็จ'
+          }
+        }));
+      }
 
       setTimeout(() => {
         setSaveStatus(null);
@@ -222,6 +279,8 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
       setIsSaving(false);
     }
   };
+
+
 
   const activeStudents = students.filter(s => s.status === 'active' || !s.status);
   const sortedStudents = [...activeStudents].sort((a, b) => a.number - b.number);
@@ -350,6 +409,17 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             >
               <CheckCircle2 className="h-4 w-4" /> มาเรียนทั้งหมด
             </button>
+            
+
+            <label className="flex items-center gap-2 text-sm text-slate-700 font-medium cursor-pointer bg-violet-50 px-3 py-2 rounded-lg border border-violet-200">
+              <input
+                type="checkbox"
+                checked={applyToAllPeriods}
+                onChange={(e) => setApplyToAllPeriods(e.target.checked)}
+                className="rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+              />
+              ใช้ข้อมูลนี้เหมือนกันทุกคาบ
+            </label>
             <button
               onClick={handleSave}
               disabled={isSaving || isLoading}
@@ -358,6 +428,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               บันทึก
             </button>
+
           </div>
         </div>
       </div>

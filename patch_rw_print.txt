@@ -1,0 +1,70 @@
+<<<<
+            ) : subject === 'กิจกรรมอ่าน-เขียน' ? (
+            <table className="w-full text-sm border-collapse border border-slate-900 max-w-4xl mx-auto">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-900 px-4 py-3 text-center w-16">เลขที่</th>
+                  <th className="border border-slate-900 px-4 py-3 text-center w-32">รหัสประจำตัว</th>
+                  <th className="border border-slate-900 px-4 py-3 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+                  <th className="border border-slate-900 px-4 py-3 text-center w-32">ผลการประเมิน<br/><span className="font-normal">(สพฐ.)</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageStudents.map((st) => {
+                  const key = `${st.id}_${academicYear}_${semester}_${subject}`;
+                  const score = scores[key] || { grade: "-" };
+                  return (
+                    <tr key={st.id}>
+                      <td className="border border-slate-900 px-4 py-2 text-center">{st.number || "-"}</td>
+                      <td className="border border-slate-900 px-4 py-2 text-center">{st.studentId}</td>
+                      <td className="border border-slate-900 px-4 py-2 text-left whitespace-nowrap">
+                        {st.firstName} {st.lastName}
+                      </td>
+                      <td className="border border-slate-900 px-4 py-2 text-center font-bold text-lg">{score.grade || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+====
+            ) : subject === 'กิจกรรมอ่าน-เขียน' ? (
+            <table className="w-full text-sm border-collapse border border-slate-900 mx-auto">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-900 px-2 py-2 text-center w-12" rowSpan={2}>เลขที่</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center w-24" rowSpan={2}>รหัสประจำตัว</th>
+                  <th className="border border-slate-900 px-4 py-2 text-left whitespace-nowrap" rowSpan={2}>ชื่อ-นามสกุล</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center" colSpan={5}>ตัวชี้วัด (3, 2, 1, 0)</th>
+                  <th className="border border-slate-900 px-2 py-2 text-center w-32" rowSpan={2}>สรุปผลประเมิน</th>
+                </tr>
+                <tr className="bg-slate-100">
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">การอ่าน</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จับประเด็น</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">วิเคราะห์</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ประเมินค่า</th>
+                  <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">การเขียน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageStudents.map((st) => {
+                  const key = `${st.id}_${academicYear}_${semester}_${subject}`;
+                  const score = scores[key] || { grade: "-", activities: {} };
+                  return (
+                    <tr key={st.id}>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{st.number || "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{st.studentId}</td>
+                      <td className="border border-slate-900 px-4 py-1 text-left whitespace-nowrap">
+                        {st.firstName} {st.lastName}
+                      </td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw1 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw2 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw3 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw4 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center">{score.activities?.rw5 ?? "-"}</td>
+                      <td className="border border-slate-900 px-2 py-1 text-center font-bold">{score.grade || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+>>>>

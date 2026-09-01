@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { LessonPlan, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, PERIOD_OPTIONS, CurriculumSubject } from "../types";
+import { DESIRABLE_CHARACTERISTICS } from "../data";
+import { LessonPlan, StructuredEvaluation, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, PERIOD_OPTIONS, CurriculumSubject } from "../types";
 
 import { User, 
   Save,
@@ -22,7 +23,7 @@ import { User,
   CalendarDays,
  } from 'lucide-react';
 import { SignaturePadModal } from "./PrintTemplate";
-import { ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, Settings } from "lucide-react";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -58,8 +59,10 @@ export function PBLLessonPlanForm({
       : [GRADE_LEVELS[0]]
   );
   const defaultSemester = `ภาคเรียนที่ ${systemSemester === '1' || systemSemester === '2' ? systemSemester : '1'}/${systemAcademicYear || '2567'}`;
+  const [subject, setSubject] = useState<string>(initialPlan?.subject || SUBJECTS[0]);
+  const [customSubject, setCustomSubject] = useState<string>(initialPlan?.customSubject || "");
   const [semester, setSemester] = useState(initialPlan?.semester || defaultSemester);
-  const subject = "บูรณาการ (PBL)";
+  // const subject = "บูรณาการ (PBL)";
     const [date, setDate] = useState(initialPlan?.date || "");
   const [title, setTitle] = useState(initialPlan?.title || "");
   const [coTeachers, setCoTeachers] = useState<string[]>(initialPlan?.coTeachers || []);
@@ -111,6 +114,9 @@ export function PBLLessonPlanForm({
   const [activities, setActivities] = useState(initialPlan?.activities || "");
   const [materials, setMaterials] = useState(initialPlan?.materials || "");
   const [evaluation, setEvaluation] = useState(initialPlan?.evaluation || "");
+  const [desirableCharacteristics, setDesirableCharacteristics] = useState<string[]>(initialPlan?.desirableCharacteristics || []);
+  const [expandedDesirable, setExpandedDesirable] = useState<boolean>(false);
+  const [structuredEvaluations, setStructuredEvaluations] = useState<StructuredEvaluation[]>(initialPlan?.structuredEvaluations || []);
   const [status, setStatus] = useState<LessonPlan['status']>(initialPlan?.status || "draft");
   const [approverComment, setApproverComment] = useState(initialPlan?.approverComment || "");
 
@@ -138,19 +144,61 @@ export function PBLLessonPlanForm({
         const snapshotCurriculums = await getDocs(qCurriculums);
         let fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
         
+        const activeSubject = subject === 'อื่นๆ' ? customSubject : subject;
+        let subjectsArray = [activeSubject];
         if (integratedSubjects) {
-          const subjectsArray = integratedSubjects.split(',').map(s => s.trim()).filter(Boolean);
-          fetchedCurriculums = fetchedCurriculums.filter(c => {
-            const cName = c.subjectName || '';
-            return subjectsArray.some(s => cName === s || cName.includes(s) || s.includes(cName));
-          });
-        } else {
-          fetchedCurriculums = [];
+           subjectsArray = [...subjectsArray, ...integratedSubjects.split(',').map(s => s.trim()).filter(Boolean)];
         }
         
-        // Filter by selected grades (exact match, or if grade is "ป.1/1" but curriculum is "ป.1" we might want to be smart, but let's stick to exact match first. Actually, standard practice in Thai schools is curriculum per grade level (e.g. "ประถมศึกษาปีที่ 1"). The selectedGrades might have sub-rooms. Let's normalize).
-        const normalizedSelectedGrades = selectedGrades.map(g => g.split('/')[0].trim());
-        const matchedCurriculums = fetchedCurriculums.filter(c => normalizedSelectedGrades.includes(c.gradeLevel.split('/')[0].trim()));
+        fetchedCurriculums = fetchedCurriculums.filter(c => {
+          let cName = c.subjectName || '';
+          if (!activeSubject) return false;
+          
+          cName = cName.replace(/[ฯ(\-]/g, '').replace(/\s+/g, '').toLowerCase();
+          
+          return subjectsArray.some(s => {
+            const aSub = s.replace(/[ฯ(\-]/g, '').replace(/\s+/g, '').toLowerCase();
+            if (cName === aSub || cName.includes(aSub) || aSub.includes(cName)) return true;
+            if (aSub.includes('สังคม') && cName.includes('สังคม')) return true;
+            if (aSub.includes('วิทยาศาสตร์') && cName.includes('วิทยา')) return true;
+            if (aSub.includes('การงาน') && cName.includes('การงาน')) return true;
+            if (aSub.includes('ประวัติ') && cName.includes('ประวัติ')) return true;
+            if (aSub.includes('ศิลปะ') && (cName.includes('ศิลป์') || cName.includes('ศิลปะ'))) return true;
+            if (aSub.includes('คอมพิวเตอร์') && cName.includes('คำนวณ')) return true;
+            return false;
+          });
+        });
+        
+        // Filter by selected grades (allow fuzzy matching for "ป.1" and "ประถมศึกษาปีที่ 1")
+        const expandGradeRange = (g) => {
+          if (!g) return [];
+          let str = g.split('/')[0].trim();
+          
+          const match = str.match(/^(ป\.|ม\.|อ\.|ประถมศึกษาปีที่\s*|มัธยมศึกษาปีที่\s*|อนุบาล\s*)(\d+)\s*(?:-|ถึง)\s*(\d+)$/);
+          if (match) {
+             const pre = match[1].trim();
+             const prefix = pre === 'ป.' || pre === 'ประถมศึกษาปีที่' ? 'ประถมศึกษาปีที่ ' : (pre === 'ม.' || pre === 'มัธยมศึกษาปีที่' ? 'มัธยมศึกษาปีที่ ' : 'อนุบาล ');
+             const start = parseInt(match[2]);
+             const end = parseInt(match[3]);
+             const res = [];
+             for(let i=start; i<=end; i++) {
+                res.push(`${prefix}${i}`);
+             }
+             return res;
+          }
+          str = str.replace(/^ป\.\s*/, 'ประถมศึกษาปีที่ ');
+          str = str.replace(/^ม\.\s*/, 'มัธยมศึกษาปีที่ ');
+          str = str.replace(/^อ\.\s*/, 'อนุบาล ');
+          return [str.trim()];
+        };
+        const normalizedSelectedGrades = selectedGrades.flatMap(expandGradeRange);
+        const matchedCurriculums = fetchedCurriculums.filter(c => {
+           if (!c.gradeLevel) return false;
+           const cGrades = c.gradeLevel.split(/[,]/).flatMap(g => expandGradeRange(g.trim()));
+           return normalizedSelectedGrades.some(nsg => {
+             return cGrades.some(cg => cg === nsg || cg.includes(nsg) || nsg.includes(cg));
+           });
+        });
         setCurriculums(matchedCurriculums);
 
         // Fetch existing lesson plans for the same teacher, subject, semester, and grade
@@ -187,7 +235,7 @@ export function PBLLessonPlanForm({
       }
     };
     fetchCurriculumData();
-  }, [integratedSubjects, selectedGrades, semester, teacherId, initialPlan]);
+  }, [subject, customSubject, integratedSubjects, selectedGrades, semester, teacherId, initialPlan]);
 
   useEffect(() => {
     if (initialPlan) {
@@ -201,6 +249,8 @@ export function PBLLessonPlanForm({
         setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
       }
 
+      setSubject(initialPlan.subject || SUBJECTS[0]);
+      setCustomSubject(initialPlan.customSubject || "");
       setSemester(initialPlan.semester || defaultSemester);
       setDate(initialPlan.date);
       setTitle(initialPlan.title);
@@ -222,6 +272,8 @@ export function PBLLessonPlanForm({
 
   const resetForm = () => {
     setSelectedGrades([GRADE_LEVELS[0]]);
+    setSubject(SUBJECTS[0]);
+    setCustomSubject("");
     setSemester(defaultSemester);
     setDate("");
     setTitle("");
@@ -262,7 +314,8 @@ export function PBLLessonPlanForm({
       ...(initialPlan || {}),
       id: initialPlan ? initialPlan.id : Date.now().toString(),
       teacherId: initialPlan ? initialPlan.teacherId : teacherId,
-      subject: 'บูรณาการ (PBL)',
+      subject: subject,
+      customSubject: subject === 'อื่นๆ' ? customSubject : undefined,
       gradeLevel: selectedGrades.join(", "),
       title,
       isIntegrated: true,
@@ -278,6 +331,8 @@ export function PBLLessonPlanForm({
       activities,
       materials,
       evaluation,
+      desirableCharacteristics,
+      structuredEvaluations,
       
       isKindergarten,
       kgMovementActivity,
@@ -369,8 +424,30 @@ export function PBLLessonPlanForm({
         )}
 
         {/* 1. Basic Metadata Grid (subject, semester, date) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className={`col-span-1 md:col-span-full p-4 rounded-xl border border-slate-200`}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">วิชาหลัก (Main Subject)</label>
+            <select
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full p-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+            >
+              {SUBJECTS.map((subj) => (
+                <option key={subj} value={subj}>{subj}</option>
+              ))}
+            </select>
+            {subject === 'อื่นๆ' && (
+              <input
+                type="text"
+                placeholder="ระบุชื่อวิชา"
+                value={customSubject}
+                onChange={(e) => setCustomSubject(e.target.value)}
+                className="w-full p-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm mt-2"
+              />
+            )}
+          </div>
+          
+          <div className={`col-span-1 md:col-span-2 p-4 rounded-xl border border-slate-200`}>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">รายวิชา / สาระการเรียนรู้ที่บูรณาการ (เลือกได้มากกว่า 1)</label>
               <div className="relative">
@@ -626,7 +703,8 @@ export function PBLLessonPlanForm({
               <div className="flex items-start gap-3">
                 <Target className="h-5 w-5 text-indigo-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-bold text-slate-800">การจัดการตัวชี้วัด (Indicators)</p>
+                  
+                <p className="text-sm font-bold text-slate-800">การจัดการตัวชี้วัด (Indicators)</p>
                   <p className="text-[11px] text-slate-600 mt-1">
                     {curriculums.length === 0 
                       ? 'ไม่พบข้อมูลหลักสูตรสำหรับวิชาและชั้นเรียนที่เลือก'
@@ -808,6 +886,59 @@ export function PBLLessonPlanForm({
             />
           </div>
 
+          
+
+          
+          {selectedGrades.some(g => g.includes('ประถม')) && (
+<div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 mb-4">
+              <button 
+                type="button" 
+                onClick={() => setExpandedDesirable(!expandedDesirable)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <label className="text-xs font-bold text-amber-900 cursor-pointer">คุณลักษณะอันพึงประสงค์ 8 ประการ (Desirable Characteristics)</label>
+                </div>
+                {expandedDesirable ? <ChevronUp className="h-4 w-4 text-amber-600" /> : <ChevronDown className="h-4 w-4 text-amber-600" />}
+              </button>
+              
+              {expandedDesirable && (
+                <div className="mt-4 space-y-4">
+                  <p className="text-xs text-amber-700">เลือกตัวชี้วัดคุณลักษณะอันพึงประสงค์ที่ต้องการประเมินในแผนการสอนนี้ (ข้อมูลจะถูกนำไปตั้งเป็นหัวข้อประเมินอัตโนมัติในบันทึกหลังสอน)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {DESIRABLE_CHARACTERISTICS.map(char => (
+                      <div key={char.id} className="bg-white p-3 rounded-xl border border-amber-100">
+                        <div className="font-bold text-xs text-amber-900 mb-2">{char.id}. {char.name}</div>
+                        <div className="space-y-1">
+                          {char.indicators.map(ind => (
+                            <label key={ind.id} className="flex items-start gap-2 cursor-pointer group py-0.5">
+                              <input 
+                                type="checkbox"
+                                className="mt-[3px] rounded border-amber-300 text-amber-500 focus:ring-amber-500 shrink-0"
+                                checked={desirableCharacteristics.includes(ind.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setDesirableCharacteristics(prev => [...prev, ind.id]);
+                                  } else {
+                                    setDesirableCharacteristics(prev => prev.filter(id => id !== ind.id));
+                                  }
+                                }}
+                              />
+                              <span className="text-[11px] text-slate-600 group-hover:text-amber-800 leading-snug">
+                                {ind.id} {ind.text}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {isKindergarten ? (
             <>
               {/* Kindergarten 6 Activities */}
@@ -931,14 +1062,144 @@ export function PBLLessonPlanForm({
               5. วัดและประเมินผล (Evaluation)
             </label>
             <p className="text-[10px] text-slate-400 mb-2">
-              เกณฑ์และวิธีการประเมินความรู้และความเข้าใจ
+              เกณฑ์และวิธีการประเมินความรู้และความเข้าใจ (และสร้างคอลัมน์เก็บคะแนนอัตโนมัติ)
             </p>
+            
+            {/* Structured Evaluations */}
+            <div className="space-y-3 mb-4">
+              {structuredEvaluations.map((evalItem, index) => (
+                <div key={`${evalItem.id}-${index}`} className="p-3 bg-slate-50 border border-slate-200 rounded-xl relative">
+                  <button 
+                    type="button"
+                    onClick={() => setStructuredEvaluations(prev => prev.filter(e => e.id !== evalItem.id))}
+                    className="absolute top-2 right-2 text-slate-400 hover:text-rose-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 pr-6">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">ชื่อรายการ/ชิ้นงาน</label>
+                      <input 
+                        type="text"
+                        value={evalItem.name}
+                        onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, name: e.target.value } : p))}
+                        className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-rose-500 outline-none"
+                        placeholder="เช่น ใบงานที่ 1.1 โครงสร้างเซลล์"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">วิธีการประเมิน</label>
+                      <select 
+                        value={evalItem.method}
+                        onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, method: e.target.value } : p))}
+                        className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-rose-500 outline-none"
+                      >
+                        <option value="ตรวจใบงาน">ตรวจใบงาน</option>
+                        <option value="สอบย่อย">สอบย่อย (Quiz)</option>
+                        <option value="สังเกตพฤติกรรม">สังเกตพฤติกรรม</option>
+                        <option value="ประเมินชิ้นงาน">ประเมินชิ้นงาน/โครงงาน</option>
+                        <option value="สอบปฏิบัติ">สอบปฏิบัติ</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">คะแนนเต็ม</label>
+                      <input 
+                        type="number"
+                        value={evalItem.maxScore}
+                        onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, maxScore: Number(e.target.value) } : p))}
+                        className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-rose-500 outline-none"
+                        placeholder="10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">วัดด้าน (K-P-A)</label>
+                      <div className="flex gap-2">
+                        {['K', 'P', 'A'].map(kpa => (
+                          <label key={kpa} className="flex items-center gap-1 text-[10px]">
+                            <input 
+                              type="checkbox" 
+                              checked={evalItem.kpa.includes(kpa)}
+                              onChange={(e) => {
+                                setStructuredEvaluations(prev => prev.map(p => {
+                                  if (p.id !== evalItem.id) return p;
+                                  const newKpa = e.target.checked 
+                                    ? [...p.kpa, kpa] 
+                                    : p.kpa.filter(k => k !== kpa);
+                                  return { ...p, kpa: newKpa };
+                                }));
+                              }}
+                            />
+                            {kpa === 'K' ? 'ความรู้ (K)' : kpa === 'P' ? 'ทักษะ (P)' : 'เจตคติ (A)'}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                    <div className="flex flex-col gap-2 w-full">
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={evalItem.autoGenerateColumn}
+                          onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, autoGenerateColumn: e.target.checked } : p))}
+                          className="rounded border-slate-300 text-rose-500 focus:ring-rose-500"
+                        />
+                        <span>สร้างช่องบันทึกคะแนนใน LessonAchieve อัตโนมัติ</span>
+                      </label>
+                      
+                      {evalItem.autoGenerateColumn && (
+                        <div className="flex items-center gap-4 ml-6">
+                          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`scorePeriod_${evalItem.id}`}
+                              checked={evalItem.scorePeriod !== 'after_mid'}
+                              onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'before_mid' } : p))}
+                              className="text-rose-500 focus:ring-rose-500"
+                            />
+                            ก่อนกลางภาค
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`scorePeriod_${evalItem.id}`}
+                              checked={evalItem.scorePeriod === 'after_mid'}
+                              onChange={() => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, scorePeriod: 'after_mid' } : p))}
+                              className="text-rose-500 focus:ring-rose-500"
+                            />
+                            หลังกลางภาค
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              <button 
+                type="button"
+                onClick={() => setStructuredEvaluations(prev => [...prev, {
+                  id: `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                  name: '',
+                  method: 'ตรวจใบงาน',
+                  maxScore: 10,
+                  kpa: ['K'],
+                  autoGenerateColumn: true,
+                  scorePeriod: 'before_mid'
+                }])}
+                className="flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-700 px-3 py-2 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
+              >
+                <Plus className="h-4 w-4" /> เพิ่มรายการวัดผล
+              </button>
+            </div>
+            
             <textarea
               value={evaluation}
               onChange={(e) => setEvaluation(e.target.value)}
-              rows={3}
+              rows={2}
               className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 leading-relaxed placeholder:text-slate-400 whitespace-pre-line resize-none"
-              placeholder="เช่น วิธีการวัด / เครื่องมือที่ใช้ / เกณฑ์การผ่าน..."
+              placeholder="คำอธิบายเพิ่มเติม (ถ้ามี) เช่น เกณฑ์การผ่านประเมิน..."
             />
           </div>
             </>

@@ -70,8 +70,8 @@ service cloud.firestore {
     }
 
     match /records/{recordId} {
-      allow get: if isSignedIn() && (isAcademic() || isAdmin() || resource.data.teacherId == request.auth.uid);
-      allow list: if isSignedIn() && (isAcademic() || isAdmin() || resource.data.teacherId == request.auth.uid);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn() 
                     && request.resource.data.teacherId == request.auth.uid
                     && request.resource.data.id == recordId
@@ -124,7 +124,7 @@ service cloud.firestore {
     }
 
     match /config/{configId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow write: if isAcademic() || isAdmin();
     }
 
@@ -209,6 +209,8 @@ service cloud.firestore {
     }
 
     match /curriculums/{curriculumId} {
+      allow read: if true;
+      allow read: if true;
       allow read: if isSignedIn();
       allow write: if isAcademic();
     }
@@ -248,6 +250,10 @@ service cloud.firestore {
     match /studentBadges/{badgeId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
+    }
+    match /classrooms/{classroomId} {
+      allow read: if isSignedIn();
+      allow write: if isAcademic() || isAdmin();
     }
   }
 }

@@ -1,0 +1,13 @@
+<<<<
+  const uniqueGrades = React.useMemo(() => {
+    const dbGrades = new Set(students.map(s => s.gradeLevel).filter(Boolean));
+    const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
+    extraGrades.sort();
+    return [...GRADE_LEVELS, ...extraGrades];
+  }, [students]);
+====
+  const uniqueGrades = React.useMemo(() => {
+    const hideGrades = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
+    return GRADE_LEVELS.filter(g => g.includes('ประถม') && !hideGrades.includes(g));
+  }, []);
+>>>>

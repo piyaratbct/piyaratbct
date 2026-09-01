@@ -212,12 +212,12 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
         // Mock data specifically for Radar Chart demo if student is พัฒนพงษ์ and has no real scores
         if (student.firstName.includes('พัฒนพงษ์') && fetchedScores.length === 0) {
           fetchedScores = [
-            { id: 'm1', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'คณิตศาสตร์พื้นฐาน', teacherId: 'mock', totalScore: 85, grade: '4' },
-            { id: 'm2', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาไทย', teacherId: 'mock', totalScore: 90, grade: '4' },
-            { id: 'm3', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'วิทยาศาสตร์', teacherId: 'mock', totalScore: 92, grade: '4' },
-            { id: 'm4', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาอังกฤษ', teacherId: 'mock', totalScore: 88, grade: '4' },
-            { id: 'm5', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'สังคมศึกษา', teacherId: 'mock', totalScore: 78, grade: '3.5' },
-            { id: 'm6', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ศิลปะและดนตรี', teacherId: 'mock', totalScore: 96, grade: '4' },
+            { id: 'm1', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'คณิตศาสตร์พื้นฐาน', teacherId: 'mock', totalScore: 85, grade: '4' } as any,
+            { id: 'm2', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาไทย', teacherId: 'mock', totalScore: 90, grade: '4' } as any,
+            { id: 'm3', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'วิทยาศาสตร์', teacherId: 'mock', totalScore: 92, grade: '4' } as any,
+            { id: 'm4', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ภาษาอังกฤษ', teacherId: 'mock', totalScore: 88, grade: '4' } as any,
+            { id: 'm5', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'สังคมศึกษา', teacherId: 'mock', totalScore: 78, grade: '3.5' } as any,
+            { id: 'm6', studentId: student.id, gradeLevel: student.grade || 'ป.3/1', academicYear: '2566', semester: '1', subject: 'ศิลปะและดนตรี', teacherId: 'mock', totalScore: 96, grade: '4' } as any,
           ];
         }
         
