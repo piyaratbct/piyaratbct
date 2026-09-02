@@ -545,8 +545,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               
                               {subjectSettings.beforeMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input 
-                                    type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -560,8 +559,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.beforeMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input 
-                                    type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -575,8 +573,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.afterMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input 
-                                    type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -590,8 +587,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.afterMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input 
-                                    type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -650,8 +646,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                 <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
                                 <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input 
-                                    type="number" min={0} 
+                                  <input disabled={student.status !== "active"} type="number" min={0} 
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
                                     placeholder="0"
                                     value={score.preTestScore === 0 ? '' : score.preTestScore}
@@ -659,8 +654,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-amber-50/30">
-                                  <input 
-                                    type="number" min={0} max={20}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={20}
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-amber-500" 
                                     placeholder="0"
                                     value={score.midtermScore === 0 ? '' : score.midtermScore}
@@ -672,8 +666,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-rose-50/30">
-                                  <input 
-                                    type="number" min={0} max={20}
+                                  <input disabled={student.status !== "active"} type="number" min={0} max={20}
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-rose-500" 
                                     placeholder="0"
                                     value={score.finalScore === 0 ? '' : score.finalScore}
@@ -685,8 +678,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input 
-                                    type="number" min={0} 
+                                  <input disabled={student.status !== "active"} type="number" min={0} 
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
                                     placeholder="0"
                                     value={score.postTestScore === 0 ? '' : score.postTestScore}
@@ -855,8 +847,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
                               <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
                               <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <input 
-                                  type="number" min={0} max={100}
+                                <input disabled={student.status !== "active"} type="number" min={0} max={100}
                                   className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                   value={score.totalScore === '-' ? '' : score.totalScore}
                                   onChange={(e) => {

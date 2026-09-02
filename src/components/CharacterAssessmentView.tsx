@@ -606,7 +606,7 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
                               <select
                                 value={score !== undefined ? score : ''}
                                 onChange={(e) => handleScoreChange(student.id, t.id, Number(e.target.value))}
-                                disabled={!isTeacherActionAllowed}
+                                disabled={!isTeacherActionAllowed || student.status !== 'active'}
                                 className={`w-full text-center py-1 px-1 rounded border cursor-pointer outline-none transition-colors text-sm font-semibold ${(score === 3 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : score === 2 ? 'bg-white text-slate-700 border-slate-200' : score === 1 ? 'bg-amber-50 text-amber-700 border-amber-200' : score === 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-400 border-slate-200')}`}
                               >
                                <option value="" disabled>-</option>

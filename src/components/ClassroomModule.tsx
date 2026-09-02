@@ -802,7 +802,10 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     {searchQuery ? (
                       <>ผลการค้นหา: <span className="text-pink-600">"{searchQuery}"</span></>
                     ) : (
-                      <>รายชื่อนักเรียน {selectedGrade}</>
+                      <div className="flex flex-col">
+                        <span className="whitespace-nowrap">รายชื่อนักเรียน</span>
+                        <span className="text-sm font-bold text-pink-600 mt-0.5 whitespace-nowrap">{selectedGrade}</span>
+                      </div>
                     )}
                   </h3>
                   <div className="flex flex-wrap gap-2 text-sm font-medium">
@@ -1238,11 +1241,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       <div className="mt-auto pt-2 flex gap-2">
                         <button
                           onClick={() => setEvaluatingStudent(student)}
+                          disabled={student.status !== "active"}
                           className={`flex-1 py-2 rounded-lg text-xs font-bold text-center transition-colors ${
-                            hasAssessed
+                            student.status !== "active"
+                              ? "bg-slate-50 text-slate-400 cursor-not-allowed opacity-70"
+                              : hasAssessed
                               ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
                               : "bg-pink-100 text-pink-700 hover:bg-pink-200"
                           }`}
+                          title={student.status !== "active" ? "ไม่สามารถประเมินนักเรียนที่ย้าย/ออกแล้วได้" : ""}
                         >
                           {hasAssessed ? "แก้ไขประเมิน" : "เริ่มประเมิน"}
                         </button>
@@ -1788,12 +1795,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
                   let trendIcon = <Minus className="h-4 w-4 text-slate-300" />;
                   if (displayMonths.length > 1) {
-                    const firstM = displayMonths[displayMonths.length - 1];
-                    const lastM = displayMonths[0];
-                    const firstBmi = studentDataMap[firstM]?.bmi;
-                    const lastBmi = studentDataMap[lastM]?.bmi;
-                    if (firstBmi && lastBmi) {
-                      const diff = lastBmi - firstBmi;
+                    const oldestM = displayMonths[0];
+                    const newestM = displayMonths[displayMonths.length - 1];
+                    const oldestBmi = studentDataMap[oldestM]?.bmi;
+                    const newestBmi = studentDataMap[newestM]?.bmi;
+                    if (oldestBmi && newestBmi) {
+                      const diff = newestBmi - oldestBmi;
                       if (diff > 0.5) trendIcon = <TrendingUp className="h-4 w-4 text-red-500" title={`เพิ่มขึ้น ${diff.toFixed(1)}`} />;
                       else if (diff < -0.5) trendIcon = <TrendingDown className="h-4 w-4 text-green-500" title={`ลดลง ${Math.abs(diff).toFixed(1)}`} />;
                     }

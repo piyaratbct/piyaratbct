@@ -374,6 +374,7 @@ export function DisciplineModule({
   });
 
   const filteredStudents = students.filter(s => 
+    s.status === 'active' &&
     !selectedStudentIds.includes(s.id) && !offenderIds.includes(s.id) && !victimIds.includes(s.id) && 
     (
       s.firstName.toLowerCase().includes(studentSearch.toLowerCase()) || 

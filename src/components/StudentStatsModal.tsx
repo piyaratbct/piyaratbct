@@ -61,8 +61,9 @@ export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsMod
     }));
   }, [stats]);
 
-  const totalMale = students.filter(s => s.gender === 'male').length;
-  const totalFemale = students.filter(s => s.gender === 'female').length;
+  const activeStudentsList = students.filter(s => s.status === 'active' || !s.status);
+  const totalMale = activeStudentsList.filter(s => s.gender === 'male').length;
+  const totalFemale = activeStudentsList.filter(s => s.gender === 'female').length;
 
   if (!isOpen) return null;
 
@@ -97,7 +98,7 @@ export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsMod
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500">นักเรียนทั้งหมด</p>
-                <p className="text-2xl font-black text-slate-800">{students.length}</p>
+                <p className="text-2xl font-black text-slate-800">{activeStudentsList.length}</p>
               </div>
             </div>
             

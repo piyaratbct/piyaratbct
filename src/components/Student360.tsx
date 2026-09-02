@@ -5,7 +5,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { 
-  Search, User, GraduationCap, HeartPulse, 
+  Search, User, GraduationCap, HeartPulse, TrendingUp, TrendingDown, Minus, 
   BrainCircuit, Home, Activity, FileText,
   Award, AlertCircle, Calendar, Droplets, Download, ChevronDown, Printer, FileJson
 } from 'lucide-react';
@@ -158,8 +158,11 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
         behavior: {
           score: 100,
           merits: 0,
-          demerits: 0
+          demerits: 0,
+          notes: "ไม่มีข้อมูล",
+          achievements: []
         },
+        pastoralCare: [],
         health: {
           height: initialStudent.height ? parseFloat(initialStudent.height.toString()) : 0,
           weight: initialStudent.weight ? parseFloat(initialStudent.weight.toString()) : 0,
@@ -263,6 +266,38 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
     window.print();
   };
 
+
+
+  // Compute health trends
+  let currentWeight = student?.health?.weight || 0;
+  let currentHeight = student?.health?.height || 0;
+  let currentBmi = student?.health?.bmi || 0;
+  let trendIcon = <Minus className="h-4 w-4 text-slate-300" />;
+  let trendLabel = "";
+
+  const allAvailableAssessments = [...kAssessments, ...assessments];
+  const sortedAssessments = allAvailableAssessments.filter(a => a.weight && a.height).sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+  
+  if (sortedAssessments.length > 0) {
+    const latest = sortedAssessments[0];
+      currentWeight = latest.weight || currentWeight;
+      currentHeight = latest.height || currentHeight;
+      currentBmi = currentWeight / Math.pow(currentHeight / 100, 2);
+      
+      if (sortedAssessments.length > 1) {
+        const previous = sortedAssessments[1];
+        const prevBmi = (previous.weight || 0) / Math.pow((previous.height || 100) / 100, 2);
+        
+        const diff = currentBmi - prevBmi;
+        if (diff > 0.5) {
+          trendIcon = <TrendingUp className="h-4 w-4 text-red-500" />;
+          trendLabel = `เพิ่มขึ้น ${diff.toFixed(1)}`;
+        } else if (diff < -0.5) {
+          trendIcon = <TrendingDown className="h-4 w-4 text-green-500" />;
+          trendLabel = `ลดลง ${Math.abs(diff).toFixed(1)}`;
+        }
+      }
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -630,23 +665,36 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                     </h3>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center relative">
                         <p className="text-xs font-bold text-slate-500 mb-1">ส่วนสูง</p>
-                        <p className="text-xl font-black text-slate-800">{student.health.height} <span className="text-sm font-bold text-slate-400">ซม.</span></p>
+                        <p className="text-xl font-black text-slate-800">{currentHeight} <span className="text-sm font-bold text-slate-400">ซม.</span></p>
                       </div>
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center relative">
                         <p className="text-xs font-bold text-slate-500 mb-1">น้ำหนัก</p>
-                        <p className="text-xl font-black text-slate-800">{student.health.weight} <span className="text-sm font-bold text-slate-400">กก.</span></p>
+                        <p className="text-xl font-black text-slate-800">{currentWeight} <span className="text-sm font-bold text-slate-400">กก.</span></p>
                       </div>
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center relative flex flex-col items-center">
                         <p className="text-xs font-bold text-slate-500 mb-1">ดัชนีมวลกาย (BMI)</p>
-                        <p className={`text-xl font-black ${
-                          student.health.bmi < 18.5 ? 'text-amber-500' : 
-                          student.health.bmi < 23 ? 'text-emerald-500' : 'text-rose-500'
-                        }`}>{student.health.bmi.toFixed(1)}</p>
+                        <div className="flex items-center gap-2">
+                           <p className={`text-xl font-black ${
+                             currentBmi < 18.5 ? 'text-amber-500' : 
+                             currentBmi < 23 ? 'text-emerald-500' : 'text-rose-500'
+                           }`}>{currentBmi.toFixed(1)}</p>
+                           {trendLabel && (
+                             <div className="flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100" title={trendLabel}>
+                               {trendIcon}
+                               <span className="text-[10px] font-bold text-slate-500 hidden sm:inline">{trendLabel}</span>
+                             </div>
+                           )}
+                           {!trendLabel && (
+                             <div className="flex items-center gap-0.5 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100" title="คงที่">
+                               {trendIcon}
+                             </div>
+                           )}
+                        </div>
                         <p className="text-[10px] font-bold text-slate-400 mt-1">
-                          {student.health.bmi < 18.5 ? 'น้ำหนักน้อยกว่าเกณฑ์' : 
-                           student.health.bmi < 23 ? 'สมส่วน' : 'น้ำหนักเกินเกณฑ์'}
+                          {currentBmi < 18.5 ? 'น้ำหนักน้อยกว่าเกณฑ์' : 
+                           currentBmi < 23 ? 'สมส่วน' : 'น้ำหนักเกินเกณฑ์'}
                         </p>
                       </div>
                     </div>
@@ -669,6 +717,68 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                         <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">{student.dental || student.health.dental}</p>
                       </div>
                     </div>
+
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 mt-6">
+                      <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-500" /> 
+                        ประวัติการเจริญเติบโต (BMI ย้อนหลัง)
+                      </h4>
+                      {sortedAssessments.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="px-4 py-3 whitespace-nowrap rounded-tl-xl">เดือนที่ประเมิน</th>
+                                <th className="px-4 py-3 text-right">น้ำหนัก (กก.)</th>
+                                <th className="px-4 py-3 text-right">ส่วนสูง (ซม.)</th>
+                                <th className="px-4 py-3 text-center">BMI</th>
+                                <th className="px-4 py-3 rounded-tr-xl">ผลการประเมิน</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {sortedAssessments.map((a, idx) => {
+                                const w = a.weight || 0;
+                                const h = (a.height || 100) / 100;
+                                const bmi = w / (h * h);
+                                
+                                let label = '';
+                                let color = '';
+                                if (bmi < 18.5) { label = 'ผอม'; color = 'text-blue-700 bg-blue-100 border-blue-200'; }
+                                else if (bmi < 23) { label = 'สมส่วน'; color = 'text-green-700 bg-green-100 border-green-200'; }
+                                else if (bmi < 25) { label = 'ท้วม'; color = 'text-yellow-700 bg-yellow-100 border-yellow-200'; }
+                                else if (bmi < 30) { label = 'เริ่มอ้วน'; color = 'text-orange-700 bg-orange-100 border-orange-200'; }
+                                else { label = 'อ้วน'; color = 'text-red-700 bg-red-100 border-red-200'; }
+
+                                const parts = (a.month || '').split('-');
+                                const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                                const formattedMonth = parts.length === 2 
+                                  ? `${monthNames[parseInt(parts[1])-1]} ${parseInt(parts[0]) + 543}`
+                                  : (a.month || `ภาคเรียนที่ ${a.semester}/${a.academicYear}`);
+
+                                return (
+                                  <tr key={'health_'+idx} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-4 py-3 font-medium text-slate-700">{formattedMonth}</td>
+                                    <td className="px-4 py-3 text-right font-semibold text-slate-600">{w}</td>
+                                    <td className="px-4 py-3 text-right font-semibold text-slate-600">{a.height}</td>
+                                    <td className="px-4 py-3 text-center font-bold text-slate-700">{bmi.toFixed(1)}</td>
+                                    <td className="px-4 py-3">
+                                      <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold border ${color}`}>
+                                        {label}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 text-slate-400 text-sm italic bg-slate-50 rounded-xl border border-slate-100">
+                          ยังไม่มีประวัติการวัดน้ำหนัก-ส่วนสูง
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 )}
 

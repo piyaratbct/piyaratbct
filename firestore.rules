@@ -124,7 +124,7 @@ service cloud.firestore {
     }
 
     match /config/{configId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAcademic() || isAdmin();
     }
 
@@ -209,8 +209,8 @@ service cloud.firestore {
     }
 
     match /curriculums/{curriculumId} {
-      allow read: if true;
-      allow read: if true;
+      allow read: if isSignedIn();
+      allow read: if isSignedIn();
       allow read: if isSignedIn();
       allow write: if isAcademic();
     }
