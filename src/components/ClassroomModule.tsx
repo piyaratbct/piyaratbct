@@ -98,9 +98,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Assessments state
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    new Date().toISOString().slice(0, 7)
-  );
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [hasAutoSelected, setHasAutoSelected] = useState<boolean>(false);
   const [allAssessments, setAllAssessments] = useState<StudentAssessment[]>([]);
   const [showHistoryCompare, setShowHistoryCompare] = useState(false);
   const [assessments, setAssessments] = useState<
@@ -196,20 +195,30 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   }, [selectedGrade]);
 
   useEffect(() => {
+    if (!hasAutoSelected && allAssessments.length > 0) {
+       const availableMonths = Array.from(new Set(allAssessments.map(a => a.month).filter(Boolean))) as string[];
+       if (availableMonths.length > 0) {
+          availableMonths.sort().reverse();
+          setSelectedMonth(availableMonths[0]);
+          setHasAutoSelected(true);
+       }
+    }
+  }, [allAssessments, hasAutoSelected]);
+
+  useEffect(() => {
     const currentMonthAssessments: Record<string, StudentAssessment> = {};
     allAssessments.forEach((assessment) => {
-      // Filter by month, academic year, and semester
-      // Fallback for older data that might not have academicYear or semester
+      // For assessments, if month is selected, it uniquely identifies the point in time (YYYY-MM).
+      // We should not restrict by systemAcademicYear or systemSemester, because if the term changes,
+      // teachers still need to view past months' data.
       const matchMonth = (assessment.month || "") === selectedMonth;
-      const matchYear = !assessment.academicYear || assessment.academicYear === systemAcademicYear;
-      const matchSemester = !assessment.semester || assessment.semester === systemSemester;
       
-      if (matchMonth && matchYear && matchSemester) {
+      if (matchMonth) {
         currentMonthAssessments[assessment.studentId] = assessment;
       }
     });
     setAssessments(currentMonthAssessments);
-  }, [allAssessments, selectedMonth, systemAcademicYear, systemSemester]);
+  }, [allAssessments, selectedMonth]);
 
   const displayedStudents = students.filter((student) => {
     // If searching, ignore grade level filter

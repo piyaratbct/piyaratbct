@@ -201,6 +201,7 @@ export default function App() {
 
   // Custom School Logo States & Camera Capture
   const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
   const [systemAcademicYear, setSystemAcademicYear] = useState<string>("2567");
   const [systemSemester, setSystemSemester] = useState<string>("1");
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -727,7 +728,7 @@ export default function App() {
     setIsCameraActive(false);
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (!videoRef.current) return;
     try {
       const video = videoRef.current;
@@ -737,51 +738,86 @@ export default function App() {
       canvas.height = size;
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        setIsUploadingLogo(true);
         // Crop center to square
         const sx = (video.videoWidth - size) / 2;
         const sy = (video.videoHeight - size) / 2;
         ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-        const dataUrl = canvas.toDataURL("image/png");
-        setCustomLogo(dataUrl);
-        safeLocalStorage.setItem("lessonlog_custom_logo", dataUrl);
-        setDoc(
-          doc(db, "config", "school"),
-          { customLogo: dataUrl },
-          { merge: true },
-        ).catch((err) => {
-          console.error("Failed to persist custom logo in Firestore:", err);
-        });
+        
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            setIsUploadingLogo(false);
+            return;
+          }
+          try {
+            const storageRef = ref(storage, `school_assets/logo_${Date.now()}_camera.png`);
+            const uploadResult = await uploadBytes(storageRef, blob);
+            const downloadUrl = await getDownloadURL(uploadResult.ref);
+            
+            setCustomLogo(downloadUrl);
+            safeLocalStorage.setItem("lessonlog_custom_logo", downloadUrl);
+            
+            await setDoc(
+              doc(db, "config", "school"),
+              { customLogo: downloadUrl },
+              { merge: true },
+            );
+          } catch (err) {
+             console.error("Failed to upload captured logo:", err);
+             setCameraError("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ");
+          } finally {
+             setIsUploadingLogo(false);
+             stopCamera();
+          }
+        }, "image/png");
+      } else {
+        stopCamera();
       }
-      stopCamera();
     } catch (err) {
       console.error("Failed to capture image from camera:", err);
       setCameraError("ไม่สามารถจับภาพได้กรุณาทดลองบันทึกใหม่อีกครั้ง");
+      setIsUploadingLogo(false);
     }
   };
 
-  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        const base64String = event.target.result as string;
-        setCustomLogo(base64String);
-        safeLocalStorage.setItem("lessonlog_custom_logo", base64String);
-        setDoc(
-          doc(db, "config", "school"),
-          { customLogo: base64String },
-          { merge: true },
-        ).catch((err) => {
-          console.error("Failed to persist uploaded logo in Firestore:", err);
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsUploadingLogo(true);
+      
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, `school_assets/logo_${Date.now()}_${file.name}`);
+      const uploadResult = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(uploadResult.ref);
+      
+      setCustomLogo(downloadUrl);
+      safeLocalStorage.setItem("lessonlog_custom_logo", downloadUrl);
+      
+      await setDoc(
+        doc(db, "config", "school"),
+        { customLogo: downloadUrl },
+        { merge: true },
+      );
+      
+    } catch (err) {
+      console.error("Failed to upload logo:", err);
+      alert("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
 
-  const handleClearCustomLogo = () => {
+  const handleClearCustomLogo = async () => {
+    if (customLogo && customLogo.includes('firebasestorage.googleapis.com')) {
+      try {
+        const storageRef = ref(storage, customLogo);
+        await deleteObject(storageRef);
+      } catch (err) {
+        console.warn("Failed to delete old logo from storage:", err);
+      }
+    }
     setCustomLogo(null);
     safeLocalStorage.removeItem("lessonlog_custom_logo");
     setDoc(
@@ -2799,12 +2835,16 @@ export default function App() {
 
               <button
                 type="button"
-                disabled={!!cameraError}
+                disabled={!!cameraError || isUploadingLogo}
                 onClick={capturePhoto}
                 className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none text-white font-extrabold text-[11px] rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5"
               >
-                <div className="h-2 w-2 rounded-full bg-white animate-ping" />
-                ถ่ายคู่รูปตรา
+                {isUploadingLogo ? (
+                  <span className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <div className="h-2 w-2 rounded-full bg-white animate-ping" />
+                )}
+                {isUploadingLogo ? 'กำลังบันทึก...' : 'ถ่ายคู่รูปตรา'}
               </button>
             </div>
           </div>
