@@ -34,9 +34,8 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         const relevantSchedules = sSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as TeacherSchedule))
           .filter(s => {
-            // ถ้าระเบียนเก่าไม่มีข้อมูลเทอม ให้แสดงไปก่อน หรือตรงกับเทอมปัจจุบัน
-            if (!s.semester || !s.academicYear) return true;
-            return s.semester === systemSemester && s.academicYear === systemAcademicYear;
+            // ปิดการกรองชั่วคราว เพื่อให้แสดงตารางสอนทั้งหมด (ป้องกันปัญหาข้อมูลเก่าหาย)
+            return true;
           });
         setAllSchedules(relevantSchedules);
       } catch (err) {

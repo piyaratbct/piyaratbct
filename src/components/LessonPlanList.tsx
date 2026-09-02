@@ -173,6 +173,9 @@ export function LessonPlanList({
       const day = parseInt(parts[2]);
       return `${day} ${month} พ.ศ. ${year}`;
     }
+    if (dateString && !dateString.includes('ครั้ง') && !dateString.includes('คาบ') && /^\d+$/.test(dateString.trim())) {
+      return `ครั้งที่ ${dateString}`;
+    }
     return dateString;
   };
 
@@ -374,7 +377,7 @@ export function LessonPlanList({
                   <div className="p-5 flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-3 gap-2">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                        {plan.subject === "อื่น ๆ"
+                        {(plan.subject === "อื่น ๆ" || plan.subject === "อื่นๆ" || plan.subject === "บูรณาการ (PBL)") && plan.customSubject
                           ? plan.customSubject
                           : plan.subject}
                       </span>

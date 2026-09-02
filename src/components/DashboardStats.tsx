@@ -45,7 +45,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
 
   const subjectCounts: Record<string, number> = {};
   filteredRecords.forEach(r => {
-    const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
+    const subj = (r.subject === 'อื่นๆ' || r.subject === 'บูรณาการ (PBL)') && r.customSubject ? r.customSubject : r.subject;
     subjectCounts[subj] = (subjectCounts[subj] || 0) + 1;
   });
 
@@ -81,7 +81,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const WEEKS_PER_SEMESTER = 20; // จำนวนสัปดาห์ใน 1 ภาคเรียน (โดยประมาณ)
   const allSubjectGrades = new Set([
     ...filteredRecords.map(r => {
-      const subj = r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject;
+      const subj = (r.subject === 'อื่นๆ' || r.subject === 'บูรณาการ (PBL)') && r.customSubject ? r.customSubject : r.subject;
       const grade = r.gradeLevel || 'ไม่ระบุชั้น';
       return `${subj}|${grade}`;
     }),
@@ -95,7 +95,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
   const subjectDistribution = Array.from(allSubjectGrades).map(key => {
     const [subj, grade] = key.split('|');
     const logs = filteredRecords.filter(p => 
-      ((p.subject === 'อื่นๆ' && p.customSubject === subj) || p.subject === subj) && 
+      (((p.subject === 'อื่นๆ' || p.subject === 'บูรณาการ (PBL)') && p.customSubject === subj) || p.subject === subj) && 
       (p.gradeLevel === grade || (!p.gradeLevel && grade === 'ไม่ระบุชั้น'))
     );
     const scheduledPeriodsPerWeek = schedules.filter(s => s.subject === subj && (s.gradeLevel === grade || (!s.gradeLevel && grade === 'ไม่ระบุชั้น'))).length;

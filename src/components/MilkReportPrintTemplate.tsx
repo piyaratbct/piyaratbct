@@ -166,7 +166,7 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
     };
   }, []);
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 15;
   
   // กรองนักเรียนที่งดดื่มนมออก
   const validStudents = students.filter(s => !s.noSchoolMilk);

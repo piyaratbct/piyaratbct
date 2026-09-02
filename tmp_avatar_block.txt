@@ -1,0 +1,59 @@
+              {/* Profile Avatar Upload (Firebase Storage) */}
+              <div className="bg-indigo-50 border border-indigo-200/65 p-3.5 rounded-xl">
+                <label className="block text-xs font-black text-indigo-900 mb-1">
+                  รูปภาพโปรไฟล์ส่วนตัว (Avatar)
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center border border-indigo-200 overflow-hidden shrink-0">
+                    {currentTeacher.photoURL ? (
+                      <img src={currentTeacher.photoURL} alt="Profile Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-6 w-6 text-indigo-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'กรุณาเลือกรูปภาพขนาดไม่เกิน 5MB', type: 'error' } }));
+                            e.target.value = '';
+                            return;
+                          }
+                          
+                          if (!storage) {
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน', type: 'error' } }));
+                            return;
+                          }
+
+                          try {
+                            const ext = file.name.split('.').pop() || 'jpg';
+                            const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
+                            const storageRef = ref(storage, fileName);
+                            
+                            // 1. Upload to Firebase Storage
+                            await uploadBytes(storageRef, file);
+                            
+                            // 2. Get Download URL
+                            const downloadURL = await getDownloadURL(storageRef);
+                            
+                            // 3. Update Firestore with new URL
+                            const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };
+                            await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: downloadURL });
+                            setCurrentTeacher(updatedTeacher);
+                            
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'อัปเดตรูปโปรไฟล์สำเร็จ', type: 'success' } }));
+                          } catch (err) {
+                            console.error("Error uploading avatar:", err);
+                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการอัปเดตรูปโปรไฟล์', type: 'error' } }));
+                          }
+                          e.target.value = ''; // Reset input
+                        }
+                      }}
+                      className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200"
+                    />
+                    <p className="text-[10px] text-indigo-500 mt-1">ไฟล์ JPG/PNG ขนาดไม่เกิน 5MB (รูปสี่เหลี่ยมจัตุรัส)</p>
+                  </div>

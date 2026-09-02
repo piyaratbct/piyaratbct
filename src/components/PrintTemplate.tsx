@@ -494,8 +494,13 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
 
             <div className="flex items-baseline gap-1.5 font-sans">
               <span className="font-semibold text-slate-500 font-sans whitespace-nowrap">วิชาที่สอน:</span>
-              <span className={`font-bold text-indigo-950 ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>
-                {record.subject === 'อื่นๆ' && record.customSubject ? record.customSubject : record.subject}
+              <span className={`font-bold text-indigo-950 flex flex-wrap gap-1 items-center ${isCompact ? 'text-[11px]' : 'text-[11.5px]'}`}>
+                <span>{(record.subject === 'อื่นๆ' || record.subject === 'บูรณาการ (PBL)' || record.subject === 'อื่น ๆ') && record.customSubject ? record.customSubject : record.subject}</span>
+                {record.isIntegrated && record.integratedSubjects && (
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100 leading-none">
+                    บูรณาการ: {record.integratedSubjects}
+                  </span>
+                )}
               </span>
             </div>
 

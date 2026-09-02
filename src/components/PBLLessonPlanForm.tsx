@@ -144,7 +144,7 @@ export function PBLLessonPlanForm({
         const snapshotCurriculums = await getDocs(qCurriculums);
         let fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
         
-        const activeSubject = subject === 'อื่นๆ' ? customSubject : subject;
+        const activeSubject = (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : subject;
         let subjectsArray = [activeSubject];
         if (integratedSubjects) {
            subjectsArray = [...subjectsArray, ...integratedSubjects.split(',').map(s => s.trim()).filter(Boolean)];
@@ -315,7 +315,7 @@ export function PBLLessonPlanForm({
       id: initialPlan ? initialPlan.id : Date.now().toString(),
       teacherId: initialPlan ? initialPlan.teacherId : teacherId,
       subject: subject,
-      customSubject: subject === 'อื่นๆ' ? customSubject : undefined,
+      customSubject: (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : undefined,
       gradeLevel: selectedGrades.join(", "),
       title,
       isIntegrated: true,
@@ -436,10 +436,10 @@ export function PBLLessonPlanForm({
                 <option key={subj} value={subj}>{subj}</option>
               ))}
             </select>
-            {subject === 'อื่นๆ' && (
+            {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
               <input
                 type="text"
-                placeholder="ระบุชื่อวิชา"
+                placeholder={subject === "บูรณาการ (PBL)" ? "ระบุวิชาหลัก..." : "ระบุวิชาอื่นๆ..."}
                 value={customSubject}
                 onChange={(e) => setCustomSubject(e.target.value)}
                 className="w-full p-3 text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm mt-2"
@@ -1181,7 +1181,7 @@ export function PBLLessonPlanForm({
                                 onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, targetSubject: e.target.value } : p))}
                                 className="text-xs border border-slate-200 rounded p-1 focus:ring-rose-500 focus:border-rose-500"
                               >
-                                <option value="">วิชาหลัก ({subject === 'อื่นๆ' ? customSubject : subject})</option>
+                                <option value="">วิชาหลัก ({(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : subject})</option>
                                 {integratedSubjects.split(',').map(s => s.trim()).filter(Boolean).map(s => (
                                   <option key={s} value={s}>{s}</option>
                                 ))}

@@ -1,3 +1,4 @@
+import { AvatarUpload } from "./AvatarUpload";
 import React, { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import {
@@ -823,9 +824,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       </span>
                       {homeroomTeachers.map((ht, idx) => (
                         <div key={ht.id} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 shadow-sm flex items-center gap-1.5">
-                          <div className="h-4 w-4 bg-amber-100 rounded-full flex items-center justify-center">
-                            <span className="text-[9px]">{ht.thaiName.charAt(0)}</span>
-                          </div>
+                          
                           <span>
                             {ht.thaiName} 
                             {ht.homeroomClass === selectedGrade && ht.coHomeroomClass === selectedGrade 
@@ -1117,9 +1116,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       </span>
                       {homeroomTeachers.map((ht, idx) => (
                         <div key={ht.id} className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200/60 shadow-sm flex items-center gap-1.5">
-                          <div className="h-4 w-4 bg-amber-100 rounded-full flex items-center justify-center">
-                            <span className="text-[9px]">{ht.thaiName.charAt(0)}</span>
-                          </div>
+                          
                           <span>
                             {ht.thaiName} 
                             {ht.homeroomClass === selectedGrade && ht.coHomeroomClass === selectedGrade 
@@ -1500,9 +1497,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 })()}{/* BMI Report appended to special-care */}
           {activeTab === "special-care" && (() => {
   
-  const allAssessments = Object.values(assessments) as StudentAssessment[];
+  const currentStudentIds = new Set(students.map(s => s.id));
   const availableMonthsSet = new Set<string>();
-  allAssessments.forEach(a => { if (a.month) availableMonthsSet.add(a.month); });
+  allAssessments.forEach(a => { 
+    if (a.month && currentStudentIds.has(a.studentId)) {
+      availableMonthsSet.add(a.month); 
+    }
+  });
   const availableMonths = Array.from(availableMonthsSet).sort().reverse();
   
   const currentChartMonth = selectedMonth || availableMonths[0];
@@ -2091,7 +2092,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           teacher={currentTeacher!}
           academicYear={systemAcademicYear}
           semester={systemSemester}
-          months={showHistoryCompare ? Array.from(new Set(allAssessments.filter(a => a.month).map(a => a.month as string))).sort().reverse().slice(0, 4) : (selectedMonth ? [selectedMonth] : [])}
+          months={showHistoryCompare ? Array.from(new Set(allAssessments.filter(a => a.month && new Set(printHealthStudents.map(s => s.id)).has(a.studentId)).map(a => a.month as string))).sort().reverse().slice(0, 4) : (selectedMonth ? [selectedMonth] : [])}
           onClose={() => setPrintHealthStudents(null)}
         />
       )}

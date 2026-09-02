@@ -1,3 +1,4 @@
+import { AvatarUpload } from "./components/AvatarUpload";
 import React, { useState, useEffect } from "react";
 import {
 Teacher, LessonRecord, LessonPlan, SUBJECTS, Student, AppNotification } from "./types";
@@ -1712,21 +1713,32 @@ export default function App() {
 
         {/* Welcome Card & Info */}
         <div className="bg-gradient-to-r from-sky-50/60 via-white to-pink-50/60 rounded-2xl border-l-4 border-l-sky-450 border-y border-r border-sky-100/50 p-4 sm:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs print:hidden">
-          <div className="space-y-2 sm:space-y-3 w-full md:w-auto">
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs w-fit">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
-              <span className="text-[10px] sm:text-base font-black tracking-wide text-indigo-950 font-sans truncate">
-                LessonLog <span className="hidden sm:inline">- ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
-              </span>
+          <div className="flex items-start sm:items-center gap-4 w-full md:w-auto">
+            <div className="shrink-0">
+              <AvatarUpload 
+                url={currentTeacher.photoURL} 
+                name={currentTeacher.thaiName || currentTeacher.displayName} 
+                size="lg" 
+                editable={false} 
+                onUpload={async () => {}} 
+              />
             </div>
-            <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
-              <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ,{" "}
-              {currentTeacher.displayName}
-            </h2>
-            <p className="text-[10px] sm:text-xs text-slate-500 font-semibold leading-snug">
-              ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน<br className="sm:hidden" /> สถานะของคุณครูคือ{" "}
-              <b className="text-sky-700">{currentTeacher.affiliation}</b>
-            </p>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 bg-gradient-to-r from-sky-500/10 to-pink-500/10 border border-sky-200/55 rounded-full text-slate-700 shadow-3xs w-fit">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
+                <span className="text-[10px] sm:text-base font-black tracking-wide text-indigo-950 font-sans truncate">
+                  LessonLog <span className="hidden sm:inline">- ระบบสารสนเทศเพื่อการจัดการสถานศึกษา</span>
+                </span>
+              </div>
+              <h2 className="text-xs sm:text-sm font-extrabold text-slate-750 flex items-center gap-2">
+                <span className="animate-wiggle text-sm">👋</span> สวัสดีครับ/ค่ะ,{" "}
+                {currentTeacher.displayName}
+              </h2>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-semibold leading-snug">
+                ยินดีต้อนรับเข้าสู่ระบบจัดการข้อมูลการสอนและชั้นเรียน<br className="sm:hidden" /> สถานะของคุณครูคือ{" "}
+                <b className="text-sky-700">{currentTeacher.affiliation}</b>
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto mt-1 md:mt-0">
@@ -2040,7 +2052,7 @@ export default function App() {
                       id: `r-${r.id}`,
                       teacherId: r.teacherId,
                       action: "เพิ่ม/แก้ไขบันทึกหลังสอน",
-                      subject: `${r.subject === 'อื่นๆ' && r.customSubject ? r.customSubject : r.subject} ${r.gradeLevel}`,
+                      subject: `${(r.subject === 'อื่นๆ' || r.subject === 'บูรณาการ (PBL)') && r.customSubject ? r.customSubject : r.subject} ${r.gradeLevel}`,
                       timestamp: new Date(r.updatedAt || r.createdAt).getTime(),
                       color: "bg-pink-400"
                     });
@@ -2051,7 +2063,7 @@ export default function App() {
                       id: `p-${p.id}`,
                       teacherId: p.teacherId,
                       action: "เพิ่ม/แก้ไขแผนการสอน",
-                      subject: `${p.subject === 'อื่นๆ' && p.customSubject ? p.customSubject : p.subject} ${p.gradeLevel}`,
+                      subject: `${(p.subject === 'อื่นๆ' || p.subject === 'บูรณาการ (PBL)') && p.customSubject ? p.customSubject : p.subject} ${p.gradeLevel}`,
                       timestamp: new Date(p.updatedAt || p.createdAt).getTime(),
                       color: "bg-emerald-400"
                     });
@@ -2502,89 +2514,83 @@ export default function App() {
                 />
               </div>
 
-              {/* Profile Avatar Upload (Firebase Storage) */}
+              {/* Profile Avatar Upload (Auto Compress to Base64) */}
               <div className="bg-indigo-50 border border-indigo-200/65 p-3.5 rounded-xl">
                 <label className="block text-xs font-black text-indigo-900 mb-1">
                   รูปภาพโปรไฟล์ส่วนตัว (Avatar)
                 </label>
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center border border-indigo-200 overflow-hidden shrink-0">
-                    {currentTeacher.photoURL ? (
-                      <img src={currentTeacher.photoURL} alt="Profile Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-6 w-6 text-indigo-300" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/jpg"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'กรุณาเลือกรูปภาพขนาดไม่เกิน 5MB', type: 'error' } }));
-                            e.target.value = '';
-                            return;
-                          }
-                          
-                          if (!storage) {
+                <div className="flex items-center gap-4">
+                  <AvatarUpload 
+                    url={currentTeacher.photoURL} 
+                    name={currentTeacher.thaiName || currentTeacher.displayName} 
+                    size="lg" 
+                    editable={true} 
+                    onUpload={async (base64) => {
+                      try {
+                        if (!storage) {
                             window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน', type: 'error' } }));
                             return;
-                          }
+                        }
 
-                          try {
-                            const ext = file.name.split('.').pop() || 'jpg';
-                            const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
-                            const storageRef = ref(storage, fileName);
-                            
-                            // 1. Upload to Firebase Storage
-                            await uploadBytes(storageRef, file);
-                            
-                            // 2. Get Download URL
-                            const downloadURL = await getDownloadURL(storageRef);
-                            
-                            // 3. Update Firestore with new URL
-                            const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };
-                            await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: downloadURL });
-                            setCurrentTeacher(updatedTeacher);
-                            
-                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'อัปเดตรูปโปรไฟล์สำเร็จ', type: 'success' } }));
-                          } catch (err) {
-                            console.error("Error uploading avatar:", err);
-                            window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการอัปเดตรูปโปรไฟล์', type: 'error' } }));
-                          }
-                          e.target.value = ''; // Reset input
+                        // Convert base64 to Blob
+                        const arr = base64.split(',');
+                        const mimeMatch = arr[0].match(/:(.*?);/);
+                        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                        const bstr = atob(arr[1]);
+                        let n = bstr.length;
+                        const u8arr = new Uint8Array(n);
+                        while (n--) {
+                            u8arr[n] = bstr.charCodeAt(n);
                         }
-                      }}
-                      className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200"
-                    />
-                    <p className="text-[10px] text-indigo-500 mt-1">ไฟล์ JPG/PNG ขนาดไม่เกิน 5MB (รูปสี่เหลี่ยมจัตุรัส)</p>
+                        const blob = new Blob([u8arr], { type: mime });
+
+                        const ext = mime.split('/')[1] || 'jpg';
+                        const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
+                        const storageRef = ref(storage, fileName);
+
+                        await uploadBytes(storageRef, blob);
+                        const downloadURL = await getDownloadURL(storageRef);
+
+                        const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };
+                        await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: downloadURL });
+                        setCurrentTeacher(updatedTeacher);
+                        window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'อัปเดตรูปโปรไฟล์สำเร็จ', type: 'success' } }));
+                      } catch (err) {
+                        console.error("Error uploading avatar to Storage:", err);
+                        window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการอัปเดตรูปโปรไฟล์', type: 'error' } }));
+                      }
+                    }} 
+                  />
+                  <div className="flex-1 text-xs text-slate-500">
+                    คลิกที่รูปภาพกลมๆ ทางซ้ายเพื่อเปลี่ยนรูปโปรไฟล์ของคุณ<br/>
+                    <span className="text-indigo-600 font-semibold mt-1 inline-block">(ระบบจะปรับขนาด บีบอัดรูปภาพ และอัปโหลดขึ้นคลาวด์อัตโนมัติ)</span>
+                    
+                    {currentTeacher.photoURL && (
+                      <div className="mt-3">
+                        <button
+                          onClick={async () => {
+                              try {
+                                if (currentTeacher.photoURL.includes('firebasestorage') && storage) {
+                                  const fileRef = ref(storage, currentTeacher.photoURL);
+                                  await deleteObject(fileRef).catch(e => console.warn("Could not delete from storage:", e));
+                                }
+                                const updatedTeacher = { ...currentTeacher, photoURL: "" };
+                                await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: "" });
+                                setCurrentTeacher(updatedTeacher);
+                                window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบรูปโปรไฟล์สำเร็จ', type: 'success' } }));
+                              } catch (err) {
+                                console.error("Error removing avatar:", err);
+                                window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'เกิดข้อผิดพลาดในการลบรูปโปรไฟล์', type: 'error' } }));
+                              }
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          ลบรูปโปรไฟล์
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {currentTeacher.photoURL && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const updatedTeacher = { ...currentTeacher };
-                          delete updatedTeacher.photoURL;
-                          await updateDoc(doc(db, "teachers", currentTeacher.id), { photoURL: null });
-                          setCurrentTeacher(updatedTeacher);
-                          
-                          // Attempt to delete from storage if URL matches our structure (optional cleanup)
-                          // Note: A robust system would track the full storage path or parse it from the URL.
-                          
-                          window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบรูประยะไกลออกจากโปรไฟล์แล้ว', type: 'success' } }));
-                        } catch (err) {
-                          console.error("Error removing avatar:", err);
-                          window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ลบรูปภาพไม่สำเร็จ', type: 'error' } }));
-                        }
-                      }}
-                      className="text-rose-500 hover:bg-rose-100 p-1.5 rounded-lg text-[10px] font-bold"
-                    >
-                      ลบรูป
-                    </button>
-                  )}
                 </div>
               </div>
 

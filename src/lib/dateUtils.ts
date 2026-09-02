@@ -24,10 +24,15 @@ export const formatThaiDate = (dateString?: string, format: 'short' | 'full' = '
       }
     }
     
-    if (/^\d+$/.test(parsedString) && parseInt(parsedString, 10) > 30000) {
+    if (/^\d+$/.test(parsedString)) {
       const serial = parseInt(parsedString, 10);
-      const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
-      parsedString = d.toISOString();
+      if (serial > 30000) {
+        const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+        parsedString = d.toISOString();
+      } else {
+        // It's just a small number (e.g. 1, 2, 3), don't parse it as a Date
+        return dateString;
+      }
     }
 
     const d = new Date(parsedString);

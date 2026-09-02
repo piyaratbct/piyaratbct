@@ -200,6 +200,7 @@ export interface Student {
   firstName: string;
   lastName: string;
   nickname?: string;
+  photoURL?: string;
   gradeLevel: string;
   academicYear?: string;
   gender: 'male' | 'female';

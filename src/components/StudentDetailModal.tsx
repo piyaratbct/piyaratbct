@@ -1,6 +1,7 @@
 import React from 'react';
 import { Student } from '../types';
 import { X, User, HeartPulse, MapPin, Phone, Calendar, AlertTriangle } from 'lucide-react';
+import { AvatarUpload } from './AvatarUpload';
 
 interface StudentDetailModalProps {
   student: Student;
@@ -50,8 +51,14 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
         
         <div className="p-6 overflow-y-auto space-y-6">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0">
-              <span className="text-2xl font-black">{student.firstName.charAt(0)}</span>
+            <div className="shrink-0 pt-1">
+              <AvatarUpload
+                url={student.photoURL}
+                name={student.firstName || student.studentId}
+                size="lg"
+                editable={false}
+                onUpload={async () => {}}
+              />
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800">

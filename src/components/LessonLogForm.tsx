@@ -124,7 +124,16 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
 
   const handleImportPlan = (plan: LessonPlan) => {
     setSubject(plan.subject as SubjectType);
-    setSelectedGrades([plan.gradeLevel]);
+    if (plan.customSubject) {
+      setCustomSubject(plan.customSubject);
+    } else {
+      setCustomSubject('');
+    }
+    if (plan.gradeLevel) {
+      const levels = plan.gradeLevel.split(',').map(s => s.trim()).filter(Boolean);
+      setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
+    }
+    if (plan.date) setDate(plan.date);
     if (plan.semester) setSemester(plan.semester);
     // Merge plan info into content
     const planContent = `${plan.title}\n${plan.objectives ? 'จุดประสงค์:\n' + plan.objectives : ''}`;
@@ -206,7 +215,10 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
   // Load initial record for editing
   useEffect(() => {
     if (initialRecord) {
-      setSubject(initialRecord.subject === 'อื่นๆ' && initialRecord.customSubject ? initialRecord.customSubject : (initialRecord.subject as string));
+      setSubject((initialRecord.subject as string) as any);
+      if (initialRecord.customSubject) {
+        setCustomSubject(initialRecord.customSubject);
+      }
       
       if (initialRecord.gradeLevel) {
         const levels = initialRecord.gradeLevel.split(',').map(s => s.trim()).filter(Boolean);
@@ -296,8 +308,8 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
       ...(initialRecord || {}),
       id: initialRecord?.id || `rec-${Date.now()}`,
       teacherId,
-      subject: isIntegrated ? 'บูรณาการ' : subject,
-      customSubject: (!isIntegrated && subject === 'อื่นๆ') ? customSubject : '', 
+      subject: subject,
+      customSubject: (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : '', 
       gradeLevel: selectedGrades.join(', '),
       academicYear: systemAcademicYear,
       semester,
@@ -368,12 +380,11 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
         )}
 
         {/* 1. Basic Metadata Grid (subject, semester, date) */}
-        <div className={`grid grid-cols-1 ${isIntegrated ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
-          {!isIntegrated && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                กลุ่มสาระ / วิชาที่สอน
-              </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              กลุ่มสาระ / วิชาที่สอน
+            </label>
               <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value as SubjectType)}
@@ -384,18 +395,17 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
                   <option key={sub} value={sub}>{sub}</option>
                 ))}
               </select>
-              {subject === 'อื่นๆ' && (
+              {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
                 <input
                   type="text"
                   value={customSubject}
                   onChange={(e) => setCustomSubject(e.target.value)}
-                  placeholder="ระบุวิชาอื่นๆ..."
+                  placeholder={subject === "บูรณาการ (PBL)" ? "ระบุวิชาหลัก..." : "ระบุวิชาอื่นๆ..."}
                   className="w-full mt-2 px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   required
                 />
               )}
-            </div>
-          )}
+          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -716,7 +726,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="font-bold text-slate-800 truncate text-sm">{plan.title || 'ไม่มีชื่อแผน'}</h4>
                           <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold shrink-0 ml-2">
-                            {plan.date ? formatThaiDate(plan.date) : ''}
+                            {plan.date ? (plan.date.includes('ครั้ง') || plan.date.includes('คาบ') ? plan.date : (plan.date.includes('-') || plan.date.includes('/') ? formatThaiDate(plan.date) : `ครั้งที่ ${plan.date}`)) : ''}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">

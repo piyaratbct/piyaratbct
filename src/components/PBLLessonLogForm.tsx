@@ -70,7 +70,7 @@ interface PBLLessonLogFormProps {
 }
 
 export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1', preloadedPlan, onClearPreloadedPlan }: PBLLessonLogFormProps) {
-  const subject = "บูรณาการ (PBL)";
+  const [subject, setSubject] = useState<string>(initialRecord?.subject || "บูรณาการ (PBL)");
 
   const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
   const defaultSemester = `ภาคเรียนที่ ${systemSemester}/${systemAcademicYear}`;
@@ -85,6 +85,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   };
 
     const [date, setDate] = useState(initialRecord?.date || "");
+  const [customSubject, setCustomSubject] = useState(initialRecord?.customSubject || "");
   const [pblDrivingQuestion, setPblDrivingQuestion] = useState(initialRecord?.pblDrivingQuestion || "");
   const [pblInvestigationSteps, setPblInvestigationSteps] = useState(initialRecord?.pblInvestigationSteps || "");
   const [pblPresentation, setPblPresentation] = useState(initialRecord?.pblPresentation || "");
@@ -125,13 +126,25 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   };
 
   const handleImportPlan = (plan: LessonPlan) => {
-    setSelectedGrades([plan.gradeLevel]);
+    if (plan.gradeLevel) {
+      const levels = plan.gradeLevel.split(',').map(s => s.trim()).filter(Boolean);
+      setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
+    }
+    if (plan.date) setDate(plan.date);
     if (plan.semester) setSemester(plan.semester);
     // Merge plan info into content
     const planContent = `${plan.title}\n${plan.objectives ? 'จุดประสงค์:\n' + plan.objectives : ''}`;
     setContent(planContent.trim());
     setActivities(plan.activities || '');
     setIntegratedSubjects(plan.integratedSubjects || "");
+    if (plan.subject) {
+      setSubject(plan.subject);
+    }
+    if (plan.customSubject) {
+      setCustomSubject(plan.customSubject);
+    } else {
+      setCustomSubject('');
+    }
     setPblDrivingQuestion(plan.pblDrivingQuestion || "");
     setPblInvestigationSteps(plan.pblInvestigationSteps || "");
     setPblPresentation(plan.pblPresentation || "");
@@ -315,8 +328,8 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       ...(initialRecord || {}),
       id: initialRecord?.id || `rec-${Date.now()}`,
       teacherId,
-      subject: "บูรณาการ (PBL)",
-      customSubject: '', // We now save the actual subject directly into the `subject` field
+      subject: subject,
+      customSubject: (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : undefined,
       gradeLevel: selectedGrades.join(', '),
       academicYear: systemAcademicYear,
       semester,
@@ -391,7 +404,32 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
         )}
 
         {/* 1. Basic Metadata Grid (subject, semester, date) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              วิชาหลัก (Main Subject)
+            </label>
+            <select
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {SUBJECTS.map((subj) => (
+                <option key={subj} value={subj}>{subj}</option>
+              ))}
+            </select>
+            {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
+              <input
+                type="text"
+                placeholder={subject === "บูรณาการ (PBL)" ? "ระบุวิชาหลัก..." : "ระบุวิชาอื่นๆ..."}
+                value={customSubject}
+                onChange={(e) => setCustomSubject(e.target.value)}
+                className="w-full mt-2 px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                required
+              />
+            )}
+          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -751,7 +789,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="font-bold text-slate-800 truncate text-sm">{plan.title || 'ไม่มีชื่อแผน'}</h4>
                           <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold shrink-0 ml-2">
-                            {plan.date ? formatThaiDate(plan.date) : ''}
+                            {plan.date ? (plan.date.includes('ครั้ง') || plan.date.includes('คาบ') ? plan.date : (plan.date.includes('-') || plan.date.includes('/') ? formatThaiDate(plan.date) : `ครั้งที่ ${plan.date}`)) : ''}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">

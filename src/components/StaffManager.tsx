@@ -42,40 +42,13 @@ export function StaffManager({ currentTeacher }: StaffManagerProps) {
         const wA = roleWeight[a.role || 'teacher'] || 99;
         const wB = roleWeight[b.role || 'teacher'] || 99;
         if (wA !== wB) return wA - wB;
-        const canView = currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy";
-
-  if (!canView) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center max-w-2xl mx-auto mt-12">
-        <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Shield className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
-        <p className="text-slate-500 mb-6">คุณไม่มีสิทธิ์ในการเข้าถึงระบบจัดการบุคลากร (เฉพาะผู้ดูแลระบบ, รองผู้อำนวยการ, และฝ่ายวิชาการเท่านั้น)</p>
-      </div>
-    );
-  }
-
-  return (a.thaiName || "").localeCompare(b.thaiName || "");
+        return (a.thaiName || "").localeCompare(b.thaiName || "");
       });
       setTeachers(fetched);
       setLoading(false);
     });
-    const canView = currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy";
 
-  if (!canView) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center max-w-2xl mx-auto mt-12">
-        <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Shield className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
-        <p className="text-slate-500 mb-6">คุณไม่มีสิทธิ์ในการเข้าถึงระบบจัดการบุคลากร (เฉพาะผู้ดูแลระบบ, รองผู้อำนวยการ, และฝ่ายวิชาการเท่านั้น)</p>
-      </div>
-    );
-  }
-
-  return () => unsub();
+    return () => unsub();
   }, []);
 
   const handleEditClick = (t: Teacher) => {
@@ -174,27 +147,11 @@ export function StaffManager({ currentTeacher }: StaffManagerProps) {
                 {filteredTeachers.map(teacher => {
                   const isEditing = editingId === teacher.id;
                   
-                  const canView = currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy";
-
-  if (!canView) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center max-w-2xl mx-auto mt-12">
-        <div className="h-16 w-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Shield className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
-        <p className="text-slate-500 mb-6">คุณไม่มีสิทธิ์ในการเข้าถึงระบบจัดการบุคลากร (เฉพาะผู้ดูแลระบบ, รองผู้อำนวยการ, และฝ่ายวิชาการเท่านั้น)</p>
-      </div>
-    );
-  }
-
-  return (
+                  return (
                     <tr key={teacher.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-4 align-top">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                            {teacher.thaiName?.[0] || <UserCircle className="h-6 w-6" />}
-                          </div>
+                          
                           <div>
                             <div className="font-bold text-slate-800">{teacher.thaiName}</div>
                             <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">

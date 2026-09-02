@@ -1,3 +1,4 @@
+import { AvatarUpload } from "./AvatarUpload";
 import React, { useState } from 'react';
 import { Student, StudentAssessment, KindergartenAssessment, SubjectScore, DisciplineIncident } from "../types";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
@@ -124,15 +125,17 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
   const [searchTerm, setSearchTerm] = useState("");
   
   // Extend MOCK_STUDENTS with initialStudent if it exists and is not in MOCK_STUDENTS
-  const extendedStudents = React.useMemo(() => {
-    const list = [...MOCK_STUDENTS];
-    if (initialStudent && !list.find(s => s.id === initialStudent.id || s.studentId === initialStudent.studentId)) {
-      list.push({
+    const extendedStudents = React.useMemo(() => {
+    const list = [...MOCK_STUDENTS] as any[];
+    if (initialStudent) {
+      const existingIdx = list.findIndex(s => s.id === initialStudent.id || s.studentId === initialStudent.studentId);
+      const mapped = {
         id: initialStudent.id,
         studentId: initialStudent.studentId,
         firstName: initialStudent.firstName,
         lastName: initialStudent.lastName,
         nickname: initialStudent.nickname || '',
+        photoURL: initialStudent.photoURL || '',
         grade: initialStudent.gradeLevel,
         dob: initialStudent.dob || "ไม่ระบุ",
         bloodType: initialStudent.bloodGroup || "ไม่ระบุ",
@@ -148,23 +151,28 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
         parentPhone: initialStudent.parentPhone || "ไม่ระบุ",
         academic: {
           gpa: 0,
-          attendanceRate: 100,
-          subjects: []
-        },
-        health: {
-          height: initialStudent.height || 0,
-          weight: initialStudent.weight || 0,
-          bmi: initialStudent.weight && initialStudent.height ? Number((initialStudent.weight / Math.pow(initialStudent.height / 100, 2)).toFixed(1)) : 0,
-          vision: "รอผลตรวจ",
-          dental: "รอผลตรวจ"
+          attendance: 100,
+          participation: 0,
+          assignments: 0
         },
         behavior: {
           score: 100,
-          notes: "ยังไม่มีบันทึกเพิ่มเติม",
-          achievements: []
+          merits: 0,
+          demerits: 0
         },
-        pastoralCare: []
-      });
+        health: {
+          height: initialStudent.height ? parseFloat(initialStudent.height.toString()) : 0,
+          weight: initialStudent.weight ? parseFloat(initialStudent.weight.toString()) : 0,
+          bmi: 0,
+          vision: initialStudent.vision || "ไม่ระบุ",
+          dental: initialStudent.dental || "ไม่ระบุ"
+        }
+      };
+      if (existingIdx >= 0) {
+        list[existingIdx] = { ...list[existingIdx], ...mapped };
+      } else {
+        list.push(mapped);
+      }
     }
     return list;
   }, [initialStudent]);
@@ -296,8 +304,8 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                         }}
                         className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-indigo-600" />
+                        <div className="shrink-0 flex items-center justify-center">
+                          <AvatarUpload url={s.photoURL} name={s.firstName || '?'} size="sm" />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800">{s.firstName} {s.lastName} ({s.nickname})</p>
@@ -361,21 +369,25 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="h-24 bg-gradient-to-r from-indigo-500 to-purple-500 relative">
                 <div className="absolute -bottom-10 left-6">
-                  <div className="w-20 h-20 rounded-2xl border-4 border-white bg-indigo-50 flex items-center justify-center shadow-sm">
-                    <User className="w-10 h-10 text-indigo-400" />
+                  <div className="w-20 h-20 rounded-2xl border-4 border-white bg-white flex items-center justify-center shadow-sm relative overflow-hidden">
+                    <AvatarUpload
+                      url={student.photoURL}
+                      name={student.firstName || '?'}
+                      size="xl"
+                      editable={false}
+                      onUpload={async () => {}}
+                    />
                   </div>
                 </div>
               </div>
               <div className="pt-14 p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-lg font-black text-slate-800 leading-tight">
-                      {student.firstName} {student.lastName}
-                    </h2>
-                    <p className="text-sm font-bold text-indigo-600 mt-0.5">ชื่อเล่น: {student.nickname}</p>
-                  </div>
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold whitespace-nowrap">
-                    {student.grade}
+                <div className="flex flex-col items-start gap-1">
+                  <h2 className="text-lg font-black text-slate-800 leading-tight">
+                    {student.firstName} {student.lastName}
+                  </h2>
+                  <p className="text-sm font-bold text-indigo-600">ชื่อเล่น: {student.nickname}</p>
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-bold whitespace-nowrap mt-1">
+                    ชั้น {student.grade}
                   </span>
                 </div>
 

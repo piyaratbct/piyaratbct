@@ -357,7 +357,7 @@ export function LessonLogList({
                   <span
                     className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${getSubjectColor(record.subject)}`}
                   >
-                    {record.subject === "อื่นๆ" && record.customSubject
+                    {(record.subject === "อื่นๆ" || record.subject === "บูรณาการ (PBL)") && record.customSubject
                       ? record.customSubject
                       : record.subject}
                   </span>

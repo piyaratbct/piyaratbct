@@ -164,7 +164,7 @@ export function LessonPlanForm({
         const snapshotCurriculums = await getDocs(qCurriculums);
         let fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
         
-        const activeSubject = subject === 'อื่นๆ' ? customSubject : subject;
+        const activeSubject = (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : subject;
         let subjectsArray = [activeSubject];
         if (isIntegrated && integratedSubjects) {
            subjectsArray = [...subjectsArray, ...integratedSubjects.split(',').map(s => s.trim()).filter(Boolean)];
@@ -260,7 +260,7 @@ export function LessonPlanForm({
 
   useEffect(() => {
     if (initialPlan) {
-      setSubject(initialPlan.subject === 'อื่นๆ' && initialPlan.customSubject ? initialPlan.customSubject : (initialPlan.subject as string));
+      setSubject((initialPlan.subject === 'อื่นๆ' || initialPlan.subject === 'บูรณาการ (PBL)') && initialPlan.customSubject ? initialPlan.customSubject : (initialPlan.subject as string));
 
       if (initialPlan.gradeLevel) {
         const levels = initialPlan.gradeLevel
@@ -329,7 +329,7 @@ export function LessonPlanForm({
       id: initialPlan ? initialPlan.id : Date.now().toString(),
       teacherId: initialPlan ? initialPlan.teacherId : teacherId,
       subject: subject,
-      customSubject: (subject === 'อื่นๆ') ? customSubject : undefined,
+      customSubject: (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : undefined,
       gradeLevel: selectedGrades.join(", "),
       title,
       isIntegrated,
@@ -449,12 +449,12 @@ export function LessonPlanForm({
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              {subject === 'อื่นๆ' && (
+              {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
                 <input
                   type="text"
                   value={customSubject}
                   onChange={(e) => setCustomSubject(e.target.value)}
-                  placeholder="ระบุวิชาอื่นๆ..."
+                  placeholder={subject === "บูรณาการ (PBL)" ? "ระบุวิชาหลัก..." : "ระบุวิชาอื่นๆ..."}
                   className="w-full mt-2 px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   required
                 />
@@ -1152,7 +1152,7 @@ export function LessonPlanForm({
                                 onChange={(e) => setStructuredEvaluations(prev => prev.map(p => p.id === evalItem.id ? { ...p, targetSubject: e.target.value } : p))}
                                 className="text-xs border border-slate-200 rounded p-1 focus:ring-rose-500 focus:border-rose-500"
                               >
-                                <option value="">วิชาหลัก ({subject === 'อื่นๆ' ? customSubject : subject})</option>
+                                <option value="">วิชาหลัก ({(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : subject})</option>
                                 {integratedSubjects.split(',').map(s => s.trim()).filter(Boolean).map(s => (
                                   <option key={s} value={s}>{s}</option>
                                 ))}
