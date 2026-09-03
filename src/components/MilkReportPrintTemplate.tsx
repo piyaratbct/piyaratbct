@@ -209,7 +209,7 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
               <thead>
                 <tr>
                   <th rowSpan={2} className="border border-slate-400 px-1 py-1 w-6 text-center font-normal">ที่</th>
-                  <th rowSpan={2} className="border border-slate-400 px-2 py-1 w-[140px] text-center font-normal">ชื่อ - สกุล</th>
+                  <th rowSpan={2} className="border border-slate-400 px-2 py-1 whitespace-nowrap text-center font-normal">ชื่อ - สกุล</th>
                   <th colSpan={2} className="border border-slate-400 px-1 py-1 text-center font-normal">ต้นเดือน</th>
                   <th colSpan={31} className="border border-slate-400 px-1 py-1 text-center font-normal relative">
                     <span className="inline-flex relative z-10 bg-white px-2 items-center gap-2">
@@ -243,7 +243,7 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
                   return (
                     <tr key={student.id}>
                       <td className="border border-slate-400 px-1 py-1 text-center h-6">{absoluteIndex}</td>
-                      <td className="border border-slate-400 px-2 py-1 truncate max-w-[140px] text-[11px]">
+                      <td className="border border-slate-400 px-2 py-1 whitespace-nowrap text-[11px]">
                         {student.firstName} {student.lastName}
                       </td>
                       <td className="border border-slate-400 px-1 py-1 text-center text-[10px]">{prevAssessment?.weight || student.weight || ''}</td>
@@ -266,7 +266,7 @@ export const MilkReportPrintTemplate: React.FC<MilkReportPrintTemplateProps> = (
                       <td className="border border-slate-400 px-1 py-1 text-center text-[10px]">
                         {assessment?.height || ''}
                       </td>
-                      <td className="border border-slate-400 px-1 py-1 text-center text-[9px] truncate max-w-[60px]">
+                      <td className="border border-slate-400 px-1 py-1 text-center text-[9px] max-w-[60px] break-words leading-tight">
                       </td>
                     </tr>
                   );

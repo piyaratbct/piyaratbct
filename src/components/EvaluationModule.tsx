@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star } from 'lucide-react';
-import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings } from '../types';
+import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, TeacherSchedule, AttendanceSession } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { LearningHoursReport } from './LearningHoursReport';
 import { SubjectSettingsModal } from './SubjectSettingsModal';
 import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
+import { AttendancePrintTemplate } from './AttendancePrintTemplate';
 import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
 
 import { Printer } from 'lucide-react';
@@ -53,7 +54,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         });
         setScoutCampAttendees(attendees);
       });
-      return () => unsubscribe();
+      
+
+  
+
+  
+
+  return () => unsubscribe();
     }
   }, [selectedSubject]);
   
@@ -63,8 +70,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [showWarningToast, setShowWarningToast] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
   
-  const [gradesSubTab, setGradesSubTab] = useState<'part1' | 'part2'>('part1');
+  const [gradesSubTab, setGradesSubTab] = useState<'attendance' | 'part1' | 'part2' | 'part3' | 'part4' | 'part5'>('attendance');
+  const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPrintAttendance, setShowPrintAttendance] = useState(false);
   const [showPrintScore, setShowPrintScore] = useState(false);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
@@ -77,12 +87,72 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     return [...GRADE_LEVELS.filter(g => !hideGrades.includes(g)), ...extraGrades];
   }, [students]);
 
+  const attendanceStats = React.useMemo(() => {
+    // calculate total target periods for the selected subject
+    const periodsPerWeek = schedules.filter(s => s.subject === selectedSubject).length;
+    // assuming 20 weeks per semester
+    const totalTargetPeriods = periodsPerWeek * 20;
+
+    // for each student, calculate how many times they were present/late/leave/sick
+    const studentStats: Record<string, { present: number, leave: number, sick: number, absent: number, late: number }> = {};
+    
+    students.forEach(s => {
+      studentStats[s.id] = { present: 0, leave: 0, sick: 0, absent: 0, late: 0 };
+    });
+
+    attendanceSessions.filter(sess => sess.subject === selectedSubject).forEach(sess => {
+      Object.entries(sess.attendanceData).forEach(([studentId, status]) => {
+        if (studentStats[studentId] && studentStats[studentId][status] !== undefined) {
+          studentStats[studentId][status]++;
+        }
+      });
+    });
+
+    return {
+      totalTargetPeriods,
+      studentStats
+    };
+  }, [schedules, attendanceSessions, selectedSubject, students]);
+
   useEffect(() => {
     const prathomGrades = uniqueGrades.filter(g => g.includes('ประถม'));
     if (!prathomGrades.includes(selectedGrade) && prathomGrades.length > 0) {
       setSelectedGrade(prathomGrades[0]);
     }
   }, [uniqueGrades, selectedGrade]);
+
+  useEffect(() => {
+    if (!systemAcademicYear || !systemSemester || !selectedGrade || !selectedSubject) return;
+
+    // Fetch schedules
+    const sq = query(
+      collection(db, 'schedules'),
+      where('academicYear', '==', systemAcademicYear),
+      where('semester', '==', systemSemester),
+      where('gradeLevel', '==', selectedGrade),
+      where('subject', '==', selectedSubject)
+    );
+    const unSubSchedules = onSnapshot(sq, (snap) => {
+      setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSchedule)));
+    });
+
+    // Fetch attendance
+    const aq = query(
+      collection(db, 'attendanceSessions'),
+      where('academicYear', '==', systemAcademicYear),
+      where('semester', '==', systemSemester),
+      where('gradeLevel', '==', selectedGrade),
+      where('subject', '==', selectedSubject)
+    );
+    const unSubAttendance = onSnapshot(aq, (snap) => {
+      setAttendanceSessions(snap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceSession)));
+    });
+
+    return () => {
+      unSubSchedules();
+      unSubAttendance();
+    };
+  }, [systemAcademicYear, systemSemester, selectedGrade, selectedSubject]);
 
   useEffect(() => {
     const q = query(collection(db, "subject_scores"));
@@ -316,6 +386,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   };
 
+  const subjectTeacherName = schedules.length > 0 && schedules[0].teacherName
+    ? schedules[0].teacherName
+    : currentTeacher
+    ? `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`.trim()
+    : undefined;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
       
@@ -461,10 +537,16 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
                   </button>
                   <button
+                    onClick={() => setShowPrintAttendance(true)}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    <Printer className="h-4 w-4" /> พิมพ์เวลาเรียน
+                  </button>
+                  <button
                     onClick={() => setShowPrintScore(true)}
                     className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
                   >
-                    <Printer className="h-4 w-4" /> พิมพ์ (ปพ.5)
+                    <Printer className="h-4 w-4" /> พิมพ์คะแนน (ปพ.5)
                   </button>
                   <button
                     onClick={() => setShowPrintReport(true)}
@@ -477,7 +559,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
               {!['กิจกรรมลูกเสือ', 'กิจกรรมอ่าน-เขียน'].includes(selectedSubject) ? ( <>
               {/* Sub tabs for grades */}
-              <div className="flex overflow-x-auto border-b border-slate-200 mb-6">
+                            <div className="flex overflow-x-auto border-b border-slate-200 mb-6">
+                <button
+                  onClick={() => setGradesSubTab('attendance')}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'attendance' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  เวลาเรียน (ปพ.5)
+                </button>
                 <button
                   onClick={() => setGradesSubTab('part1')}
                   className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part1' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
@@ -488,12 +576,83 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   onClick={() => setGradesSubTab('part2')}
                   className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
-                  ส่วนที่ 2: สอบ (กลางภาค/ปลายภาค)
+                  ส่วนที่ 2: ผลการเรียน
+                </button>
+                <button
+                  onClick={() => setGradesSubTab('part3')}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part3' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  ส่วนที่ 3: คุณลักษณะฯ
+                </button>
+                <button
+                  onClick={() => setGradesSubTab('part4')}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part4' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  ส่วนที่ 4: อ่าน คิดวิเคราะห์ฯ
+                </button>
+                <button
+                  onClick={() => setGradesSubTab('part5')}
+                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part5' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  ส่วนที่ 5: สมรรถนะสำคัญ
                 </button>
               </div>
 
               <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full">
-                {gradesSubTab === 'part1' && subjectSettings ? (
+                                {gradesSubTab === 'attendance' ? (
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3 text-center w-16 border-r border-slate-200">เลขที่</th>
+                        <th className="px-4 py-3 w-60 border-r border-slate-200">ชื่อ-นามสกุล</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200 text-emerald-600">มาเรียน</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200 text-amber-500">สาย</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200 text-sky-500">ลากิจ</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200 text-purple-500">ลาป่วย</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200 text-rose-500">ขาดเรียน</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200">รวม (ครั้ง)</th>
+                        <th className="px-4 py-3 text-center border-r border-slate-200">เวลาเรียนเต็ม (คาบ)</th>
+                        <th className="px-4 py-3 text-center">ร้อยละ (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {students.filter(s => s.gradeLevel === selectedGrade)
+                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
+                          .map((student) => {
+                        const stats = attendanceStats.studentStats[student.id];
+                        const totalAttended = stats.present + stats.late;
+                        const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+                        
+                        // Percentage can be calculated from target periods or total records if target periods is 0
+                        const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+                        const percentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
+                        const isAtRisk = baseTotal > 0 && percentage < 80;
+
+                        return (
+                          <tr key={student.id} className={`hover:bg-slate-50 transition-colors ${isAtRisk ? 'bg-rose-50/30' : ''}`}>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-slate-500">{student.number}</td>
+                            <td className="px-4 py-3 border-r border-slate-200 font-medium whitespace-nowrap">
+                              <span>{student.firstName} {student.lastName}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-emerald-600 font-medium">{stats.present}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-amber-500 font-medium">{stats.late}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-sky-500 font-medium">{stats.leave}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-purple-500 font-medium">{stats.sick}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-rose-500 font-medium">{stats.absent}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 font-bold text-slate-700">{totalAttended}</td>
+                            <td className="px-4 py-3 text-center border-r border-slate-200 text-slate-500">{baseTotal}</td>
+                            <td className={`px-4 py-3 text-center font-bold ${isAtRisk ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              <div className="flex items-center justify-center gap-2">
+                                <span>{percentage.toFixed(1)}%</span>
+                                {isAtRisk && <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold" title="เวลาเรียนไม่ถึง 80% (ไม่มีสิทธิ์สอบ)">มส.</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : gradesSubTab === 'part1' && subjectSettings ? (
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
@@ -994,6 +1153,19 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         />
       )}
       
+      {showPrintAttendance && (
+        <AttendancePrintTemplate
+          students={students.filter(s => s.gradeLevel === selectedGrade)}
+          attendanceStats={attendanceStats}
+          subject={selectedSubject}
+          gradeLevel={selectedGrade}
+          academicYear={systemAcademicYear || "2567"}
+          semester={systemSemester || "1"}
+          teacherName={subjectTeacherName}
+          onClose={() => setShowPrintAttendance(false)}
+        />
+      )}
+
       {showPrintScore && (
         <SubjectScorePrintTemplate
           students={students}
@@ -1003,7 +1175,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           academicYear={systemAcademicYear || "2567"}
           semester={systemSemester || "1"}
           settings={subjectSettings}
-          teacherName={undefined}
+          teacherName={subjectTeacherName}
+          attendanceStats={attendanceStats}
           onClose={() => setShowPrintScore(false)}
         />
       )}

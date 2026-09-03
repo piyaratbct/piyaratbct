@@ -91,6 +91,16 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                     <span className="text-slate-600">({student.nickname})</span>
                   )}
                 </div>
+                <div className="col-span-2 flex gap-4">
+                  <div>
+                    <span className="font-bold text-sky-900">น้ำหนัก:</span>{" "}
+                    {assessment.weight || student.weight || "-"} <span className="text-slate-600 text-[0.9em]">กก.</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-sky-900">ส่วนสูง:</span>{" "}
+                    {assessment.height || student.height || "-"} <span className="text-slate-600 text-[0.9em]">ซม.</span>
+                  </div>
+                </div>
               </div>
             </div>
 

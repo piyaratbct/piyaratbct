@@ -26,14 +26,25 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
   gradeLevel,
   academicYear,
   semester,
-  teacherName = ".......................................................",
+  teacherName,
   settings,
   onClose,
 }) => {
   const calculateGrade = (total: number, subjectName: string, activities?: any, isScoutAttended?: boolean): string => {
     if (subjectName === 'กิจกรรมลูกเสือ') {
       const campAttended = isScoutAttended || activities?.scoutCamp === 1;
-      return (total >= 80 && campAttended) ? "ผ" : "มผ";
+      const getStudentAttendance = (studentId: string) => {
+    if (!attendanceStats) return "-";
+    const stats = attendanceStats.studentStats[studentId];
+    if (!stats) return "-";
+    const totalAttended = stats.present + stats.late;
+    const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+    const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+    if (baseTotal === 0) return "-";
+    return ((totalAttended / baseTotal) * 100).toFixed(1) + "%";
+  };
+
+  return (total >= 80 && campAttended) ? "ผ" : "มผ";
     }
     if (subjectName === 'กิจกรรมอ่าน-เขียน') {
       if (total >= 80) return "3 (ดีเยี่ยม)";
@@ -234,12 +245,11 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
             <div className="grid grid-cols-2 gap-8 mt-16 page-break-inside-avoid">
               <PrintSignatureBox
                 role="ผู้สอน"
-                name={teacherName !== "......................................................." ? teacherName : undefined}
-                label="(ลงชื่อ) ....................................................... ผู้สอน"
+                name={teacherName}
               />
               <PrintSignatureBox
                 role="หัวหน้าฝ่ายวิชาการ/ผู้ตรวจ"
-                label="(ลงชื่อ) ....................................................... ผู้ตรวจ"
+                
               />
             </div>
           )}

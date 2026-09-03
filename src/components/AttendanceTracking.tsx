@@ -31,6 +31,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [termEndDate, setTermEndDate] = useState<string>('');
   const [showMilkReport, setShowMilkReport] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState({ name: '', subDistrict: '', district: '', province: '' });
+  const [holidays, setHolidays] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchSchoolInfo = async () => {
@@ -51,6 +52,21 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     };
     fetchSchoolInfo();
   }, []);
+
+  // Fetch holidays
+  useEffect(() => {
+    if (!academicYear || !semester) return;
+    const calendarDocId = `${academicYear}_${semester}`;
+    const unsub = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.holidays) {
+          setHolidays(data.holidays.map((h: any) => h.date));
+        }
+      }
+    });
+    return () => unsub();
+  }, [academicYear, semester]);
 
   // Fetch term dates
   useEffect(() => {
@@ -293,6 +309,11 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     late: Object.values(attendanceData).filter(s => s === 'late').length,
   };
 
+  const selectedDateObj = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])) : new Date();
+  const isWeekend = selectedDateObj.getDay() === 0 || selectedDateObj.getDay() === 6;
+  const isHoliday = holidays.includes(date);
+  const isDateDisabled = isWeekend || isHoliday;
+
   const standardPeriods = PERIODS.filter(p => !p.includes('พักเบรก') && !p.includes('พักกลางวัน'));
   
   // Suggest periods based on teacher's schedule for this day and grade
@@ -383,7 +404,17 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         </div>
         
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-          {saveStatus && (
+          {isDateDisabled && (
+        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div className="text-sm">
+            <span className="font-bold">ไม่สามารถเช็คชื่อได้: </span> 
+            {isWeekend ? 'วันนี้เป็นวันหยุดเสาร์-อาทิตย์' : 'วันนี้เป็นวันหยุดพิเศษตามปฏิทินโรงเรียน'}
+          </div>
+        </div>
+      )}
+
+      {saveStatus && (
             <span className={`text-sm ${saveStatus.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
               {saveStatus.message}
             </span>
@@ -397,14 +428,14 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             </button>
             <button
               onClick={handleClearAttendance}
-              disabled={isSaving || isLoading}
+              disabled={isSaving || isLoading || isDateDisabled}
               className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-slate-100 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-200 font-bold transition-colors disabled:opacity-50 "
             >
               <XCircle className="h-4 w-4" /> ล้างข้อมูล
             </button>
             <button
               onClick={handleMarkAllPresent}
-              disabled={isSaving || isLoading}
+              disabled={isSaving || isLoading || isDateDisabled}
               className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold transition-colors disabled:opacity-50 "
             >
               <CheckCircle2 className="h-4 w-4" /> มาเรียนทั้งหมด
@@ -422,7 +453,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             </label>
             <button
               onClick={handleSave}
-              disabled={isSaving || isLoading}
+              disabled={isSaving || isLoading || isDateDisabled}
               className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-6 sm:py-2 text-xs sm:text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold transition-colors disabled:opacity-50  shadow-sm"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -493,54 +524,54 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
                 <div className="flex flex-col md:flex-row gap-1 sm:gap-2 w-full md:w-auto mt-2 md:mt-0">
                   <div className="grid grid-cols-3 md:flex gap-1 sm:gap-2 w-full md:w-auto">
                     <button
-                      onClick={() => handleStatusChange(student.id, 'present')}
+                      onClick={() => handleStatusChange(student.id, 'present')} disabled={isDateDisabled}
                       className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                         attendanceData[student.id] === 'present'
                           ? 'bg-emerald-500 text-white shadow-sm ring-1 ring-emerald-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> <span>มา</span>
                     </button>
                     <button
-                      onClick={() => handleStatusChange(student.id, 'leave')}
+                      onClick={() => handleStatusChange(student.id, 'leave')} disabled={isDateDisabled}
                       className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                         attendanceData[student.id] === 'leave'
                           ? 'bg-amber-500 text-white shadow-sm ring-1 ring-amber-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <HelpCircle className="h-3.5 w-3.5" /> <span>ลา</span>
                     </button>
                     <button
-                      onClick={() => handleStatusChange(student.id, 'sick')}
+                      onClick={() => handleStatusChange(student.id, 'sick')} disabled={isDateDisabled}
                       className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                         attendanceData[student.id] === 'sick'
                           ? 'bg-orange-500 text-white shadow-sm ring-1 ring-orange-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <AlertCircle className="h-3.5 w-3.5" /> <span>ป่วย</span>
                     </button>
                   </div>
                   <div className="grid grid-cols-2 md:flex gap-1 sm:gap-2 w-full md:w-auto">
                     <button
-                      onClick={() => handleStatusChange(student.id, 'late')}
+                      onClick={() => handleStatusChange(student.id, 'late')} disabled={isDateDisabled}
                       className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                         attendanceData[student.id] === 'late'
                           ? 'bg-blue-500 text-white shadow-sm ring-1 ring-blue-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <Clock className="h-3.5 w-3.5" /> <span>สาย</span>
                     </button>
                     <button
-                      onClick={() => handleStatusChange(student.id, 'absent')}
+                      onClick={() => handleStatusChange(student.id, 'absent')} disabled={isDateDisabled}
                       className={`flex-1 md:flex-none flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-0.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[10px] sm:text-xs font-bold transition-all ${
                         attendanceData[student.id] === 'absent'
                           ? 'bg-rose-500 text-white shadow-sm ring-1 ring-rose-200'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <XCircle className="h-3.5 w-3.5" /> <span>ขาด</span>
                     </button>

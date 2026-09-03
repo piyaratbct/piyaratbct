@@ -276,6 +276,8 @@ export interface AttendanceSession {
 export interface KindergartenAssessment {
   id: string;
   studentId: string;
+  weight?: number;
+  height?: number;
   gradeLevel: string;
   semester: string;
   academicYear: string;
@@ -327,6 +329,18 @@ export interface SubjectScore {
   
   totalScore: number; // /100
   grade: string; // "4", "3.5", "3", etc.
+  
+  // การประเมินคุณลักษณะอันพึงประสงค์ 8 ประการ (0-3)
+  characterScores?: Record<string, number>;
+  characterResult?: string; // "3", "2", "1", "0"
+
+  // การประเมินอ่าน คิดวิเคราะห์ เขียน (0-3)
+  readingScores?: Record<string, number>;
+  readingResult?: string; // "3", "2", "1", "0"
+
+  // การประเมินสมรรถนะสำคัญของผู้เรียน (0-3)
+  competencyScores?: Record<string, number>;
+  competencyResult?: string; // "3", "2", "1", "0"
   
   updatedAt: string;
 }
