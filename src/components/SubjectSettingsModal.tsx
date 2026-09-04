@@ -45,6 +45,7 @@ export const SubjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, setting
     }));
   };
 
+  
   const handleSave = () => {
     // Validate
     const sumBMK = localSettings.beforeMidKnowledge.reduce((acc, c) => acc + Number(c.maxScore), 0);

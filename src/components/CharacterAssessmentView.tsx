@@ -25,7 +25,7 @@ const TRAITS = [
 export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = ({ 
   students, systemAcademicYear, systemSemester, currentTeacher 
 }) => {
-  const [selectedGrade, setSelectedGrade] = useState<string>('ประถมศึกษาปีที่ 1');
+  const [selectedGrade, setSelectedGrade] = useState<string>('ประถมศึกษาปีที่ 1/1');
   const [assessments, setAssessments] = useState<Record<string, CharacterAssessment>>({});
   const [badges, setBadges] = useState<Record<string, StudentBadge[]>>({});
   const [lessonRecords, setLessonRecords] = useState<any[]>([]);

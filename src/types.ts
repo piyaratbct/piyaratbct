@@ -121,6 +121,8 @@ export interface StructuredEvaluation {
   autoGenerateColumn?: boolean;
   scorePeriod?: "before_mid" | "after_mid";
   targetSubject?: string;
+  indicator?: string;
+  indicators?: string[];
   generatedColumnId?: string; // Track if created in SubjectSettings
 }
 
@@ -492,10 +494,8 @@ export const GRADE_LEVELS = [
   'อนุบาล 1',
   'อนุบาล 2',
   'อนุบาล 3',
-  'ประถมศึกษาปีที่ 1',
   'ประถมศึกษาปีที่ 1/1',
   'ประถมศึกษาปีที่ 1/2',
-  'ประถมศึกษาปีที่ 2',
   'ประถมศึกษาปีที่ 2/1',
   'ประถมศึกษาปีที่ 2/2',
   'ประถมศึกษาปีที่ 3',

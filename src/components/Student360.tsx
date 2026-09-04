@@ -340,7 +340,7 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
                         className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors"
                       >
                         <div className="shrink-0 flex items-center justify-center">
-                          <AvatarUpload url={s.photoURL} name={s.firstName || '?'} size="sm" />
+                          <AvatarUpload url={s.photoURL} name={s.firstName || '?'} size="sm" onUpload={async () => {}} />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800">{s.firstName} {s.lastName} ({s.nickname})</p>

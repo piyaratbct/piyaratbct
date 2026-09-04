@@ -1,4 +1,4 @@
-import React, { useEffect, ReactNode } from "react";
+import React, { useState, useEffect, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Printer, X } from "lucide-react";
 import { SchoolLogo } from "./PrintTemplate";

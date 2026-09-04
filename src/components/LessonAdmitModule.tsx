@@ -124,7 +124,7 @@ const CapacityModal = ({ isOpen, onClose, initialCapacities, onSave, isSaving }:
           </button>
         </div>
         <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
-          {GRADE_LEVELS.filter(g => !g.includes('/')).map(grade => (
+          {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].map(grade => (
             <div key={grade} className="flex justify-between items-center">
               <label className="text-sm font-bold text-slate-700">{grade}</label>
               <input 
@@ -872,7 +872,7 @@ const AdmissionManager: React.FC<{
                   onChange={(e) => setFormData({...formData, applyForGrade: e.target.value})}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                 >
-                  {GRADE_LEVELS.filter(g => !g.includes('/')).map(g => <option key={g} value={g}>{g}</option>)}
+                  {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
             </div>
@@ -1502,7 +1502,7 @@ const AdmissionManager: React.FC<{
                   <CheckCircle className="h-4 w-4 text-emerald-500" /> สถานะการรับสมัคร / โควตา
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {GRADE_LEVELS.filter(g => !g.includes('/')).map(grade => {
+                  {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].map(grade => {
                     const cap = gradeCapacities[grade] || 0;
                     const currentStudentsInGrade = activeStudents.filter(s => {
                       const g = (s.gradeLevel || '').trim();
@@ -1558,7 +1558,7 @@ const AdmissionManager: React.FC<{
                       </div>
                     );
                   })}
-                  {GRADE_LEVELS.filter(g => !g.includes('/')).every(grade => {
+                  {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].every(grade => {
                     const cap = gradeCapacities[grade] || 0;
                     const totalApplied = applicants.filter(a => a.applyForGrade === grade).length;
                     const currentStudentsInGrade = activeStudents.filter(s => {

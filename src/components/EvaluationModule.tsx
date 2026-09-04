@@ -101,7 +101,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     });
 
     attendanceSessions.filter(sess => sess.subject === selectedSubject).forEach(sess => {
-      Object.entries(sess.attendanceData).forEach(([studentId, status]) => {
+      Object.entries(sess.attendanceData).forEach(([studentId, statusStr]) => {
+        const status = statusStr as keyof typeof studentStats[string];
         if (studentStats[studentId] && studentStats[studentId][status] !== undefined) {
           studentStats[studentId][status]++;
         }
@@ -392,6 +393,26 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     ? `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`.trim()
     : undefined;
 
+  const formatColumnHeader = (name: string, maxScore: number) => {
+    let namePart = name;
+    let indicatorPart = null;
+    
+    // Check if the name contains an indicator wrapped in parentheses, usually separated by a space
+    const parenIndex = name.indexOf(' (');
+    if (parenIndex !== -1 && name.endsWith(')')) {
+      namePart = name.substring(0, parenIndex);
+      indicatorPart = name.substring(parenIndex + 1);
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center leading-tight">
+        <span className="mb-1">{namePart}</span>
+        {indicatorPart && <span className="text-[10px] text-indigo-500 font-normal leading-tight max-w-[80px] whitespace-normal break-words">{indicatorPart}</span>}
+        <span className="text-slate-400 mt-1">({maxScore})</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
       
@@ -578,24 +599,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 >
                   ส่วนที่ 2: ผลการเรียน
                 </button>
-                <button
-                  onClick={() => setGradesSubTab('part3')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part3' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  ส่วนที่ 3: คุณลักษณะฯ
-                </button>
-                <button
-                  onClick={() => setGradesSubTab('part4')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part4' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  ส่วนที่ 4: อ่าน คิดวิเคราะห์ฯ
-                </button>
-                <button
-                  onClick={() => setGradesSubTab('part5')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part5' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  ส่วนที่ 5: สมรรถนะสำคัญ
-                </button>
+
               </div>
 
               <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full">
@@ -667,22 +671,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       <tr>
                         {subjectSettings.beforeMidKnowledge.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
-                            {act.name}<br/><span className="text-slate-400">({act.maxScore})</span>
+                            {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
                         {subjectSettings.beforeMidSoftSkill.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
-                            {act.name}<br/><span className="text-slate-400">({act.maxScore})</span>
+                            {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
                         {subjectSettings.afterMidKnowledge.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
-                            {act.name}<br/><span className="text-slate-400">({act.maxScore})</span>
+                            {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
                         {subjectSettings.afterMidSoftSkill.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
-                            {act.name}<br/><span className="text-slate-400">({act.maxScore})</span>
+                            {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
                       </tr>

@@ -231,7 +231,7 @@ export const ClassroomSettings: React.FC<ClassroomSettingsProps> = ({ students, 
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                 >
                   <option value="">-- เลือกระดับชั้น --</option>
-                  {GRADE_LEVELS.filter(g => !g.includes('/')).map(g => (
+                  {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].map(g => (
                     <option key={g} value={g}>{g}</option>
                   ))}
                 </select>

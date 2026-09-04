@@ -390,6 +390,15 @@ export function LessonPlanForm({
     );
   };
 
+  const availableIndicatorOptions = Array.from(new Set([
+    ...(coreIndicators ? coreIndicators.split('\n') : []).map(l => l.trim()).filter(Boolean),
+    ...(targetIndicators ? targetIndicators.split('\n') : []).map(l => l.trim()).filter(Boolean)
+  ])).map(line => {
+    const match = line.match(/^([ก-ฮa-zA-Z]+(\s+\d+\.\d+)?(\s+[มป]\.\d+(-\d+)?\/\d+)?)/);
+    const value = match ? match[1].trim() : line.substring(0, 30);
+    return { value, label: value };
+  });
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
       <div className="bg-gradient-to-r from-sky-400 via-sky-500 to-pink-400 px-6 py-4 flex justify-between items-center text-white shadow-xs">
@@ -1047,7 +1056,7 @@ export function LessonPlanForm({
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 pr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3 pr-6">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-1">ชื่อรายการ/ชิ้นงาน</label>
                       <input 
@@ -1081,6 +1090,37 @@ export function LessonPlanForm({
                         className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-rose-500 outline-none"
                         placeholder="10"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">อ้างอิงตัวชี้วัด (เลือกได้มากกว่า 1)</label>
+                      <div className="w-full text-xs p-2 border border-slate-200 rounded-lg max-h-24 overflow-y-auto bg-white flex flex-col gap-1.5">
+                        {availableIndicatorOptions.length === 0 && <span className="text-slate-400 italic text-[10px]">ยังไม่ได้ระบุตัวชี้วัดในแผน</span>}
+                        {availableIndicatorOptions.map((opt, i) => {
+                          const isChecked = (evalItem.indicators || []).includes(opt.value) || evalItem.indicator === opt.value;
+                          return (
+                            <label key={i} className="flex items-start gap-1.5 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setStructuredEvaluations(prev => prev.map(p => {
+                                    if (p.id !== evalItem.id) return p;
+                                    let currentInds = p.indicators || (p.indicator ? [p.indicator] : []);
+                                    if (e.target.checked) {
+                                      currentInds = [...currentInds, opt.value];
+                                    } else {
+                                      currentInds = currentInds.filter(val => val !== opt.value);
+                                    }
+                                    return { ...p, indicators: currentInds, indicator: '' };
+                                  }))
+                                }}
+                                className="mt-[2px] rounded border-slate-300 text-rose-500 focus:ring-rose-500 w-3 h-3"
+                              />
+                              <span className="text-[10px] text-slate-700 leading-tight">{opt.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 mb-1">วัดด้าน (K-P-A)</label>

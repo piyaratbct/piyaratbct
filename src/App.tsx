@@ -1180,16 +1180,47 @@ export default function App() {
                  else if (!isAfter && isSoftSkill) targetArray = currentSettings.beforeMidSoftSkill;
                  else targetArray = currentSettings.beforeMidKnowledge; // default (!isAfter && !isSoftSkill)
                  
-                 const exists = targetArray.find((c) => c.name === ev.name);
-                 if (!exists) {
+                 const generatedName = (ev.indicators && ev.indicators.length > 0) ? `${ev.name} (${ev.indicators.join(', ')})` : (ev.indicator ? `${ev.name} (${ev.indicator})` : ev.name);
+                 const evalId = ev.id || `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                 
+                 const allArrays = [
+                    currentSettings.beforeMidKnowledge, 
+                    currentSettings.beforeMidSoftSkill,
+                    currentSettings.afterMidKnowledge,
+                    currentSettings.afterMidSoftSkill
+                 ];
+                 
+                 let foundAndUpdated = false;
+                 let wasNewlyAdded = false;
+                 
+                 // Look for it in all arrays to handle updates and category moves
+                 for (const arr of allArrays) {
+                     const existingIdx = arr.findIndex(c => c.id === evalId || (c.name === ev.name && !c.id.startsWith('eval_')));
+                     if (existingIdx !== -1) {
+                         if (arr === targetArray) {
+                             // Correct array: Update in place to preserve order
+                             arr[existingIdx].name = generatedName;
+                             arr[existingIdx].maxScore = ev.maxScore || 10;
+                             foundAndUpdated = true;
+                         } else {
+                             // Wrong array (category changed): Remove it
+                             arr.splice(existingIdx, 1);
+                         }
+                     }
+                 }
+                 
+                 if (!foundAndUpdated) {
                      targetArray.push({
-                        id: ev.id || `eval_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-                        name: ev.name,
+                        id: evalId,
+                        name: generatedName,
                         maxScore: ev.maxScore || 10
                      });
-                     autoCols++;
+                     wasNewlyAdded = true;
                      autoColsToastCount++;
                  }
+                 
+                 // Always increment autoCols so the settings document gets saved if there are any evaluations processed
+                 autoCols++;
               }
               
               if (autoCols > 0) { 
