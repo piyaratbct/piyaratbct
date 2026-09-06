@@ -1,0 +1,23 @@
+        {viewMode === 'summary' && (
+          <div className="overflow-x-auto">
+             <table className="min-w-full bg-white border border-slate-200 rounded-lg overflow-hidden">
+                <thead className="bg-slate-100 border-b border-slate-200 text-slate-700">
+                  <tr>
+                    <th className="py-3 px-4 text-left font-bold">ชื่อ-นามสกุล</th>
+                    <th className="py-3 px-4 text-center font-bold">จำนวนคาบสอนรวม (ต่อสัปดาห์)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {teachers.map(t => {
+                    const tScheds = allSchedules.filter(s => s.teacherId === t.id);
+                    return (
+                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 text-sm font-medium text-slate-800">{t.displayName || t.thaiName}</td>
+                        <td className="py-3 px-4 text-center text-sm font-bold text-indigo-600">{tScheds.length} คาบ</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+             </table>
+          </div>
+        )}

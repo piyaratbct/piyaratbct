@@ -76,7 +76,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, storage, handleFirestoreError, OperationType } from "./lib/firebase";
 import { onAuthStateChanged, signOut, updatePassword } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, uploadString, getDownloadURL, deleteObject } from "firebase/storage";
 import { formatThaiDate } from './lib/dateUtils';
 import {
   collection,
@@ -203,7 +203,7 @@ export default function App() {
   // Custom School Logo States & Camera Capture
   const [customLogo, setCustomLogo] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
-  const [systemAcademicYear, setSystemAcademicYear] = useState<string>("2567");
+  const [systemAcademicYear, setSystemAcademicYear] = useState<string>("2569");
   const [systemSemester, setSystemSemester] = useState<string>("1");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -2563,23 +2563,11 @@ export default function App() {
                             return;
                         }
 
-                        // Convert base64 to Blob
-                        const arr = base64.split(',');
-                        const mimeMatch = arr[0].match(/:(.*?);/);
-                        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                        const bstr = atob(arr[1]);
-                        let n = bstr.length;
-                        const u8arr = new Uint8Array(n);
-                        while (n--) {
-                            u8arr[n] = bstr.charCodeAt(n);
-                        }
-                        const blob = new Blob([u8arr], { type: mime });
-
-                        const ext = mime.split('/')[1] || 'jpg';
+                        const ext = 'jpg'; // Base64 data URL from cropper is usually jpeg/png
                         const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
                         const storageRef = ref(storage, fileName);
 
-                        await uploadBytes(storageRef, blob);
+                        await uploadString(storageRef, base64, 'data_url');
                         const downloadURL = await getDownloadURL(storageRef);
 
                         const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };

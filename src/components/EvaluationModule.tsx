@@ -64,6 +64,20 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   }, [selectedSubject]);
   
+  
+  const [viewYear, setViewYear] = useState<string>(systemAcademicYear || '2567');
+  const [viewSemester, setViewSemester] = useState<string>(systemSemester || '1');
+  
+  useEffect(() => {
+    if (systemAcademicYear) setViewYear(systemAcademicYear);
+  }, [systemAcademicYear]);
+  
+  useEffect(() => {
+    if (systemSemester) setViewSemester(systemSemester);
+  }, [systemSemester]);
+
+  const isHistorical = viewYear !== systemAcademicYear || viewSemester !== systemSemester;
+
   const [scores, setScores] = useState<Record<string, SubjectScore>>({});
   const [draftScores, setDraftScores] = useState<Record<string, SubjectScore>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -72,6 +86,23 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   
   const [gradesSubTab, setGradesSubTab] = useState<'attendance' | 'part1' | 'part2' | 'part3' | 'part4' | 'part5'>('attendance');
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
+
+  const isTeacherAssigned = React.useMemo(() => {
+    if (!currentTeacher || !selectedSubject || !selectedGrade) return false;
+    
+    // Admin, Academic, Deputy always have access
+    if (['admin', 'academic', 'deputy'].includes(currentTeacher?.role)) return true;
+    
+    // Check if the current teacher is assigned to this subject and grade in the schedules
+    return schedules.some(
+      s => s.teacherId === currentTeacher.id && 
+           s.subject === selectedSubject && 
+           s.gradeLevel === selectedGrade
+    );
+  }, [currentTeacher, schedules, selectedSubject, selectedGrade]);
+
+  const isReadOnly = (isHistorical && currentTeacher?.role !== 'admin' && currentTeacher?.role !== 'academic') || (!isHistorical && !isTeacherAssigned);
+
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPrintAttendance, setShowPrintAttendance] = useState(false);
@@ -123,13 +154,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, [uniqueGrades, selectedGrade]);
 
   useEffect(() => {
-    if (!systemAcademicYear || !systemSemester || !selectedGrade || !selectedSubject) return;
+    if (!viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
 
     // Fetch schedules
     const sq = query(
       collection(db, 'schedules'),
-      where('academicYear', '==', systemAcademicYear),
-      where('semester', '==', systemSemester),
+      where('academicYear', '==', viewYear),
+      where('semester', '==', viewSemester),
       where('gradeLevel', '==', selectedGrade),
       where('subject', '==', selectedSubject)
     );
@@ -140,8 +171,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     // Fetch attendance
     const aq = query(
       collection(db, 'attendanceSessions'),
-      where('academicYear', '==', systemAcademicYear),
-      where('semester', '==', systemSemester),
+      where('academicYear', '==', viewYear),
+      where('semester', '==', viewSemester),
       where('gradeLevel', '==', selectedGrade),
       where('subject', '==', selectedSubject)
     );
@@ -153,7 +184,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       unSubSchedules();
       unSubAttendance();
     };
-  }, [systemAcademicYear, systemSemester, selectedGrade, selectedSubject]);
+  }, [viewYear, viewSemester, selectedGrade, selectedSubject]);
 
   useEffect(() => {
     const q = query(collection(db, "subject_scores"));
@@ -183,7 +214,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, [scores, activeTab, selectedGrade, selectedSubject]);
 
   useEffect(() => {
-    const settingsId = `${systemAcademicYear}_${systemSemester}_${selectedGrade}_${selectedSubject}`.replace(/[\/]/g, '-');
+    const settingsId = `${viewYear}_${viewSemester}_${selectedGrade}_${selectedSubject}`.replace(/[\/]/g, '-');
     const unsubscribe = onSnapshot(
       doc(db, "subject_settings", settingsId),
       (docSnap) => {
@@ -192,8 +223,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         } else {
           setSubjectSettings({
             id: settingsId,
-            academicYear: systemAcademicYear || '',
-            semester: systemSemester || '',
+            academicYear: viewYear || '',
+            semester: viewSemester || '',
             gradeLevel: selectedGrade,
             subject: selectedSubject,
             beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'งานที่ 1', maxScore: 20 }],
@@ -208,9 +239,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       }
     );
     return () => unsubscribe();
-  }, [systemAcademicYear, systemSemester, selectedGrade, selectedSubject]);
+  }, [viewYear, viewSemester, selectedGrade, selectedSubject]);
 
   const handleSaveSettings = async (newSettings: SubjectSettings) => {
+    if (isReadOnly) return;
     try {
       await setDoc(doc(db, "subject_settings", newSettings.id), newSettings);
       setShowSettingsModal(false);
@@ -245,15 +277,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const handleScoreChange = (studentId: string, field: ScoreField, value: string) => {
     let numValue = value === '' ? 0 : Number(value);
     if (numValue < 0) numValue = 0;
-    const key = `${studentId}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+    const key = `${studentId}_${viewYear}_${viewSemester}_${selectedSubject}`;
     
     setDraftScores(prev => {
       const existing = prev[key] || {
         id: `sc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         studentId,
         gradeLevel: selectedGrade,
-        academicYear: systemAcademicYear || '',
-        semester: systemSemester || '',
+        academicYear: viewYear || '',
+        semester: viewSemester || '',
         subject: selectedSubject,
         teacherId: 'current-teacher', // Ideally from props, but ok for now
         preTestScore: 0,
@@ -287,15 +319,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const handleActivityScoreChange = (studentId: string, category: keyof Omit<SubjectSettings, 'id' | 'academicYear' | 'semester' | 'gradeLevel' | 'subject'>, activityId: string, value: string) => {
     let numValue = value === '' ? 0 : Number(value);
     if (numValue < 0) numValue = 0;
-    const key = `${studentId}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+    const key = `${studentId}_${viewYear}_${viewSemester}_${selectedSubject}`;
     
     setDraftScores(prev => {
       const existing = prev[key] || {
         id: `sc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         studentId,
         gradeLevel: selectedGrade,
-        academicYear: systemAcademicYear || '',
-        semester: systemSemester || '',
+        academicYear: viewYear || '',
+        semester: viewSemester || '',
         subject: selectedSubject,
         teacherId: 'current-teacher', 
         preTestScore: 0, postTestScore: 0,
@@ -346,18 +378,19 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   };
 
   const handleSaveScores = async () => {
+    if (isReadOnly) return;
     setIsSaving(true);
     try {
       // Save all draft scores for the current selection
       const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
       
       const promises = studentsInGrade.map(student => {
-        const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+        const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
         const scoreData = draftScores[key];
         
         if (scoreData) {
           // If total score > 0, it means we have something to save
-          const docId = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`.replace(/[\/]/g, '-');
+          const docId = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`.replace(/[\/]/g, '-');
           return setDoc(doc(db, "subject_scores", docId), scoreData);
         }
         return Promise.resolve();
@@ -367,7 +400,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       
       // Check for at-risk students
       const failingStudents = studentsInGrade.filter(s => {
-        const key = `${s.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+        const key = `${s.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
         const scoreData = draftScores[key];
         return scoreData && scoreData.totalScore > 0 && scoreData.totalScore < 50;
       });
@@ -451,6 +484,44 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               </p>
             </div>
           </div>
+          
+          <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 p-3 rounded-xl">
+            {isReadOnly && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/80 text-white text-xs font-bold rounded-lg border border-rose-400">
+                <AlertCircle className="h-4 w-4" />
+                <span>
+                  {isHistorical 
+                    ? `โหมดดูข้อมูลย้อนหลัง (อ่านอย่างเดียว)` 
+                    : `คุณไม่มีสิทธิ์แก้ไขคะแนนวิชานี้ (สิทธิ์เฉพาะครูผู้สอน หรือ ฝ่ายวิชาการ)`}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span>ปีการศึกษา:</span>
+              <select 
+                className="bg-white/20 border border-white/30 text-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-white/50 [&>option]:text-slate-800"
+                value={viewYear}
+                onChange={e => setViewYear(e.target.value)}
+              >
+                {[2567, 2568, 2569, 2570, 2571, 2572].map(y => (
+                  <option key={y} value={y.toString()}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span>ภาคเรียนที่:</span>
+              <select 
+                className="bg-white/20 border border-white/30 text-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-white/50 [&>option]:text-slate-800"
+                value={viewSemester}
+                onChange={e => setViewSemester(e.target.value)}
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">ฤดูร้อน</option>
+              </select>
+            </div>
+          </div>
+
         </div>
 
         {/* Tabs and Content */}
@@ -696,7 +767,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         students.filter(s => s.gradeLevel === selectedGrade)
                           .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                           .map((student) => {
-                            const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
                             const isScoutCampAttended = scoutCampAttendees.has(student.id);
                             const score = draftScores[key] || { activities: {}, totalScore: '-', grade: '-' };
                             const part1Total = Number(((Number(score.beforeMidKnowledgeScore) || 0) + (Number(score.beforeMidSoftSkillScore) || 0) + (Number(score.afterMidKnowledgeScore) || 0) + (Number(score.afterMidSoftSkillScore) || 0)).toFixed(2));
@@ -708,7 +779,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               
                               {subjectSettings.beforeMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -722,7 +793,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.beforeMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -736,7 +807,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.afterMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -750,7 +821,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               ))}
                               {subjectSettings.afterMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={act.maxScore}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
                                     placeholder="0"
                                     value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
@@ -797,7 +868,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                           students.filter(s => s.gradeLevel === selectedGrade)
                             .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                             .map((student) => {
-                              const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                              const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
                               const score = draftScores[key] || { 
                                 preTestScore: '', postTestScore: '', 
                                 midtermScore: '', finalScore: '', 
@@ -809,7 +880,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                 <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
                                 <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} 
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} 
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
                                     placeholder="0"
                                     value={score.preTestScore === 0 ? '' : score.preTestScore}
@@ -817,7 +888,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-amber-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={20}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={20}
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-amber-500" 
                                     placeholder="0"
                                     value={score.midtermScore === 0 ? '' : score.midtermScore}
@@ -829,7 +900,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-rose-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} max={20}
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={20}
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-rose-500" 
                                     placeholder="0"
                                     value={score.finalScore === 0 ? '' : score.finalScore}
@@ -841,7 +912,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                                 <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input disabled={student.status !== "active"} type="number" min={0} 
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} 
                                     className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
                                     placeholder="0"
                                     value={score.postTestScore === 0 ? '' : score.postTestScore}
@@ -874,7 +945,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               <div className="mt-6 flex justify-end gap-3">
                 <button 
                   onClick={handleSaveScores}
-                  disabled={isSaving}
+                  disabled={isSaving || isReadOnly}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50"
                 >
                   <CheckCircle className="h-4 w-4" /> 
@@ -911,7 +982,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         students.filter(s => s.gradeLevel === selectedGrade)
                           .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                           .map((student) => {
-                            const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
                             const score = draftScores[key] || { grade: '', activities: {} };
                             
                             const setIndicatorScore = (indicatorId: string, val: string) => {
@@ -921,8 +992,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                       id: `sc-${Date.now()}`,
                                       studentId: student.id,
                                       gradeLevel: selectedGrade,
-                                      academicYear: systemAcademicYear || '',
-                                      semester: systemSemester || '',
+                                      academicYear: viewYear || '',
+                                      semester: viewSemester || '',
                                       subject: selectedSubject,
                                       teacherId: 'current-teacher',
                                       activities: {}
@@ -1001,7 +1072,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         students.filter(s => s.gradeLevel === selectedGrade)
                           .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
                           .map((student) => {
-                            const key = `${student.id}_${systemAcademicYear}_${systemSemester}_${selectedSubject}`;
+                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
                             const isScoutCampAttended = scoutCampAttendees.has(student.id);
                             const score = draftScores[key] || { totalScore: '' };
                             
@@ -1010,7 +1081,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
                               <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
                               <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <input disabled={student.status !== "active"} type="number" min={0} max={100}
+                                <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={100}
                                   className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                                   value={score.totalScore === '-' ? '' : score.totalScore}
                                   onChange={(e) => {
@@ -1023,8 +1094,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                           id: `sc-${Date.now()}`,
                                           studentId: student.id,
                                           gradeLevel: selectedGrade,
-                                          academicYear: systemAcademicYear || '',
-                                          semester: systemSemester || '',
+                                          academicYear: viewYear || '',
+                                          semester: viewSemester || '',
                                           subject: selectedSubject,
                                           teacherId: 'current-teacher',
                                           beforeMidKnowledgeScore: 0,
@@ -1056,8 +1127,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                           id: `sc-${Date.now()}`,
                                           studentId: student.id,
                                           gradeLevel: selectedGrade,
-                                          academicYear: systemAcademicYear || '',
-                                          semester: systemSemester || '',
+                                          academicYear: viewYear || '',
+                                          semester: viewSemester || '',
                                           subject: selectedSubject,
                                           teacherId: 'current-teacher',
                                           beforeMidKnowledgeScore: 0,
@@ -1122,16 +1193,16 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
           {activeTab === 'learning_hours' && (
             <LearningHoursReport 
-              systemAcademicYear={systemAcademicYear}
-              systemSemester={systemSemester}
+              systemAcademicYear={viewYear}
+              systemSemester={viewSemester}
               students={students}
             />
           )}
 
           {activeTab === 'attendance' && (
             <AttendanceSummary 
-              systemAcademicYear={systemAcademicYear}
-              systemSemester={systemSemester}
+              systemAcademicYear={viewYear}
+              systemSemester={viewSemester}
               students={students}
             />
           )}
@@ -1139,8 +1210,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           {activeTab === 'character' && (
             <CharacterAssessmentView 
               students={students}
-              systemAcademicYear={systemAcademicYear}
-              systemSemester={systemSemester}
+              systemAcademicYear={viewYear}
+              systemSemester={viewSemester}
               currentTeacher={currentTeacher}
             />
           )}
@@ -1163,7 +1234,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           attendanceStats={attendanceStats}
           subject={selectedSubject}
           gradeLevel={selectedGrade}
-          academicYear={systemAcademicYear || "2567"}
+          academicYear={viewYear || "2567"}
           semester={systemSemester || "1"}
           teacherName={subjectTeacherName}
           onClose={() => setShowPrintAttendance(false)}
@@ -1176,7 +1247,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           scores={scores}
           subject={selectedSubject}
           gradeLevel={selectedGrade}
-          academicYear={systemAcademicYear || "2567"}
+          academicYear={viewYear || "2567"}
           semester={systemSemester || "1"}
           settings={subjectSettings}
           teacherName={subjectTeacherName}
@@ -1190,7 +1261,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           students={students}
           scores={scores}
           gradeLevel={selectedGrade}
-          academicYear={systemAcademicYear || "2567"}
+          academicYear={viewYear || "2567"}
           semester={systemSemester || "1"}
           onClose={() => setShowPrintReport(false)}
         />

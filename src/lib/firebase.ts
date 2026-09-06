@@ -19,13 +19,13 @@ export let db: any;
 try {
   // Use initializeFirestore with experimentalAutoDetectLongPolling to avoid WebSocket connection blocks inside sandboxed iframe
   db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    
   }, firebaseConfig.firestoreDatabaseId);
 } catch (e) {
   console.warn("Firestore custom database-id setup failed, trying fallback default initialization:", e);
   try {
     db = initializeFirestore(app, {
-      experimentalForceLongPolling: true,
+      
     });
   } catch (err) {
     console.error("Firestore initialization completely failed:", err);

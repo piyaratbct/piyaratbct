@@ -9,7 +9,7 @@ interface AcademicSettingsProps {
 }
 
 export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeacher }) => {
-  const [academicYear, setAcademicYear] = useState<string>("2567");
+  const [academicYear, setAcademicYear] = useState<string>("2569");
   const [semester, setSemester] = useState<string>("1");
   const [totalLearningDays, setTotalLearningDays] = useState<number>(100);
   const [termStartDate, setTermStartDate] = useState<string>("");

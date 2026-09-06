@@ -3,7 +3,7 @@ import { Student, GRADE_LEVELS } from '../types';
 import { X, Save, Camera } from 'lucide-react';
 import { AvatarUpload } from './AvatarUpload';
 import { storage } from '../lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, uploadString, getDownloadURL } from 'firebase/storage';
 
 interface StudentModalProps {
   student: Student | null;
@@ -145,21 +145,12 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                       window.dispatchEvent(new CustomEvent('app-custom-toast', { detail: { message: 'ระบบจัดเก็บไฟล์ยังไม่พร้อมใช้งาน', type: 'error' } }));
                       return;
                     }
-                    const arr = base64.split(',');
-                    const mimeMatch = arr[0].match(/:(.*?);/);
-                    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                    const bstr = atob(arr[1]);
-                    let n = bstr.length;
-                    const u8arr = new Uint8Array(n);
-                    while (n--) {
-                        u8arr[n] = bstr.charCodeAt(n);
-                    }
-                    const blob = new Blob([u8arr], { type: mime });
-                    const ext = mime.split('/')[1] || 'jpg';
+                    
+                    const ext = 'jpg';
                     const fileName = `students/${formData.studentId || Date.now()}_${Date.now()}.${ext}`;
                     const storageRef = ref(storage, fileName);
 
-                    await uploadBytes(storageRef, blob);
+                    await uploadString(storageRef, base64, 'data_url');
                     const downloadURL = await getDownloadURL(storageRef);
 
                     setFormData(prev => ({ ...prev, photoURL: downloadURL }));

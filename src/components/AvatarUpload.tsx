@@ -24,7 +24,13 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    
+    if (!file.type.startsWith("image/")) {
+      alert("กรุณาอัปโหลดไฟล์รูปภาพ (JPEG, PNG, WebP) เท่านั้น");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    
 
     try {
       setIsUploading(true);
@@ -32,7 +38,7 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
       await onUpload(base64Str);
     } catch (error) {
       console.error("Error uploading image:", error);
-      alert("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ");
+      alert("เกิดข้อผิดพลาด: ไฟล์รูปภาพนี้ไม่สามารถอ่านได้ (อาจเป็นไฟล์ HEIC หรือรูปแบบที่ไม่รองรับ)");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -72,7 +78,7 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
           type="file" 
           ref={fileInputRef} 
           className="hidden" 
-          accept="image/*"
+          accept="image/jpeg, image/png, image/webp"
           onChange={handleFileChange}
         />
       )}

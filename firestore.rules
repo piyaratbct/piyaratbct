@@ -129,12 +129,13 @@ service cloud.firestore {
     }
 
     match /schoolCalendar/{calendarId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAcademic() || isAdmin();
     }
 
     match /schedules/{scheduleId} {
-      allow read, write: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     match /students/{studentId} {
