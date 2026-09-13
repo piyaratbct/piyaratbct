@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { Student, SubjectScore, SUBJECTS } from "../types";
+import { Student, SubjectScore, SUBJECTS, CurriculumSubject, sortSubjects } from "../types";
 import {
   PDFPrintHelper,
   PrintPageContainer,
@@ -27,8 +27,8 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
   onClose,
 }) => {
   const [isCompact, setIsCompact] = useState(false);
-
   const [homeroomTeacherName, setHomeroomTeacherName] = useState<string>("");
+  const [schoolSubjects, setSchoolSubjects] = useState<CurriculumSubject[]>([]);
 
   useEffect(() => {
     const fetchHomeroomTeacher = async () => {
@@ -47,11 +47,25 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
         console.error("Error fetching homeroom teacher:", error);
       }
     };
+    
+    const fetchSchoolSubjects = async () => {
+      try {
+        const baseGrade = gradeLevel.split('/')[0].trim();
+        const sq = query(collection(db, "curriculums"), where("gradeLevel", "==", baseGrade));
+        const ssnap = await getDocs(sq);
+        if (!ssnap.empty) {
+          setSchoolSubjects(ssnap.docs.map(d => ({ id: d.id, ...d.data() } as CurriculumSubject)));
+        }
+      } catch (e) {
+        console.error("Error fetching curriculums", e);
+      }
+    };
+
     if (gradeLevel) {
       fetchHomeroomTeacher();
+      fetchSchoolSubjects();
     }
   }, [gradeLevel]);
-
 
   const displayedStudents = students
     .filter((s) => s.gradeLevel === gradeLevel)
@@ -65,37 +79,114 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
       onToggleCompact={() => setIsCompact(!isCompact)}
     >
       {displayedStudents.map((student) => {
-        // Filter subjects based on grade level
-        const filteredSubjects = SUBJECTS.filter(subject => {
-          if (subject === 'อื่นๆ') return false;
-          
-          const isPrimary = gradeLevel.includes('ประถม');
-          const isPrimaryUpper = isPrimary && (gradeLevel.includes('4') || gradeLevel.includes('5') || gradeLevel.includes('6'));
-          const isPrimaryLower = isPrimary && (gradeLevel.includes('1') || gradeLevel.includes('2') || gradeLevel.includes('3'));
+        let studentScores: any[] = [];
+        
+        if (schoolSubjects.length > 0) {
+           const parentsAndStandalone = schoolSubjects.filter(s => s.isParent || (!s.isParent && !s.parentId)).sort(sortSubjects);
+           studentScores = parentsAndStandalone.map(subjectDef => {
+             if (subjectDef.isParent) {
+                const children = schoolSubjects.filter(s => s.parentId === subjectDef.id);
+                let totalScore = 0;
+                let hasAnyScore = false;
+                
+                children.forEach(child => {
+                  const key = `${student.id}_${academicYear}_${semester}_${child.subjectName}`;
+                  const scoreObj = scores[key];
+                  if (scoreObj && scoreObj.totalScore !== undefined && scoreObj.totalScore !== null) {
+                     totalScore += scoreObj.totalScore * ((child.weightPercentage || 0) / 100);
+                     hasAnyScore = true;
+                  }
+                });
+                
+                const parentKey = `${student.id}_${academicYear}_${semester}_${subjectDef.subjectName}`;
+                const parentScoreObj = scores[parentKey];
+                
+                if (children.length === 0 && parentScoreObj) {
+                  totalScore = parentScoreObj.totalScore || 0;
+                  hasAnyScore = true;
+                } else if (children.length > 0 && parentScoreObj && !hasAnyScore) {
+                  totalScore = parentScoreObj.totalScore || 0;
+                  hasAnyScore = true;
+                }
+                
+                totalScore = Math.round(totalScore);
+                let grade = "-";
+                if (hasAnyScore) {
+                  if (totalScore >= 80) grade = "4";
+                  else if (totalScore >= 75) grade = "3.5";
+                  else if (totalScore >= 70) grade = "3";
+                  else if (totalScore >= 65) grade = "2.5";
+                  else if (totalScore >= 60) grade = "2";
+                  else if (totalScore >= 55) grade = "1.5";
+                  else if (totalScore >= 50) grade = "1";
+                  else if (totalScore > 0) grade = "0";
+                }
 
-          if (subject === 'จินตคณิต' && isPrimaryUpper) {
-            return false;
-          }
-          if (subject === 'ภาษาอังกฤษเพื่อการสื่อสาร' && isPrimaryLower) {
-            return false;
-          }
-          
-          return true;
-        });
+                return {
+                   subjectCode: subjectDef.subjectCode || "-",
+                   subjectName: subjectDef.subjectName,
+                   subject: subjectDef.subjectName,
+                   totalScore: hasAnyScore ? totalScore : "-",
+                   grade: hasAnyScore ? grade : "-",
+                   isScout: subjectDef.subjectName.includes("ลูกเสือ")
+                };
+             } else {
+                const key = `${student.id}_${academicYear}_${semester}_${subjectDef.subjectName}`;
+                const score = scores[key];
+                return {
+                  subjectCode: subjectDef.subjectCode || "-",
+                  subjectName: subjectDef.subjectName,
+                  subject: subjectDef.subjectName,
+                  totalScore: score?.totalScore ?? "-",
+                  grade: score?.grade || "-",
+                  isScout: subjectDef.subjectName.includes("ลูกเสือ")
+                };
+             }
+           });
+        } else {
+          // Fallback to default subjects
+          const filteredSubjects = SUBJECTS.filter(subject => {
+            if (subject === 'อื่นๆ') return false;
+            
+            const isKindergarten = gradeLevel.includes('อนุบาล');
+            const isPrimary = gradeLevel.includes('ประถม');
+            const isPrimaryUpper = isPrimary && (gradeLevel.includes('4') || gradeLevel.includes('5') || gradeLevel.includes('6'));
+            const isPrimaryLower = isPrimary && (gradeLevel.includes('1') || gradeLevel.includes('2') || gradeLevel.includes('3'));
+  
+            if (isKindergarten && subject !== 'การศึกษาปฐมวัย') {
+               return false;
+            }
+            if (isPrimary && subject === 'การศึกษาปฐมวัย') {
+               return false;
+            }
 
-        // Collect scores for this student for all subjects
-        const studentScores = filteredSubjects.map((subject) => {
-          const key = `${student.id}_${academicYear}_${semester}_${subject}`;
-          const score = scores[key];
-          return {
-            subject,
-            totalScore: score?.totalScore || 0,
-            grade: score?.grade || "-",
-          };
-        });
+            if (subject === 'จินตคณิต' && isPrimaryUpper) {
+              return false;
+            }
+            if (subject === 'ภาษาอังกฤษเพื่อการสื่อสาร' && isPrimaryLower) {
+              return false;
+            }
+            
+            return true;
+          });
+  
+          studentScores = filteredSubjects.map((subject) => {
+            const key = `${student.id}_${academicYear}_${semester}_${subject}`;
+            const score = scores[key];
+            return {
+              subjectCode: "-",
+              subjectName: subject,
+              subject,
+              totalScore: score?.totalScore || "-",
+              grade: score?.grade || "-",
+              isScout: subject.includes('ลูกเสือ')
+            };
+          });
+        }
 
-        const standardScores = studentScores.filter(s => s.subject !== 'กิจกรรมลูกเสือ');
-        const totalEarnedScore = standardScores.reduce((acc, curr) => acc + curr.totalScore, 0);
+        studentScores.sort(sortSubjects);
+        const standardScores = studentScores.filter(s => !s.isScout);
+        const totalEarnedScore = standardScores.reduce((acc, curr) => acc + (typeof curr.totalScore === 'number' ? curr.totalScore : 0), 0);
         const validGrades = standardScores.filter(s => s.grade !== '-' && !isNaN(Number(s.grade))).map(s => Number(s.grade));
         const gpa = validGrades.length > 0 
           ? (validGrades.reduce((acc, curr) => acc + curr, 0) / validGrades.length).toFixed(2)
@@ -123,7 +214,7 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
               <table className="w-full text-sm border-collapse border border-slate-900">
                 <thead>
                   <tr className="bg-slate-100">
-                    <th className="border border-slate-900 px-4 py-3 text-center w-16">ลำดับ</th>
+                    <th className="border border-slate-900 px-4 py-3 text-center w-24">รหัสวิชา</th>
                     <th className="border border-slate-900 px-4 py-3 text-left">รายวิชา</th>
                     <th className="border border-slate-900 px-4 py-3 text-center w-24">คะแนนรวม<br/>(100)</th>
                     <th className="border border-slate-900 px-4 py-3 text-center w-24">ระดับผลการเรียน<br/>(เกรด)</th>
@@ -132,8 +223,8 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
                 <tbody>
                   {studentScores.map((score, index) => (
                     <tr key={index}>
-                      <td className="border border-slate-900 px-4 py-1.5 text-center">{index + 1}</td>
-                      <td className="border border-slate-900 px-4 py-1.5 text-left">{score.subject}</td>
+                      <td className="border border-slate-900 px-4 py-1.5 text-center">{score.subjectCode}</td>
+                      <td className="border border-slate-900 px-4 py-1.5 text-left">{score.subjectName}</td>
                       <td className="border border-slate-900 px-4 py-1.5 text-center">{score.totalScore}</td>
                       <td className="border border-slate-900 px-4 py-1.5 text-center font-bold text-lg">{score.grade}</td>
                     </tr>

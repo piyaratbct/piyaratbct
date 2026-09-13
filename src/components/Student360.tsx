@@ -402,20 +402,20 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
           {/* Left Column: Student Profile Summary */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="h-24 bg-gradient-to-r from-indigo-500 to-purple-500 relative">
-                <div className="absolute -bottom-10 left-6">
-                  <div className="w-20 h-20 rounded-2xl border-4 border-white bg-white flex items-center justify-center shadow-sm relative overflow-hidden">
+              <div className="h-32 bg-gradient-to-r from-indigo-500 to-purple-500 relative">
+                <div className="absolute -bottom-16 left-6">
+                  <div className="w-32 h-32 rounded-3xl border-4 border-white bg-white flex items-center justify-center shadow-sm relative overflow-hidden">
                     <AvatarUpload
                       url={student.photoURL}
                       name={student.firstName || '?'}
-                      size="xl"
+                      size="2xl"
                       editable={false}
                       onUpload={async () => {}}
                     />
                   </div>
                 </div>
               </div>
-              <div className="pt-14 p-6">
+              <div className="pt-20 p-6">
                 <div className="flex flex-col items-start gap-1">
                   <h2 className="text-lg font-black text-slate-800 leading-tight">
                     {student.firstName} {student.lastName}

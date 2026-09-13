@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { 
-  Calendar as CalendarIcon, 
+  Calendar as CalendarIcon, Calculator, 
   Clock, 
   BookOpen, 
   Settings, 
@@ -18,6 +18,7 @@ import { StaffProfileModule } from "./StaffProfileModule";
 import { Student } from "../types";
 import { ScheduleManager } from "./ScheduleManager";
 import { CurriculumManager } from "./CurriculumManager";
+import { SubjectStructureManager } from "./SubjectStructureManager";
 import { ClassroomSettings } from "./ClassroomSettings";
 import { FileSpreadsheet, FileText } from "lucide-react";
 
@@ -107,20 +108,15 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       <div className="flex overflow-x-auto custom-scrollbar bg-white rounded-xl p-1 shadow-sm border border-slate-100 w-full gap-1">
         <button
           onClick={() => setActiveTab("calendar")}
-          className={`relative flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === "calendar"
               ? "bg-indigo-50 text-indigo-700"
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <CalendarIcon className="h-4 w-4" /> 
-          ปฏิทินวิชาการ
-          {upcomingEventCount > 0 && (
-            <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white animate-bounce">
-              {upcomingEventCount}
-            </span>
-          )}
+          <CalendarIcon className="h-4 w-4" /> ปฏิทินและกิจกรรม
         </button>
+        
         <button
           onClick={() => setActiveTab("schedule")}
           className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
@@ -129,44 +125,30 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <CalendarDays className="h-4 w-4" /> จัดการตารางสอน
+          <Clock className="h-4 w-4" /> จัดการตารางสอน
         </button>
-        {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === "settings"
-                ? "bg-indigo-50 text-indigo-700"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <Settings className="h-4 w-4" /> ตั้งค่าปี/ภาคเรียน
-          </button>
-        )}
-        {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
-          <button
-            onClick={() => setActiveTab("staff")}
-            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === "staff" || activeTab === "eportfolio" || activeTab === "classrooms"
-                ? "bg-indigo-50 text-indigo-700"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <Users className="h-4 w-4" /> ข้อมูลครูและห้องเรียน
-          </button>
-        )}
-        {['admin', 'academic', 'deputy'].includes(currentTeacher.role || 'teacher') && (
-          <button
-            onClick={() => setActiveTab("promotion")}
-            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === "promotion"
-                ? "bg-indigo-50 text-indigo-700"
-                : "text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            <ArrowRight className="h-4 w-4" /> เลื่อนชั้น/จบการศึกษา
-          </button>
-        )}
+        
+        <button
+          onClick={() => setActiveTab("staff")}
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+            (activeTab === "staff" || activeTab === "eportfolio" || activeTab === "classrooms")
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <Users className="h-4 w-4" /> บุคลากรและชั้นเรียน
+        </button>
+        
+        <button
+          onClick={() => setActiveTab("promotion")}
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+            activeTab === "promotion"
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <GraduationCap className="h-4 w-4" /> เลื่อนชั้นนักเรียน
+        </button>
 
         <button
           onClick={() => setActiveTab("curriculum")}
@@ -176,7 +158,18 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
               : "text-slate-500 hover:bg-slate-50"
           }`}
         >
-          <BookOpen className="h-4 w-4" /> จัดการหลักสูตร
+          <BookOpen className="h-4 w-4" /> บริหารหลักสูตรและโครงสร้าง
+        </button>
+        
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+            activeTab === "settings"
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          <Settings className="h-4 w-4" /> ตั้งค่าระบบ
         </button>
       </div>
 
@@ -257,8 +250,10 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
 
 
 
+      
+      
       {activeTab === "curriculum" && (
-        <CurriculumManager currentUserRole={currentTeacher.role} />
+        <CurriculumManager currentUserRole={currentTeacher.role} students={students} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
       )}
     </div>
   );

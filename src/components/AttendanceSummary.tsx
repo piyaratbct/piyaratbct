@@ -1,9 +1,11 @@
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { AttendanceSession, GRADE_LEVELS } from '../types';
-import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2 } from 'lucide-react';
+import { AttendanceSession, GRADE_LEVELS, SUBJECTS } from '../types';
+import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2, BookOpen } from 'lucide-react';
 import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
+import { LearningHoursReport } from './LearningHoursReport';
 import { AttendanceTracking } from './AttendanceTracking';
 
 import { Student } from '../types';
@@ -86,6 +88,8 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   }, [selectedGrade, selectedDate, systemAcademicYear, systemSemester, viewMode, refreshTrigger]);
 
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const availableSubjects = useAvailableSubjects();
+  const [selectedSubject, setSelectedSubject] = useState<string>(SUBJECTS[0]);
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
@@ -111,7 +115,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
     <div className="p-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 border-b border-slate-100 pb-6">
         <div>
-          <h3 className="text-lg font-black text-slate-800">สรุปการเช็กชื่อนักเรียน (Attendance Summary)</h3>
+          <h3 className="text-lg font-black text-slate-800">รายงานชั่วโมงเรียนและการเช็กชื่อ</h3>
           <p className="text-sm text-slate-500">รายงานสรุปการเข้าเรียนประจำวันและรายคาบเรียน รวมถึงสถิติสะสม</p>
         </div>
         
@@ -146,6 +150,34 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
           ))}
         </select>
 
+        {viewMode === 'cumulative' && (
+          <div className="relative shadow-sm">
+            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <select 
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            >
+              
+              {availableSubjects.map((s: any, idx: number) => {
+                if (typeof s === 'string') {
+                  return <option key={`s-${idx}`} value={s}>{s}</option>;
+                } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                  return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                } else if (s.type === 'group') {
+                  return (
+                    <optgroup key={`g-${idx}`} label={s.groupName}>
+                      {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                    </optgroup>
+                  );
+                }
+                return null;
+              })}
+
+            </select>
+          </div>
+        )}
+
         {viewMode === 'daily' && (
           <div className="relative shadow-sm">
             <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -162,11 +194,22 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
       </div>
 
       {viewMode === 'cumulative' ? (
-        <AttendanceStudentCumulative 
-          gradeLevel={selectedGrade}
-          systemAcademicYear={systemAcademicYear}
-          systemSemester={systemSemester}
-        />
+        <>
+          <AttendanceStudentCumulative 
+            gradeLevel={selectedGrade}
+            systemAcademicYear={systemAcademicYear}
+            systemSemester={systemSemester}
+            selectedSubject={selectedSubject}
+          />
+          <div className="mt-8 pt-8 border-t border-slate-200 border-dashed">
+            <LearningHoursReport 
+              systemAcademicYear={systemAcademicYear}
+              systemSemester={systemSemester}
+              students={students}
+              selectedGrade={selectedGrade}
+            />
+          </div>
+        </>
       ) : (
         <>
       {isLoading ? (

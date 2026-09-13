@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star } from 'lucide-react';
-import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, TeacherSchedule, AttendanceSession } from '../types';
+import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, ActivityColumn, TeacherSchedule, AttendanceSession } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { LearningHoursReport } from './LearningHoursReport';
 import { SubjectSettingsModal } from './SubjectSettingsModal';
@@ -12,6 +12,7 @@ import { Printer } from 'lucide-react';
 
 import { LessonAchieve } from './LessonAchieve';
 import { collection, query, onSnapshot, setDoc, doc, where } from 'firebase/firestore';
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
 import { CharacterAssessmentView } from './CharacterAssessmentView';
@@ -22,20 +23,26 @@ interface EvaluationModuleProps {
   systemSemester?: string;
   students: Student[];
   currentTeacher?: any;
-  initialTab?: 'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character';
+  initialTab?: 'overview' | 'grades' | 'kindergarten' | 'attendance' | 'character';
   initialSubject?: string;
   initialGrade?: string;
 }
 
 export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents, currentTeacher, initialTab, initialSubject, initialGrade }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character'>(initialTab || 'overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'character'>(initialTab || 'overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
+  const fetchedAvailableSubjects = useAvailableSubjects(selectedGrade);
     const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || SUBJECTS[0]);
   const [scoutCampAttendees, setScoutCampAttendees] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
+    
+    // Auto-switch tabs if needed based on subject type
+    if (selectedSubjectType === 'activity' && gradesSubTab === 'part1') {
+      setGradesSubTab('part2');
+    }
     if (initialSubject) setSelectedSubject(initialSubject);
     if (initialGrade) setSelectedGrade(initialGrade);
   }, [initialTab, initialSubject, initialGrade]);
@@ -49,18 +56,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         snapshot.docs.forEach(doc => {
           const data = doc.data();
           if (data.attendeeIds) {
-            data.attendeeIds.forEach((id) => attendees.add(id));
+            data.attendeeIds.forEach((id: string) => attendees.add(id));
           }
         });
         setScoutCampAttendees(attendees);
       });
-      
-
-  
-
-  
-
-  return () => unsubscribe();
+      return () => unsubscribe();
     }
   }, [selectedSubject]);
   
@@ -87,6 +88,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [gradesSubTab, setGradesSubTab] = useState<'attendance' | 'part1' | 'part2' | 'part3' | 'part4' | 'part5'>('attendance');
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
 
+  const selectedSubjectType = React.useMemo(() => {
+    const subj = fetchedAvailableSubjects.find(s => {
+      if (typeof s === 'string') return s === selectedSubject;
+      if (s.type === 'single') return s.name === selectedSubject;
+      if (s.type === 'group') return s.subjects.includes(selectedSubject);
+      return false;
+    });
+    
+    if (subj && subj.subjectType) {
+      return subj.subjectType;
+    }
+    
+    // Fallback logic
+    return (selectedSubject.includes('กิจกรรม') || selectedSubject.includes('ลูกเสือ') || selectedSubject.includes('ชุมนุม') || selectedSubject.includes('แนะแนว')) ? 'activity' : 'academic';
+  }, [selectedSubject, fetchedAvailableSubjects]);
+
   const isTeacherAssigned = React.useMemo(() => {
     if (!currentTeacher || !selectedSubject || !selectedGrade) return false;
     
@@ -109,6 +126,26 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [showPrintScore, setShowPrintScore] = useState(false);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
+  const [lessonPlanEvals, setLessonPlanEvals] = useState<{
+    beforeMidKnowledge: ActivityColumn[];
+    beforeMidSoftSkill: ActivityColumn[];
+    afterMidKnowledge: ActivityColumn[];
+    afterMidSoftSkill: ActivityColumn[];
+  }>({
+    beforeMidKnowledge: [], beforeMidSoftSkill: [], afterMidKnowledge: [], afterMidSoftSkill: []
+  });
+
+  const effectiveSettings = React.useMemo(() => {
+    if (!subjectSettings) return null;
+    return {
+      ...subjectSettings,
+      beforeMidKnowledge: [...subjectSettings.beforeMidKnowledge, ...lessonPlanEvals.beforeMidKnowledge],
+      beforeMidSoftSkill: [...subjectSettings.beforeMidSoftSkill, ...lessonPlanEvals.beforeMidSoftSkill],
+      afterMidKnowledge: [...subjectSettings.afterMidKnowledge, ...lessonPlanEvals.afterMidKnowledge],
+      afterMidSoftSkill: [...subjectSettings.afterMidSoftSkill, ...lessonPlanEvals.afterMidSoftSkill]
+    };
+  }, [subjectSettings, lessonPlanEvals]);
+
 
   const uniqueGrades = React.useMemo(() => {
     const dbGrades = new Set(students.map(s => s.gradeLevel).filter(Boolean));
@@ -156,13 +193,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   useEffect(() => {
     if (!viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
 
-    // Fetch schedules
+    // Fetch ALL schedules for the term to allow smart filtering
     const sq = query(
       collection(db, 'schedules'),
       where('academicYear', '==', viewYear),
-      where('semester', '==', viewSemester),
-      where('gradeLevel', '==', selectedGrade),
-      where('subject', '==', selectedSubject)
+      where('semester', '==', viewSemester)
     );
     const unSubSchedules = onSnapshot(sq, (snap) => {
       setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSchedule)));
@@ -215,6 +250,49 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
   useEffect(() => {
     const settingsId = `${viewYear}_${viewSemester}_${selectedGrade}_${selectedSubject}`.replace(/[\/]/g, '-');
+    
+    // Fetch lesson plans for this subject to dynamically inject columns
+    const lpQuery = query(
+      collection(db, 'lessonPlans'),
+      where('gradeLevel', '>=', ''), // We'll filter in memory to handle comma separated grades
+    );
+    const unsubLp = onSnapshot(lpQuery, (lpSnap) => {
+      const dynamicEvals = {
+        beforeMidKnowledge: [] as ActivityColumn[],
+        beforeMidSoftSkill: [] as ActivityColumn[],
+        afterMidKnowledge: [] as ActivityColumn[],
+        afterMidSoftSkill: [] as ActivityColumn[]
+      };
+      
+      lpSnap.docs.forEach(doc => {
+        const p = doc.data() as any;
+        // Check if plan matches current view
+        const expectedSemesterStr = `ภาคเรียนที่ ${viewSemester}/${viewYear}`;
+        const semesterMatch = !p.semester || p.semester === viewSemester || p.semester === expectedSemesterStr || p.semester.includes(viewSemester);
+        const subjectMatch = p.subject === selectedSubject || p.customSubject === selectedSubject;
+        const planGrades = p.gradeLevel ? p.gradeLevel.split(',').map((s: string) => s.trim()) : [];
+        const gradeMatch = planGrades.includes(selectedGrade) || p.gradeLevel === selectedGrade || (p.gradeLevel && p.gradeLevel.includes(selectedGrade)) || (selectedGrade && selectedGrade.includes(p.gradeLevel));
+        
+        if (semesterMatch && subjectMatch && gradeMatch && p.structuredEvaluations) {
+          p.structuredEvaluations.forEach((ev: any) => {
+             const act: ActivityColumn = {
+               id: ev.id,
+               name: `${ev.name} (${p.title})`,
+               maxScore: ev.maxScore || 0
+             };
+             if (ev.scorePeriod === 'after_mid') {
+               if (ev.kpa === 'K') dynamicEvals.afterMidKnowledge.push(act);
+               else dynamicEvals.afterMidSoftSkill.push(act);
+             } else {
+               if (ev.kpa === 'K') dynamicEvals.beforeMidKnowledge.push(act);
+               else dynamicEvals.beforeMidSoftSkill.push(act);
+             }
+          });
+        }
+      });
+      setLessonPlanEvals(dynamicEvals);
+    });
+
     const unsubscribe = onSnapshot(
       doc(db, "subject_settings", settingsId),
       (docSnap) => {
@@ -342,8 +420,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       const updatedActivities = { ...(existing.activities || {}), [activityId]: numValue };
       
       // Compute raw sum and target max
-      const rawSum = subjectSettings?.[category]?.reduce((sum, act) => sum + (updatedActivities[act.id] || 0), 0) || 0;
-      const rawMaxSum = subjectSettings?.[category]?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
+      const rawSum = effectiveSettings?.[category]?.reduce((sum, act) => sum + (updatedActivities[act.id] || 0), 0) || 0;
+      const rawMaxSum = effectiveSettings?.[category]?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
       
       const targetMax = category === 'beforeMidKnowledge' ? 20 : 
                         category === 'beforeMidSoftSkill' ? 10 : 
@@ -558,16 +636,9 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 activeTab === 'attendance' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <CalendarDays className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">สรุปการเช็กชื่อ</span>
+              <CalendarDays className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">รายงานชั่วโมงเรียน</span>
             </button>
-            <button
-              onClick={() => setActiveTab('learning_hours')}
-              className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
-                activeTab === 'learning_hours' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-              }`}
-            >
-              <BookOpen className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">รายงานเวลาเรียน</span>
-            </button>
+            
             <button
               onClick={() => setActiveTab('character')}
               className={`flex-none flex flex-row items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs lg:text-sm font-bold transition-all ${
@@ -601,26 +672,89 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onChange={(e) => setSelectedSubject(e.target.value)}
                     className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
-                    {SUBJECTS.filter(s => {
-                      const isPrimary = selectedGrade.includes('ประถม');
-                      const isPrimaryUpper = isPrimary && (selectedGrade.includes('4') || selectedGrade.includes('5') || selectedGrade.includes('6'));
-                      const isPrimaryLower = isPrimary && (selectedGrade.includes('1') || selectedGrade.includes('2') || selectedGrade.includes('3'));
-                      
-                      if (s === 'จินตคณิต' && isPrimaryUpper) return false;
-                      if (s === 'ภาษาอังกฤษเพื่อการสื่อสาร' && isPrimaryLower) return false;
-                      return true;
-                    }).map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {(() => {
+                       
+                      let finalSubjects = fetchedAvailableSubjects;
+                      if (currentTeacher && !['admin', 'academic', 'deputy'].includes(currentTeacher.role)) {
+                        const teacherSubjectsForGrade = new Set<string>(schedules.filter(s => s.teacherId === currentTeacher.id && s.gradeLevel === selectedGrade).map(s => s.subject === 'อื่นๆ' ? (s.customSubject || s.subject) : s.subject));
+                        if (teacherSubjectsForGrade.size > 0) {
+                            // Filter grouped data
+                            finalSubjects = finalSubjects.map(item => {
+                              if (typeof item === 'string') return item;
+                              if (item.type === 'header') return item; // Keep headers initially
+                              if (item.type === 'single' && teacherSubjectsForGrade.has(item.name)) return item;
+                              if (item.type === 'group') {
+                                const validChildren = item.subjects.filter((sub: string) => teacherSubjectsForGrade.has(sub));
+                                if (validChildren.length > 0) return { ...item, subjects: validChildren };
+                              }
+                              return null;
+                            }).filter(Boolean);
+                            
+                            // Remove empty headers
+                            finalSubjects = finalSubjects.filter((item, index, array) => {
+                                if (item.type === 'header') {
+                                    // A header is empty if it's the last item, or if the next item is also a header
+                                    if (index === array.length - 1) return false;
+                                    if (array[index + 1].type === 'header') return false;
+                                }
+                                return true;
+                            });
+                        }
+                      }
+
+                       
+                       
+                       
+                      return finalSubjects.map((s: any, idx: number) => {
+                        if (typeof s === 'string') {
+                          return <option key={`s-${idx}`} value={s}>{s}</option>;
+                        } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                          return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                        } else if (s.type === 'group') {
+                          return (
+                            <optgroup key={`g-${idx}`} label={s.groupName}>
+                              {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                            </optgroup>
+                          );
+                        }
+                        return null;
+                      });
+
+                    })()}
                   </select>
                   <select 
                     value={selectedGrade}
                     onChange={(e) => setSelectedGrade(e.target.value)}
                     className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
-                    {uniqueGrades.filter(g => g.includes('ประถม')).map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
+                    {(() => {
+                       let availableGrades = uniqueGrades.filter(g => g.includes('ประถม'));
+                       // Smart Filter: If not admin/academic, only show grades they teach for the selected subject
+                       if (currentTeacher && !['admin', 'academic', 'deputy'].includes(currentTeacher.role)) {
+                          const teacherGradesForSubject = new Set<string>(schedules.filter(s => s.teacherId === currentTeacher.id && (s.subject === selectedSubject || s.customSubject === selectedSubject)).map(s => s.gradeLevel));
+                          if (teacherGradesForSubject.size > 0) {
+                              availableGrades = Array.from(teacherGradesForSubject).filter(g => g.includes('ประถม')).sort();
+                          }
+                       }
+                       
+      const kg = availableGrades.filter(g => g.includes('อนุบาล'));
+      const pr = availableGrades.filter(g => g.includes('ประถม'));
+      return (
+        <>
+          {kg.length > 0 && (
+            <optgroup label="ระดับปฐมวัย">
+              {kg.map(g => <option key={g} value={g}>{g}</option>)}
+            </optgroup>
+          )}
+          {pr.length > 0 && (
+            <optgroup label="ระดับประถมศึกษา">
+              {pr.map(g => <option key={g} value={g}>{g}</option>)}
+            </optgroup>
+          )}
+        </>
+      );
+      
+                    })()}
                   </select>
                   <button 
                     onClick={() => setShowSettingsModal(true)}
@@ -658,18 +792,29 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 >
                   เวลาเรียน (ปพ.5)
                 </button>
-                <button
-                  onClick={() => setGradesSubTab('part1')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part1' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  ส่วนที่ 1: เก็บระหว่างเรียน
-                </button>
-                <button
-                  onClick={() => setGradesSubTab('part2')}
-                  className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  ส่วนที่ 2: ผลการเรียน
-                </button>
+                {selectedSubjectType === 'academic' ? (
+                  <>
+                    <button
+                      onClick={() => setGradesSubTab('part1')}
+                      className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part1' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    >
+                      ส่วนที่ 1: เก็บระหว่างเรียน
+                    </button>
+                    <button
+                      onClick={() => setGradesSubTab('part2')}
+                      className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    >
+                      ส่วนที่ 2: ผลการเรียน
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setGradesSubTab('part2')}
+                    className={`px-4 py-2 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${gradesSubTab === 'part2' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  >
+                    ประเมินผลกิจกรรม (ผ/มผ)
+                  </button>
+                )}
 
               </div>
 
@@ -733,29 +878,29 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       <tr>
                         <th rowSpan={2} className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
                         <th rowSpan={2} className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
-                        <th colSpan={subjectSettings.beforeMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้ก่อนกลางภาค (20)</th>
-                        <th colSpan={subjectSettings.beforeMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยก่อนกลางภาค (10)</th>
-                        <th colSpan={subjectSettings.afterMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้หลังกลางภาค (20)</th>
-                        <th colSpan={subjectSettings.afterMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยหลังกลางภาค (10)</th>
+                        <th colSpan={effectiveSettings.beforeMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้ก่อนกลางภาค (20)</th>
+                        <th colSpan={effectiveSettings.beforeMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยก่อนกลางภาค (10)</th>
+                        <th colSpan={effectiveSettings.afterMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้หลังกลางภาค (20)</th>
+                        <th colSpan={effectiveSettings.afterMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยหลังกลางภาค (10)</th>
                         <th rowSpan={2} className="px-3 py-3 text-center border-l border-slate-200 bg-indigo-50 font-bold">รวมเก็บคะแนน<br/><span className="text-xs text-indigo-500 font-normal">(60)</span></th>
                       </tr>
                       <tr>
-                        {subjectSettings.beforeMidKnowledge.map(act => (
+                        {effectiveSettings.beforeMidKnowledge.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
                             {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
-                        {subjectSettings.beforeMidSoftSkill.map(act => (
+                        {effectiveSettings.beforeMidSoftSkill.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
                             {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
-                        {subjectSettings.afterMidKnowledge.map(act => (
+                        {effectiveSettings.afterMidKnowledge.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
                             {formatColumnHeader(act.name, act.maxScore)}
                           </th>
                         ))}
-                        {subjectSettings.afterMidSoftSkill.map(act => (
+                        {effectiveSettings.afterMidSoftSkill.map(act => (
                           <th key={act.id} className="px-2 py-2 text-center border-r border-slate-200 bg-emerald-50/50 font-medium text-xs whitespace-nowrap min-w-[60px]">
                             {formatColumnHeader(act.name, act.maxScore)}
                           </th>
@@ -777,7 +922,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
                               <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
                               
-                              {subjectSettings.beforeMidKnowledge.map(act => (
+                              {effectiveSettings.beforeMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
                                   <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
@@ -791,7 +936,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                               ))}
-                              {subjectSettings.beforeMidSoftSkill.map(act => (
+                              {effectiveSettings.beforeMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
                                   <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
@@ -805,7 +950,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                               ))}
-                              {subjectSettings.afterMidKnowledge.map(act => (
+                              {effectiveSettings.afterMidKnowledge.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
                                   <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
@@ -819,7 +964,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                 </td>
                               ))}
-                              {subjectSettings.afterMidSoftSkill.map(act => (
+                              {effectiveSettings.afterMidSoftSkill.map(act => (
                                 <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
                                   <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
                                     className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
@@ -1193,6 +1338,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
           {activeTab === 'learning_hours' && (
             <LearningHoursReport 
+              selectedGrade={selectedGrade}
               systemAcademicYear={viewYear}
               systemSemester={viewSemester}
               students={students}
@@ -1223,7 +1369,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         <SubjectSettingsModal
           isOpen={showSettingsModal}
           onClose={() => setShowSettingsModal(false)}
-          settings={subjectSettings}
+          settings={effectiveSettings || subjectSettings || undefined}
           onSave={handleSaveSettings}
         />
       )}

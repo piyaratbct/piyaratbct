@@ -1,3 +1,4 @@
+import { sortSubjects } from '../types';
 import React, { useState, useEffect } from "react";
 import { DESIRABLE_CHARACTERISTICS } from "../data";
 import { LessonPlan, StructuredEvaluation, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, PERIOD_OPTIONS, SEMESTERS, CurriculumSubject } from "../types";
@@ -53,18 +54,19 @@ export function LessonPlanForm({
   systemSemester: string;
   teachers?: any[];
 }) {
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>(SUBJECTS);
-  const [subject, setSubject] = useState<string>(initialPlan?.subject || SUBJECTS[0]);
+  const [availableSubjects, setAvailableSubjects] = useState<any[]>(SUBJECTS);
+  const [subject, setSubject] = useState<string>(initialPlan?.subject || "");
   const [customSubject, setCustomSubject] = useState(initialPlan?.customSubject || "");
   const [selectedGrades, setSelectedGrades] = useState<string[]>(
     initialPlan?.gradeLevel 
       ? initialPlan.gradeLevel.split(',').map(s => s.trim()).filter(Boolean)
-      : [GRADE_LEVELS[0]]
+      : []
   );
   const defaultSemester = `ภาคเรียนที่ ${systemSemester === '1' || systemSemester === '2' ? systemSemester : '1'}/${systemAcademicYear || '2567'}`;
   const [semester, setSemester] = useState(initialPlan?.semester || defaultSemester);
     const [date, setDate] = useState(initialPlan?.date || "");
   const [title, setTitle] = useState(initialPlan?.title || "");
+  const [selectedUnitId, setSelectedUnitId] = useState(initialPlan?.unitId || "manual");
   const [coTeachers, setCoTeachers] = useState<string[]>(initialPlan?.coTeachers || []);
     const [showCoTeacherDropdown, setShowCoTeacherDropdown] = useState(false);
   const [isIntegrated, setIsIntegrated] = useState(initialPlan?.isIntegrated || false);
@@ -83,10 +85,12 @@ export function LessonPlanForm({
   const [tableGradeFilter, setTableGradeFilter] = useState<string>('all');
   
   // Calculate remaining indicators
+  let totalIndicatorsInCurriculum = 0;
   let totalRemaining = 0;
   curriculums.forEach(curr => {
-    curr.standards.forEach((std: any) => {
-      std.indicators.forEach((ind: any) => {
+    curr.standards?.forEach((std: any) => {
+      std.indicators?.forEach((ind: any) => {
+        totalIndicatorsInCurriculum++;
         if (!usedIndicators.has(ind.code)) {
           totalRemaining++;
         }
@@ -131,24 +135,83 @@ export function LessonPlanForm({
 
 
   useEffect(() => {
-    const fetchAvailableSubjects = async () => {
+        const fetchAvailableSubjects = async () => {
       try {
         const q = query(collection(db, 'curriculums'));
         const snapshot = await getDocs(q);
-        const subjects = new Set(SUBJECTS);
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.subjectName) {
-            subjects.add(data.subjectName);
+        
+        const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        allDocs.sort(sortSubjects);
+        const parentIds = new Set<string>();
+        
+        allDocs.forEach(data => {
+          if (data.isParent) parentIds.add(data.id);
+          if (data.parentId) parentIds.add(data.parentId);
+        });
+
+        const parentNames = new Set<string>();
+        const childMap = new Map<string, string[]>();
+        
+        allDocs.forEach(data => {
+          if ((parentIds.has(data.id) || data.isParent) && data.subjectName) {
+            parentNames.add(data.subjectName);
+            if (!childMap.has(data.subjectName)) childMap.set(data.subjectName, []);
           }
         });
-        setAvailableSubjects(Array.from(subjects));
+
+        allDocs.forEach(data => {
+          if (data.parentId) {
+            const parentDoc = allDocs.find(d => d.id === data.parentId);
+            if (parentDoc && parentDoc.subjectName && data.subjectName) {
+              const children = childMap.get(parentDoc.subjectName) || [];
+              if (!children.includes(data.subjectName)) {
+                children.push(data.subjectName);
+              }
+              childMap.set(parentDoc.subjectName, children);
+            }
+          }
+        });
+
+        const dropDownData = [];
+        
+        const standaloneSubjects = new Set<string>();
+        
+        allDocs.forEach(data => {
+          const isActuallyParent = parentIds.has(data.id) || data.isParent === true;
+          if (data.subjectName && !isActuallyParent && !parentNames.has(data.subjectName) && !data.parentId) {
+            standaloneSubjects.add(data.subjectName);
+          }
+        });
+        
+        standaloneSubjects.forEach(s => {
+          dropDownData.push({ type: 'single', name: s });
+        });
+        
+        parentNames.forEach(pName => {
+          const children = childMap.get(pName) || [];
+          if (children.length > 0) {
+            dropDownData.push({ type: 'group', groupName: pName, subjects: children });
+          }
+        });
+
+        dropDownData.push({ type: 'single', name: 'อื่นๆ' });
+        setAvailableSubjects(dropDownData);
       } catch (error) {
         console.error("Error fetching available subjects", error);
       }
     };
     fetchAvailableSubjects();
   }, []);
+
+  useEffect(() => {
+    if (availableSubjects.length > 0 && !initialPlan && subject !== "") {
+      const allSelectable = availableSubjects.flatMap(s => typeof s === 'string' ? [s] : s.type === 'single' ? [s.name] : s.subjects);
+      // Only auto-correct if a subject was somehow selected but not in the list, but allow empty
+      if (!allSelectable.includes(subject) && subject !== "") {
+        // Do nothing or handle gracefully. We want to allow empty.
+      }
+    }
+  }, [availableSubjects, initialPlan, subject]);
 
   useEffect(() => {
     const fetchCurriculumData = async () => {
@@ -164,6 +227,9 @@ export function LessonPlanForm({
         const snapshotCurriculums = await getDocs(qCurriculums);
         let fetchedCurriculums = snapshotCurriculums.docs.map(doc => doc.data() as CurriculumSubject);
         
+        // Remove parent curriculums if we only want to show teachable subjects (child or independent)
+        fetchedCurriculums = fetchedCurriculums.filter(c => !c.isParent);
+        
         const activeSubject = (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : subject;
         let subjectsArray = [activeSubject];
         if (isIntegrated && integratedSubjects) {
@@ -172,7 +238,7 @@ export function LessonPlanForm({
         
         fetchedCurriculums = fetchedCurriculums.filter(c => {
           let cName = c.subjectName || '';
-          if (!activeSubject) return false;
+          if (subjectsArray.length === 0 || subjectsArray.every(s => !s)) return false;
           
           cName = cName.replace(/[ฯ(\-]/g, '').replace(/\s+/g, '').toLowerCase();
           
@@ -267,7 +333,7 @@ export function LessonPlanForm({
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-        setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
+        setSelectedGrades(levels.length > 0 ? levels : []);
       }
 
       setSemester(initialPlan.semester || defaultSemester);
@@ -288,8 +354,8 @@ export function LessonPlanForm({
   }, [initialPlan, defaultSemester]);
 
   const resetForm = () => {
-    setSubject("ภาษาไทย");
-    setSelectedGrades([GRADE_LEVELS[0]]);
+    setSubject("");
+    setSelectedGrades([]);
     setSemester(defaultSemester);
     setDate("");
     setTitle("");
@@ -332,6 +398,7 @@ export function LessonPlanForm({
       customSubject: (subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') ? customSubject : undefined,
       gradeLevel: selectedGrades.join(", "),
       title,
+      unitId: selectedUnitId === "manual" ? undefined : selectedUnitId,
       isIntegrated,
       integratedSubjects,
       coreIndicators,
@@ -388,6 +455,28 @@ export function LessonPlanForm({
         ? prev.filter((g) => g !== grade)
         : [...prev, grade].sort(),
     );
+  };
+
+  const availableUnits = curriculums.flatMap(c => c.units || []).filter(u => u.name && u.id);
+  
+  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setSelectedUnitId(val);
+    if (val !== 'manual') {
+      const unit = availableUnits.find(u => u.id === val);
+      if (unit) {
+        setTitle(unit.name);
+        
+        // Auto-select indicators for this unit
+        if (unit.indicators && unit.indicators.length > 0) {
+          const currentCore = coreIndicators.split(',').map((s: string) => s.trim()).filter(Boolean);
+          const newCore = Array.from(new Set([...currentCore, ...unit.indicators]));
+          setCoreIndicators(newCore.join(', '));
+        }
+      }
+    } else {
+      setTitle("");
+    }
   };
 
   const availableIndicatorOptions = Array.from(new Set([
@@ -454,9 +543,20 @@ export function LessonPlanForm({
                 className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
                 <option value="" disabled>เลือกรายวิชา...</option>
-                {availableSubjects.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                {availableSubjects.map((s, idx) => {
+                  if (typeof s === 'string') {
+                    return <option key={`s-${idx}`} value={s}>{s}</option>;
+                  } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                    return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                  } else if (s.type === 'group') {
+                    return (
+                      <optgroup key={`g-${idx}`} label={s.groupName}>
+                        {s.subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                      </optgroup>
+                    );
+                  }
+                  return null;
+                })}
               </select>
               {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
                 <input
@@ -490,7 +590,7 @@ export function LessonPlanForm({
                   
                   {showSubjectsDropdown && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-                      {SUBJECTS.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj) => {
+                      {availableSubjects.flatMap(s => typeof s === 'string' ? [s] : s.type === 'single' ? [s.name] : s.subjects).filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj) => {
                         const isSelected = integratedSubjects.includes(subj);
                         return (
                           <label key={subj} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-slate-100 text-slate-700 font-medium' : 'hover:bg-slate-50 text-slate-700'}`}>
@@ -600,14 +700,39 @@ export function LessonPlanForm({
             <p className="text-[10px] text-slate-400 mb-2">
               {isKindergarten ? "ระบุชื่อหน่วยการจัดประสบการณ์ หรือเรื่องที่จะใช้สอน" : "ระบุชื่อหน่วย หรือเรื่องที่จะใช้สอน"}
             </p>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400"
-              placeholder="ตัวอย่าง: สิ่งมีชีวิตและสิ่งแวดล้อม"
-            />
+            {availableUnits.length > 0 ? (
+              <div className="space-y-3">
+                <select
+                  value={selectedUnitId}
+                  onChange={handleUnitChange}
+                  className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="manual">พิมพ์กำหนดเอง (Manual Entry)</option>
+                  {availableUnits.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                {selectedUnitId === 'manual' && (
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 placeholder:text-slate-400"
+                    placeholder="พิมพ์ชื่อหน่วยการเรียนรู้..."
+                  />
+                )}
+              </div>
+            ) : (
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full p-3 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder:text-slate-400"
+                placeholder="ตัวอย่าง: สิ่งมีชีวิตและสิ่งแวดล้อม"
+              />
+            )}
           
           </div>
           
@@ -690,6 +815,8 @@ export function LessonPlanForm({
                   <p className="text-[11px] text-slate-600 mt-1">
                     {curriculums.length === 0 
                       ? 'ไม่พบข้อมูลหลักสูตรสำหรับวิชาและชั้นเรียนที่เลือก'
+                      : totalIndicatorsInCurriculum === 0
+                        ? 'ยังไม่ได้เพิ่มข้อมูลตัวชี้วัดในวิชานี้ (ไปที่เมนูจัดการหลักสูตร)'
                       : totalRemaining === 0 
                         ? 'คุณได้นำตัวชี้วัดทั้งหมดไปใช้ในแผนการสอนครบถ้วนแล้ว เยี่ยมมาก!'
                         : `คุณมีตัวชี้วัดที่ยังไม่ได้ระบุในแผนการสอนใดเลย จำนวน ${totalRemaining} ตัวชี้วัด`}
@@ -733,7 +860,7 @@ export function LessonPlanForm({
                       <div className="text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-1 rounded mb-2 border border-slate-200 inline-block">
                         {curr.gradeLevel}
                       </div>
-                      {curr.standards.map((std: any, sIdx: number) => {
+                      {curr.standards?.map((std: any, sIdx: number) => {
                         if (!std.indicators || std.indicators.length === 0) return null;
                         
                         return (

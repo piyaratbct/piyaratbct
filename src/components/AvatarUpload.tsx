@@ -6,7 +6,7 @@ interface AvatarUploadProps {
   url?: string;
   name: string;
   onUpload: (base64Url: string) => Promise<void>;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   editable?: boolean;
 }
 
@@ -19,7 +19,9 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
     sm: 'w-8 h-8 text-xs',
     md: 'w-12 h-12 text-sm',
     lg: 'w-16 h-16 text-base',
-    xl: 'w-24 h-24 text-xl'
+    xl: 'w-24 h-24 text-xl',
+    '2xl': 'w-32 h-32 text-2xl',
+    '3xl': 'w-40 h-40 text-3xl'
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

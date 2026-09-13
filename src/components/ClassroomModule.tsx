@@ -59,6 +59,7 @@ interface ClassroomModuleProps {
   systemAcademicYear?: string;
   systemSemester?: string;
   teachers?: Teacher[];
+  initialTab?: 'students' | 'student360' | 'attendance' | 'assessments' | 'special-care';
 }
 
 export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
@@ -66,10 +67,15 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemAcademicYear = "2567",
   systemSemester = "1",
   teachers = [],
+  initialTab,
 }) => {
   const [activeTab, setActiveTab] = useState<"students" | "student360" | "attendance" | "assessments" | "special-care">(
-    "students",
+    initialTab || "students",
   );
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
   const [selectedStudent360, setSelectedStudent360] = useState<Student | null>(null);
 
   const initialGrade = currentTeacher?.homeroomClass || currentTeacher?.coHomeroomClass || GRADE_LEVELS[0];
@@ -903,14 +909,6 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
 {isStudentManager && (
                         <>
-                      {canDeleteStudent && (
-                      <button
-                        onClick={() => setShowDeleteAllConfirm(true)}
-                        className="w-full justify-center sm:w-auto bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
-                      >
-                        <Trash2 className="h-4 w-4" /> ลบทั้งหมด
-                      </button>
-                      )}
                       <button
                         onClick={() => {
                           setEditingStudent(null);

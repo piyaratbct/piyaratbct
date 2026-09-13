@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { LessonPlan, SUBJECTS, GRADE_LEVELS, Teacher, LessonRecord } from "../types";
 import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import { db } from '../lib/firebase';
 import {
   Search,
@@ -36,6 +37,8 @@ interface LessonPlanListProps {
   onDelete: (id: string) => void;
   onPrintPreview: (plan: LessonPlan) => void;
   onEvaluate?: (plan: LessonPlan) => void;
+  initialSubject?: string;
+  initialGrade?: string;
 }
 
 export function LessonPlanList({
@@ -51,10 +54,18 @@ export function LessonPlanList({
   onDelete,
   onPrintPreview,
   onEvaluate,
+  initialSubject,
+  initialGrade
 }: LessonPlanListProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
-  const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
+  const availableSubjects = useAvailableSubjects();
+  const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || "ทั้งหมด");
+  const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || "ทั้งหมด");
+    
+  React.useEffect(() => {
+    if (initialSubject) setSelectedSubject(initialSubject);
+    if (initialGrade) setSelectedGrade(initialGrade);
+  }, [initialSubject, initialGrade]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");
   const [selectedStatus, setSelectedStatus] = useState<string>("ทั้งหมด");
   
@@ -239,11 +250,22 @@ export function LessonPlanList({
               className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
             >
               <option value="ทั้งหมด">หมวดวิชา: ทั้งหมด</option>
-              {SUBJECTS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              
+              {availableSubjects.map((s, idx) => {
+                if (typeof s === 'string') {
+                  return <option key={`s-${idx}`} value={s}>{s}</option>;
+                } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                  return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                } else if (s.type === 'group') {
+                  return (
+                    <optgroup key={`g-${idx}`} label={s.groupName}>
+                      {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                    </optgroup>
+                  );
+                }
+                return null;
+              })}
+
             </select>
           </div>
 
@@ -255,11 +277,18 @@ export function LessonPlanList({
               className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
             >
               <option value="ทั้งหมด">ชั้นเรียน: ทั้งหมด</option>
-              {GRADE_LEVELS.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
+              
+              <optgroup label="ระดับปฐมวัย">
+                {GRADE_LEVELS.filter(g => g.includes('อนุบาล')).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </optgroup>
+              <optgroup label="ระดับประถมศึกษา">
+                {GRADE_LEVELS.filter(g => g.includes('ประถม')).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </optgroup>
+
             </select>
           </div>
         </div>

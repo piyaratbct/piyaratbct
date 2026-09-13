@@ -1,8 +1,9 @@
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, PERIODS } from '../types';
-import { Calendar, Trash2, Plus, User, BookOpen } from 'lucide-react';
+import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, PERIODS, BASE_GRADE_LEVELS, sortSubjects } from '../types';
+import { Calendar, Trash2, Plus, User, BookOpen, AlertCircle } from 'lucide-react';
 
 interface ScheduleManagerProps {
   systemSemester: string;
@@ -11,7 +12,12 @@ interface ScheduleManagerProps {
 }
 
 export function ScheduleManager({ systemSemester, systemAcademicYear, currentTeacher }: ScheduleManagerProps) {
+  const availableSubjects = useAvailableSubjects();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [curriculums, setCurriculums] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [termStart, setTermStart] = useState<string>('');
+  const [termEnd, setTermEnd] = useState<string>('');
   const [allSchedules, setAllSchedules] = useState<TeacherSchedule[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'manage' | 'overview' | 'summary' | 'student_overview'>('manage');
@@ -22,6 +28,24 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   const daysOfWeek = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
   useEffect(() => {
+    // Listen to academic settings (holidays, start/end dates)
+    const unsubConfig = onSnapshot(doc(db, "config", "school"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.termStartDate) setTermStart(data.termStartDate);
+        if (data.termEndDate) setTermEnd(data.termEndDate);
+      }
+    });
+
+    const calendarDocId = `${systemAcademicYear}_${systemSemester}`;
+    const unsubCalendar = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().holidays) {
+        setHolidays(docSnap.data().holidays);
+      } else {
+        setHolidays([]);
+      }
+    });
+
     const fetchData = async () => {
       try {
         const tSnap = await getDocs(collection(db, 'teachers'));
@@ -31,6 +55,9 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         setTeachers(activeTeachers);
 
         const sSnap = await getDocs(collection(db, 'schedules'));
+        
+        const cSnap = await getDocs(collection(db, 'curriculums'));
+        setCurriculums(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         const relevantSchedules = sSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as TeacherSchedule))
           .filter(s => {
@@ -43,6 +70,10 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
       }
     };
     fetchData();
+    return () => {
+      unsubConfig();
+      unsubCalendar();
+    };
   }, [systemSemester, systemAcademicYear]);
 
   useEffect(() => {
@@ -52,6 +83,45 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   }, [currentTeacher]);
 
   const schedules = allSchedules.filter(s => s.teacherId === selectedTeacherId);
+
+    const getTeachingDays = () => {
+    if (!termStart || !termEnd) return null;
+    
+    const [startYear, startMonth, startDay] = termStart.split('-').map(Number);
+    const [endYear, endMonth, endDay] = termEnd.split('-').map(Number);
+    
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+
+    const daysCount: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const datesToSkip = new Set<string>();
+    holidays.forEach(h => {
+      // Treat items without type as legacy 'holiday'
+      const type = h.type || 'holiday';
+      if (type === 'holiday' || type === 'activity_no_class') {
+         datesToSkip.add(h.date);
+      }
+    });
+
+    let cur = new Date(start);
+    while (cur <= end) {
+      const dayOfWeek = cur.getDay();
+      const yyyy = cur.getFullYear();
+      const mm = String(cur.getMonth() + 1).padStart(2, '0');
+      const dd = String(cur.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+
+      if (dayOfWeek >= 1 && dayOfWeek <= 5 && !datesToSkip.has(dateStr)) {
+        daysCount[dayOfWeek]++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return daysCount;
+  };
+
+  const teachingDaysCount = getTeachingDays();
   console.log("allSchedules:", allSchedules);
   console.log("selectedTeacherId:", selectedTeacherId);
   console.log("schedules:", schedules);
@@ -209,7 +279,22 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                               
                               <div className="w-full md:w-2/6">
                                 <select value={schedule.subject} onChange={(e) => handleUpdateSchedule(schedule.id, 'subject', e.target.value)} disabled={isReadOnly} className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100">
-                                  {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                  
+                                  {availableSubjects.map((s: any, idx: number) => {
+                                    if (typeof s === 'string') {
+                                      return <option key={`s-${idx}`} value={s}>{s}</option>;
+                                    } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                                      return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                                    } else if (s.type === 'group') {
+                                      return (
+                                        <optgroup key={`g-${idx}`} label={s.groupName}>
+                                          {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                                        </optgroup>
+                                      );
+                                    }
+                                    return null;
+                                  })}
+
                                 </select>
                                 {schedule.subject === 'อื่นๆ' && (
                                   <input type="text" value={schedule.customSubject || ''} onChange={(e) => handleUpdateSchedule(schedule.id, 'customSubject', e.target.value)} disabled={isReadOnly} placeholder="ระบุวิชาอื่นๆ..." className="w-full mt-2 p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100" />
@@ -307,48 +392,197 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         )}
 
         {viewMode === 'summary' && (
-          <div className="overflow-x-auto">
-             <table className="min-w-full bg-white border border-slate-200 rounded-lg overflow-hidden">
-                <thead className="bg-slate-100 border-b border-slate-200 text-slate-700">
-                  <tr>
-                    <th className="py-3 px-4 text-left font-bold">ชื่อ-นามสกุล</th>
-                    <th className="py-3 px-4 text-left font-bold">รายวิชาที่สอน (ระดับชั้น)</th><th className="py-3 px-4 text-center font-bold">จำนวนคาบสอนรวม (ต่อสัปดาห์)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {teachers.map(t => {
-                    const tScheds = allSchedules.filter(s => s.teacherId === t.id);
-                    const subjectGroups = tScheds.reduce((acc, curr) => {
-                      const subjectName = curr.subject === 'อื่นๆ' ? (curr.customSubject || 'อื่นๆ') : curr.subject;
-                      if (!acc[subjectName]) acc[subjectName] = new Set<string>();
-                      acc[subjectName].add(curr.gradeLevel);
-                      return acc;
-                    }, {} as Record<string, Set<string>>);
-                    const sortedSubjects = Object.keys(subjectGroups).sort();
-                    
-                    return (
-                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-4 text-sm font-medium text-slate-800 align-top whitespace-nowrap">{t.displayName || t.thaiName}</td>
-                        <td className="py-3 px-4 text-sm text-slate-600 align-top">
-                          {sortedSubjects.length > 0 ? (
-                            <ul className="list-disc list-inside space-y-1">
-                              {sortedSubjects.map(sub => (
-                                <li key={sub}>
-                                  <span className="font-semibold text-slate-700">{sub}</span> 
-                                  <span className="text-xs text-slate-500 ml-1">({Array.from(subjectGroups[sub]).sort().join(', ')})</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <span className="text-slate-400 italic">ไม่มีข้อมูล</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-center text-sm font-bold text-indigo-600 align-top">{tScheds.length} คาบ</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-             </table>
+          <div className="space-y-6">
+            {!teachingDaysCount && (
+              <div className="p-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg flex items-center gap-3">
+                <AlertCircle className="h-5 w-5" />
+                <p className="text-sm font-medium">ยังไม่ได้กำหนด "วันเปิด-ปิดภาคเรียน" ในเมนูตั้งค่าระบบ ทำให้ไม่สามารถคำนวณชั่วโมงเรียนจริงได้</p>
+              </div>
+            )}
+            
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-bold text-slate-800">สถิติวันเรียนในภาคเรียนนี้ (หลังหักวันหยุด)</h4>
+                {teachingDaysCount && (
+                   <div className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">
+                     รวมทั้งหมด: {Object.values(teachingDaysCount).reduce((a, b) => a + b, 0)} วัน
+                   </div>
+                )}
+              </div>
+              <div className="grid grid-cols-5 gap-4 text-center">
+                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 mb-1">วันจันทร์</div>
+                  <div className="text-xl font-black text-indigo-600">{teachingDaysCount ? teachingDaysCount[1] : '-'} <span className="text-xs font-normal text-slate-500">วัน</span></div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 mb-1">วันอังคาร</div>
+                  <div className="text-xl font-black text-indigo-600">{teachingDaysCount ? teachingDaysCount[2] : '-'} <span className="text-xs font-normal text-slate-500">วัน</span></div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 mb-1">วันพุธ</div>
+                  <div className="text-xl font-black text-indigo-600">{teachingDaysCount ? teachingDaysCount[3] : '-'} <span className="text-xs font-normal text-slate-500">วัน</span></div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 mb-1">วันพฤหัสบดี</div>
+                  <div className="text-xl font-black text-indigo-600">{teachingDaysCount ? teachingDaysCount[4] : '-'} <span className="text-xs font-normal text-slate-500">วัน</span></div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 mb-1">วันศุกร์</div>
+                  <div className="text-xl font-black text-indigo-600">{teachingDaysCount ? teachingDaysCount[5] : '-'} <span className="text-xs font-normal text-slate-500">วัน</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              {BASE_GRADE_LEVELS.map(baseGrade => {
+                // Find all schedules that belong to this base grade (e.g. "ประถมศึกษาปีที่ 1" matches "ประถมศึกษาปีที่ 1/1", etc.)
+                const gradeSchedules = allSchedules.filter(s => s.gradeLevel && s.gradeLevel.startsWith(baseGrade));
+                if (gradeSchedules.length === 0) return null;
+
+                // Group by SUBJECT first, then ROOM
+                const subjectGroups: Record<string, Record<string, { periods: number, days: number[], teachers: Set<string>, seenPeriods: Set<string> }>> = {};
+                
+                gradeSchedules.forEach(curr => {
+                  const subjectName = curr.subject === 'อื่นๆ' ? (curr.customSubject || 'อื่นๆ') : curr.subject;
+                  const room = curr.gradeLevel;
+                  
+                  if (!subjectGroups[subjectName]) {
+                     subjectGroups[subjectName] = {};
+                  }
+                  if (!subjectGroups[subjectName][room]) {
+                     subjectGroups[subjectName][room] = { periods: 0, days: [], teachers: new Set(), seenPeriods: new Set() };
+                  }
+                  
+                  const periodSig = `${curr.dayOfWeek}-${curr.period}`;
+                  if (!subjectGroups[subjectName][room].seenPeriods.has(periodSig)) {
+                     subjectGroups[subjectName][room].seenPeriods.add(periodSig);
+                     subjectGroups[subjectName][room].periods += 1;
+                     subjectGroups[subjectName][room].days.push(curr.dayOfWeek);
+                  }
+                  
+                  const teacher = teachers.find(t => t.id === curr.teacherId);
+                  if (teacher) {
+                    subjectGroups[subjectName][room].teachers.add(teacher.displayName || teacher.thaiName || '');
+                  }
+                });
+
+                return (
+                  <div key={baseGrade} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex items-center gap-3">
+                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                      <h3 className="font-black text-indigo-900 text-lg">{baseGrade}</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
+                          <tr>
+                            <th className="py-3 px-6 font-bold w-1/4">รายวิชา</th>
+                            <th className="py-3 px-6 font-bold w-1/5">เป้าหมายตามหลักสูตร</th>
+                            <th className="py-3 px-6 font-bold">ข้อมูลการจัดตารางสอนรายห้อง</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {Object.keys(subjectGroups).sort((a, b) => {
+                            const currA = curriculums.find(c => c.subjectName === a && (c.gradeLevel === baseGrade || (c.gradeLevels && c.gradeLevels.includes(baseGrade)))) || { subjectName: a };
+                            const currB = curriculums.find(c => c.subjectName === b && (c.gradeLevel === baseGrade || (c.gradeLevels && c.gradeLevels.includes(baseGrade)))) || { subjectName: b };
+                            return sortSubjects(currA, currB);
+                          }).map(sub => {
+                            // Find required hours from curriculum
+                            // Normalize strings for safer matching
+                            const safeSub = (sub || '').trim();
+                            // หาจากชื่อวิชาและระดับชั้นก่อน
+                            let curriculumMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub && (c.gradeLevel === baseGrade || (c.gradeLevels && c.gradeLevels.includes(baseGrade))));
+                            
+                            // ถ้าหาไม่เจอ ลองหาจากชื่อวิชาอย่างเดียว (fallback)
+                            if (!curriculumMatch) {
+                               curriculumMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub);
+                            }
+                            // ถ้ายังไม่เจอ ลองหาแบบ Substring
+                            if (!curriculumMatch) {
+                               curriculumMatch = curriculums.find(c => ((c.subjectName || '').includes(safeSub) || safeSub.includes(c.subjectName || 'XXX')) && (c.gradeLevel === baseGrade || (c.gradeLevels && c.gradeLevels.includes(baseGrade))));
+                            }
+                            
+                            const requiredHoursYear = curriculumMatch?.totalHours || curriculumMatch?.requiredHoursPerTerm || 0;
+                            const requiredHours = Math.round(requiredHoursYear / 2);
+                            
+                            let diagnosticMsg = '';
+                            if (!curriculumMatch) diagnosticMsg = 'ไม่พบชื่อวิชานี้ในโครงสร้างหลักสูตร';
+                            else if (requiredHoursYear === 0) diagnosticMsg = 'พบวิชาในหลักสูตรแต่กำหนดชั่วโมงเป็น 0';
+                            
+                            
+                            const rooms = subjectGroups[sub];
+                            
+                            return (
+                              <tr key={sub} className="hover:bg-slate-50 transition-colors">
+                                <td className="py-4 px-6 font-bold text-slate-800 align-top">{sub}</td>
+                                <td className="py-4 px-6 text-slate-600 align-top">
+                                  {requiredHoursYear > 0 ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="text-slate-700 font-bold"><span className="text-indigo-700 text-base">{requiredHours}</span> ชม./เทอม</span>
+                                      <span className="text-xs text-slate-500">(เต็มปี {requiredHoursYear} ชม.)</span>
+                                    </div>
+                                  ) : '-'}
+                                </td>
+                                <td className="py-3 px-6">
+                                  <div className="space-y-2">
+                                    {Object.keys(rooms).sort().map(roomName => {
+                                      const rData = rooms[roomName];
+                                      let actualHours = 0;
+                                      if (teachingDaysCount) {
+                                         rData.days.forEach(d => {
+                                            actualHours += teachingDaysCount[d] || 0;
+                                         });
+                                      }
+                                      
+                                      let statusColor = "bg-slate-100 text-slate-600";
+                                      let statusText = "ไม่ได้กำหนดเวลา";
+                                      
+                                      if (requiredHours > 0 && teachingDaysCount) {
+                                         if (actualHours === requiredHours) {
+                                            statusColor = "bg-emerald-100 text-emerald-700 border-emerald-200";
+                                            statusText = "ครบถ้วน";
+                                         } else if (actualHours > requiredHours) {
+                                            statusColor = "bg-amber-100 text-amber-700 border-amber-200";
+                                            statusText = `เกินมา ${actualHours - requiredHours} ชม.`;
+                                         } else {
+                                            statusColor = "bg-rose-100 text-rose-700 border-rose-200";
+                                            statusText = `ขาด ${requiredHours - actualHours} ชม.`;
+                                         }
+                                      }
+                                      
+                                      return (
+                                        <div key={roomName} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-white shadow-sm gap-2">
+                                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                            <span className="font-bold text-slate-700 w-24">{roomName}</span>
+                                            <span className="text-slate-500 text-xs flex items-center gap-1.5">
+                                              <User className="h-3 w-3" />
+                                              ครู{Array.from(rData.teachers).join(', ')}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-4">
+                                            <span className="text-xs text-slate-500 whitespace-nowrap">
+                                              จัดได้: <span className="font-bold text-slate-700">{teachingDaysCount ? actualHours : '-'} ชม.</span> 
+                                              <span className="ml-1 opacity-70">({rData.periods} คาบ)</span>
+                                            </span>
+                                            <div className={`inline-block px-2 py-0.5 rounded-md border text-[10px] font-bold whitespace-nowrap w-24 text-center ${statusColor}`}>
+                                               {statusText}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

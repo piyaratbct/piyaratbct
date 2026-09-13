@@ -1,3 +1,4 @@
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState } from "react";
 import { LessonRecord, SUBJECTS, GRADE_LEVELS, Teacher } from "../types";
 import { formatThaiDateTime, formatThaiMonthYear } from '../lib/dateUtils';
@@ -33,6 +34,8 @@ interface LessonLogListProps {
   onDelete: (id: string) => void;
   onPrintPreview: (record: LessonRecord) => void;
   onEvaluate?: (record: LessonRecord) => void;
+  initialSubject?: string;
+  initialGrade?: string;
 }
 
 export function LessonLogList({
@@ -45,10 +48,18 @@ export function LessonLogList({
   onDelete,
   onPrintPreview,
   onEvaluate,
+  initialSubject,
+  initialGrade
 }: LessonLogListProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState<string>("ทั้งหมด");
-  const [selectedGrade, setSelectedGrade] = useState<string>("ทั้งหมด");
+  const availableSubjects = useAvailableSubjects();
+  const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || "ทั้งหมด");
+  const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || "ทั้งหมด");
+    
+  React.useEffect(() => {
+    if (initialSubject) setSelectedSubject(initialSubject);
+    if (initialGrade) setSelectedGrade(initialGrade);
+  }, [initialSubject, initialGrade]);
   const [selectedMonth, setSelectedMonth] = useState<string>("ทั้งหมด");
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>("ทั้งหมด");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("ทั้งหมด");

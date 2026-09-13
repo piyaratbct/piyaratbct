@@ -3,6 +3,7 @@ import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { Settings, Save, AlertCircle, Plus, Trash2, Calendar } from "lucide-react";
 import { Teacher, SchoolHoliday } from "../types";
+import { useAvailableSubjects } from "../hooks/useAvailableSubjects";
 
 interface AcademicSettingsProps {
   currentTeacher: Teacher;
@@ -22,6 +23,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   const [schoolProvince, setSchoolProvince] = useState<string>("");
   
   const [isProcessing, setIsProcessing] = useState(false);
+  const availableSubjects = useAvailableSubjects();
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const canEdit = currentTeacher.role === "admin" || currentTeacher.role === "academic";
@@ -61,13 +63,19 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   }, [academicYear, semester]);
 
   
-  const calculateLearningDays = () => {
+    const calculateLearningDays = () => {
     if (!termStartDate || !termEndDate) {
       alert("กรุณาระบุวันเปิดและวันปิดภาคเรียนให้ครบถ้วนก่อนคำนวณ");
       return;
     }
-    const start = new Date(termStartDate);
-    const end = new Date(termEndDate);
+    
+    // Create dates explicitly in local time by parsing YYYY-MM-DD
+    const [startYear, startMonth, startDay] = termStartDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = termEndDate.split('-').map(Number);
+    
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
+    
     if (start > end) {
       alert("วันเปิดภาคเรียนต้องอยู่ก่อนวันปิดภาคเรียน");
       return;
@@ -75,7 +83,6 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
 
     let count = 0;
     let cur = new Date(start);
-    const holidayDates = new Set(holidays.map(h => h.date));
 
     while (cur <= end) {
       const dayOfWeek = cur.getDay(); // 0 = Sunday, 6 = Saturday
@@ -85,7 +92,10 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
       const day = String(cur.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
       
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidayDates.has(dateString)) {
+      const isHoliday = holidays.find(h => h.date === dateString);
+      const shouldSkip = isHoliday && (isHoliday.type === 'holiday' || isHoliday.type === 'activity_no_class');
+      
+      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !shouldSkip) {
         count++;
       }
       cur.setDate(cur.getDate() + 1);
@@ -349,7 +359,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
             </h3>
             {canEdit && (
               <button
-                onClick={() => setHolidays([...holidays, { id: Date.now().toString(), date: '', description: '' }])}
+                onClick={() => setHolidays([...holidays, { id: Date.now().toString(), date: '', description: '', type: 'holiday', integratedSubjects: [] }])}
                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" /> เพิ่มวันหยุด
@@ -366,40 +376,99 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
             ) : (
               <div className="space-y-3">
                 {holidays.map((holiday, index) => (
-                  <div key={holiday.id} className="flex items-start sm:items-center gap-3 bg-white p-3 rounded-lg border border-slate-200">
-                    <input
-                      type="date"
-                      value={holiday.date}
-                      onChange={(e) => {
-                        const newHolidays = [...holidays];
-                        newHolidays[index].date = e.target.value;
-                        setHolidays(newHolidays);
-                      }}
-                      disabled={!canEdit}
-                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
-                    />
-                    <input
-                      type="text"
-                      value={holiday.description}
-                      onChange={(e) => {
-                        const newHolidays = [...holidays];
-                        newHolidays[index].description = e.target.value;
-                        setHolidays(newHolidays);
-                      }}
-                      disabled={!canEdit}
-                      placeholder="รายละเอียด (เช่น วันวิสาขบูชา, วันหยุดชดเชย)"
-                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
-                    />
-                    {canEdit && (
-                      <button
-                        onClick={() => {
-                          const newHolidays = holidays.filter(h => h.id !== holiday.id);
+                  <div key={holiday.id} className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex flex-wrap items-start sm:items-center gap-3">
+                      <input
+                        type="date"
+                        value={holiday.date}
+                        onChange={(e) => {
+                          const newHolidays = [...holidays];
+                          newHolidays[index].date = e.target.value;
                           setHolidays(newHolidays);
                         }}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        disabled={!canEdit}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
+                      />
+                      
+                      <select
+                        value={holiday.type || 'holiday'}
+                        onChange={(e) => {
+                          const newHolidays = [...holidays];
+                          newHolidays[index].type = e.target.value as any;
+                          if (e.target.value !== 'activity_integrated') {
+                            newHolidays[index].integratedSubjects = [];
+                          }
+                          setHolidays(newHolidays);
+                        }}
+                        disabled={!canEdit}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 min-w-[180px]"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        <option value="holiday">วันหยุดราชการ / หยุดพิเศษ</option>
+                        <option value="activity_no_class">กิจกรรมโรงเรียน (งดเรียน)</option>
+                        <option value="activity_integrated">กิจกรรมบูรณาการ (นับชั่วโมง)</option>
+                      </select>
+
+                      <input
+                        type="text"
+                        value={holiday.description}
+                        onChange={(e) => {
+                          const newHolidays = [...holidays];
+                          newHolidays[index].description = e.target.value;
+                          setHolidays(newHolidays);
+                        }}
+                        disabled={!canEdit}
+                        placeholder="รายละเอียด (เช่น วันวิสาขบูชา, วันกีฬาสี)"
+                        className="flex-1 min-w-[200px] border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:bg-slate-100"
+                      />
+                      
+                      {canEdit && (
+                        <button
+                          onClick={() => {
+                            const newHolidays = holidays.filter(h => h.id !== holiday.id);
+                            setHolidays(newHolidays);
+                          }}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto sm:ml-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    {holiday.type === 'activity_integrated' && (
+                      <div className="pl-0 sm:pl-[380px]">
+                        <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                          <label className="block text-xs font-bold text-indigo-800 mb-2">
+                            บูรณาการเพื่อคิดชั่วโมงให้วิชาต่อไปนี้ (เลือกได้มากกว่า 1 วิชา)
+                          </label>
+                          <div className="w-full text-xs p-2 border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white flex flex-col gap-1.5">
+                            {availableSubjects.flatMap((s: any) => typeof s === 'string' ? [s] : s.type === 'single' ? [s.name] : s.subjects).filter((s: string) => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj: string) => {
+                                const isChecked = (holiday.integratedSubjects || []).includes(subj);
+                                return (
+                                  <label key={subj} className="flex items-start gap-1.5 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                                    <input 
+                                      type="checkbox" 
+                                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        if (!canEdit) return;
+                                        const newHolidays = [...holidays];
+                                        const currSubs = newHolidays[index].integratedSubjects || [];
+                                        if (e.target.checked) {
+                                          newHolidays[index].integratedSubjects = [...currSubs, subj];
+                                        } else {
+                                          newHolidays[index].integratedSubjects = currSubs.filter((s: string) => s !== subj);
+                                        }
+                                        setHolidays(newHolidays);
+                                      }}
+                                      disabled={!canEdit}
+                                    />
+                                    <span className={isChecked ? 'text-indigo-700 font-medium' : 'text-slate-600'}>{subj}</span>
+                                  </label>
+                                );
+                            })}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}

@@ -1,3 +1,4 @@
+import { sortSubjects } from '../types';
 import React, { useState, useEffect } from 'react';
 import { LessonRecord, Student, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
 
@@ -70,9 +71,9 @@ interface PBLLessonLogFormProps {
 }
 
 export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1', preloadedPlan, onClearPreloadedPlan }: PBLLessonLogFormProps) {
-  const [subject, setSubject] = useState<string>(initialRecord?.subject || "บูรณาการ (PBL)");
+  const [subject, setSubject] = useState<string>(initialRecord?.subject || '');
 
-  const [selectedGrades, setSelectedGrades] = useState<string[]>([GRADE_LEVELS[0]]);
+  const [selectedGrades, setSelectedGrades] = useState<string[]>(initialRecord?.gradeLevel ? initialRecord.gradeLevel.split(',').map(s => s.trim()).filter(Boolean) : []);
   const defaultSemester = `ภาคเรียนที่ ${systemSemester}/${systemAcademicYear}`;
   const [semester, setSemester] = useState(defaultSemester);
   
@@ -98,6 +99,76 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [lessonPlanId, setLessonPlanId] = useState<string | undefined>(initialRecord?.lessonPlanId);
   const [showSubjectsDropdown, setShowSubjectsDropdown] = useState(false);
+  const [availableSubjects, setAvailableSubjects] = useState<any[]>(SUBJECTS);
+
+  useEffect(() => {
+        const fetchAvailableSubjects = async () => {
+      try {
+        const q = query(collection(db, 'curriculums'));
+        const snapshot = await getDocs(q);
+        
+        const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        allDocs.sort(sortSubjects);
+        const parentIds = new Set<string>();
+        
+        allDocs.forEach(data => {
+          if (data.isParent) parentIds.add(data.id);
+          if (data.parentId) parentIds.add(data.parentId);
+        });
+
+        const parentNames = new Set<string>();
+        const childMap = new Map<string, string[]>();
+        
+        allDocs.forEach(data => {
+          if ((parentIds.has(data.id) || data.isParent) && data.subjectName) {
+            parentNames.add(data.subjectName);
+            if (!childMap.has(data.subjectName)) childMap.set(data.subjectName, []);
+          }
+        });
+
+        allDocs.forEach(data => {
+          if (data.parentId) {
+            const parentDoc = allDocs.find(d => d.id === data.parentId);
+            if (parentDoc && parentDoc.subjectName && data.subjectName) {
+              const children = childMap.get(parentDoc.subjectName) || [];
+              if (!children.includes(data.subjectName)) {
+                children.push(data.subjectName);
+              }
+              childMap.set(parentDoc.subjectName, children);
+            }
+          }
+        });
+
+        const dropDownData = [];
+        
+        const standaloneSubjects = new Set<string>();
+        
+        allDocs.forEach(data => {
+          const isActuallyParent = parentIds.has(data.id) || data.isParent === true;
+          if (data.subjectName && !isActuallyParent && !parentNames.has(data.subjectName) && !data.parentId) {
+            standaloneSubjects.add(data.subjectName);
+          }
+        });
+        
+        standaloneSubjects.forEach(s => {
+          dropDownData.push({ type: 'single', name: s });
+        });
+        
+        parentNames.forEach(pName => {
+          const children = childMap.get(pName) || [];
+          if (children.length > 0) {
+            dropDownData.push({ type: 'group', groupName: pName, subjects: children });
+          }
+        });
+
+        dropDownData.push({ type: 'single', name: 'อื่นๆ' });
+        setAvailableSubjects(dropDownData);
+      } catch (error) {
+        console.error("Error fetching available subjects", error);
+      }
+    };
+    fetchAvailableSubjects();
+  }, []);
 
   const fetchPlans = async () => {
     setIsLoadingPlans(true);
@@ -245,7 +316,8 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
         const levels = initialRecord.gradeLevel.split(',').map(s => s.trim()).filter(Boolean);
         setSelectedGrades(levels.length > 0 ? levels : [GRADE_LEVELS[0]]);
       } else {
-        setSelectedGrades([GRADE_LEVELS[0]]);
+        setSelectedGrades([]);
+    setSubject("");
       }
       
       setSemester(initialRecord.semester || defaultSemester);
@@ -282,7 +354,8 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
   }, [initialRecord, defaultSemester]);
 
   const resetForm = () => {
-    setSelectedGrades([GRADE_LEVELS[0]]);
+    setSelectedGrades([]);
+    setSubject("");
     setSemester(defaultSemester);
     setDate("");
     setPblDrivingQuestion("");
@@ -415,9 +488,21 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
               onChange={(e) => setSubject(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              {SUBJECTS.map((subj) => (
-                <option key={subj} value={subj}>{subj}</option>
-              ))}
+              <option value="" disabled>เลือกวิชาหลัก...</option>
+              {availableSubjects.map((s, idx) => {
+                  if (typeof s === 'string') {
+                    return <option key={`s-${idx}`} value={s}>{s}</option>;
+                  } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
+                    return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                  } else if (s.type === 'group') {
+                    return (
+                      <optgroup key={`g-${idx}`} label={s.groupName}>
+                        {s.subjects.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                      </optgroup>
+                    );
+                  }
+                  return null;
+                })}
             </select>
             {(subject === 'อื่นๆ' || subject === 'บูรณาการ (PBL)') && (
               <input
@@ -483,7 +568,7 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
                   
                   {showSubjectsDropdown && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-                      {SUBJECTS.filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj) => {
+                      {availableSubjects.flatMap(s => typeof s === 'string' ? [s] : s.type === 'single' ? [s.name] : s.subjects).filter(s => s !== 'อื่นๆ' && s !== 'อื่น ๆ').map((subj) => {
                         const isSelected = integratedSubjects.includes(subj);
                         return (
                           <label key={subj} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-colors ${isSelected ? 'bg-slate-100 text-slate-700 font-medium' : 'hover:bg-slate-50 text-slate-700'}`}>

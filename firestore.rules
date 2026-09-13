@@ -211,7 +211,9 @@ service cloud.firestore {
 
     match /curriculums/{curriculumId} {
       allow read: if isSignedIn();
-      allow read: if isSignedIn();
+      allow write: if isAcademic();
+    }
+    match /integratedUnits/{unitId} {
       allow read: if isSignedIn();
       allow write: if isAcademic();
     }
@@ -252,7 +254,16 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
+    match /gradebooks/{gradebookId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
     match /classrooms/{classroomId} {
+      allow read: if isSignedIn();
+      allow write: if isAcademic() || isAdmin();
+    }
+    match /schoolSubjects/{subjectId} {
       allow read: if isSignedIn();
       allow write: if isAcademic() || isAdmin();
     }

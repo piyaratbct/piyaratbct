@@ -156,6 +156,7 @@ export interface LessonPlan {
   pblPresentation?: string;
   gradeLevel: string;
   title: string;          // ชื่อหน่วยการเรียนรู้ / เรื่อง
+  unitId?: string;        // รหัสหน่วยการเรียนรู้ที่เลือกจากโครงสร้างวิชา
   coreIndicators?: string;  // ตัวชี้วัดต้องรู้ (ต้นทาง)
   targetIndicators?: string; // ตัวชี้วัดควรรู้ (ปลายทาง)
   competencies?: string;
@@ -309,6 +310,8 @@ export interface SubjectScore {
   id: string;
   studentId: string;
   gradeLevel: string;
+  subjectType?: 'academic' | 'activity';
+  activityResult?: 'ผ่าน' | 'ไม่ผ่าน';
   academicYear: string;
   semester: string;
   subject: string;
@@ -475,7 +478,6 @@ export const SUBJECTS: string[] = [
   'ดนตรีสากล',
   'กิจกรรมลูกเสือ',
   'กิจกรรมอ่าน-เขียน',
-  'บูรณาการ (PBL)',
   'อื่นๆ'
 ];
 
@@ -503,6 +505,8 @@ export const GRADE_LEVELS = [
   'ประถมศึกษาปีที่ 5',
   'ประถมศึกษาปีที่ 6'
 ];
+
+export const BASE_GRADE_LEVELS = Array.from(new Set(GRADE_LEVELS.map(g => g.split('/')[0].trim())));
 
 export const PERIODS = [
   'กิจกรรมโฮมรูม (08.20-08.40 น.)',
@@ -668,11 +672,35 @@ export interface CurriculumStandard {
   indicators: CurriculumIndicator[];
 }
 
+
+export interface SchoolSubject {
+  id: string;
+  subjectCode: string;
+  name: string;
+  gradeLevel: string;
+  isParent: boolean;
+  parentId?: string | null;
+  weightPercentage?: number;
+  totalHours: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CurriculumSubject {
+  subjectCode?: string;
   id: string;
   subjectName: string;
-  gradeLevel: string;
+  gradeLevel: string; // Keep for backward compatibility, represents primary grade
+  gradeLevels?: string[]; // Array of grades for multi-grade subjects
+  subjectType?: 'academic' | 'activity';
+  academicCategory?: 'basic' | 'additional'; // วิชาพื้นฐาน หรือ วิชาเพิ่มเติม
   standards: CurriculumStandard[];
+  units?: SubjectUnit[]; // Added for Unified Curriculum Architecture
+  isParent?: boolean;
+  parentId?: string | null;
+  weightPercentage?: number;
+  totalHours?: number;
+  requiredHoursPerTerm?: number; // จำนวนชั่วโมงเรียนที่ต้องได้ต่อเทอม
   createdAt: string;
   updatedAt: string;
 }
@@ -683,6 +711,8 @@ export interface SchoolHoliday {
   id: string;
   date: string;
   description: string;
+  type?: 'holiday' | 'activity_no_class' | 'activity_integrated';
+  integratedSubjects?: string[];
 }
 
 export type PDRecordType = 'training' | 'plc' | 'award' | 'research' | 'sar_overview';
@@ -757,3 +787,72 @@ export interface ClassroomConfig {
   homeroomTeacherId?: string;
   coHomeroomTeacherId?: string;
 }
+
+export interface SubjectUnit {
+  id: string;
+  name: string;
+  hours: number;
+  score: number;
+  indicators: string[]; // List of Indicator codes e.g., "ค 1.1 ป.1/1"
+}
+
+export const getSubjectPriority = (code?: string, name?: string): number => {
+  if (code) {
+    const firstChar = code.charAt(0);
+    switch (firstChar) {
+      case 'ท': return 1;
+      case 'ค': return 2;
+      case 'ว': return 3;
+      case 'ส': return 4;
+      case 'พ': return 5;
+      case 'ศ': return 6;
+      case 'ง': return 7;
+      case 'อ': return 8;
+      case 'จ': return 9;
+      case 'ญ': return 10;
+      case 'ฝ': return 11;
+    }
+  }
+  
+  if (name) {
+    if (name.includes('ภาษาไทย')) return 1;
+    if (name.includes('คณิตศาสตร์')) return 2;
+    if (name.includes('วิทยาศาสตร์')) return 3;
+    if (name.includes('สังคม')) return 4;
+    if (name.includes('ประวัติศาสตร์')) return 4.5;
+    if (name.includes('สุขศึกษา') || name.includes('พลศึกษา')) return 5;
+    if (name.includes('ศิลปะ') || name.includes('ทัศนศิลป์') || name.includes('ดนตรี') || name.includes('นาฏศิลป์')) return 6;
+    if (name.includes('การงานอาชีพ')) return 7;
+    if (name.includes('ภาษาอังกฤษ')) return 8;
+    if (name.includes('ภาษาจีน')) return 9;
+    
+    if (name.includes('แนะแนว')) return 50;
+    if (name.includes('ลูกเสือ') || name.includes('เนตรนารี')) return 51;
+    if (name.includes('ชุมนุม') || name.includes('ชมรม')) return 52;
+    if (name.includes('เพื่อสังคม')) return 53;
+  }
+
+  return 99;
+};
+
+export const sortSubjects = (a: any, b: any): number => {
+  const codeA = a.subjectCode || '';
+  const codeB = b.subjectCode || '';
+  const nameA = a.subjectName || a.name || a.subject || '';
+  const nameB = b.subjectName || b.name || b.subject || '';
+
+  const priorityA = getSubjectPriority(codeA, nameA);
+  const priorityB = getSubjectPriority(codeB, nameB);
+
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+
+  if (codeA && codeB) {
+    return codeA.localeCompare(codeB);
+  }
+  if (codeA) return -1;
+  if (codeB) return 1;
+
+  return nameA.localeCompare(nameB);
+};

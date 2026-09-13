@@ -1,3 +1,4 @@
+import { ClassroomHub } from "./components/ClassroomHub";
 import { AvatarUpload } from "./components/AvatarUpload";
 import React, { useState, useEffect } from "react";
 import {
@@ -5,6 +6,7 @@ Teacher, LessonRecord, LessonPlan, SUBJECTS, Student, AppNotification } from "./
 import { MOCK_RECORDS, DEFAULT_TEACHER } from "./data";
 import { AuthView } from "./components/AuthView";
 import { DashboardStats } from "./components/DashboardStats";
+import { TeacherSubjectsDashboard } from "./components/TeacherSubjectsDashboard";
 import { TodayAttendanceWidget } from "./components/TodayAttendanceWidget";
 import { StudentStatsModal } from "./components/StudentStatsModal";
 import { TeacherListModal } from "./components/TeacherListModal";
@@ -186,6 +188,7 @@ export default function App() {
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [selectedHubSubject, setSelectedHubSubject] = useState<{subjectName: string, gradeLevel: string} | null>(null);
   const [activeModule, setActiveModule] = useState<
     "home" | "teaching" | "classroom" | "academic" | "analytics" | "admin" | "discipline" | "admission" | "sar"
   >("home");
@@ -193,6 +196,11 @@ export default function App() {
   const [evalInitialTab, setEvalInitialTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'learning_hours' | 'character' | undefined>(undefined);
   const [evalInitialSubject, setEvalInitialSubject] = useState<string | undefined>(undefined);
   const [evalInitialGrade, setEvalInitialGrade] = useState<string | undefined>(undefined);
+
+  const [teachingInitialSubject, setTeachingInitialSubject] = useState<string | undefined>(undefined);
+  const [teachingInitialGrade, setTeachingInitialGrade] = useState<string | undefined>(undefined);
+
+  const [classroomInitialTab, setClassroomInitialTab] = useState<'students' | 'student360' | 'attendance' | 'assessments' | 'special-care' | undefined>(undefined);
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
@@ -1811,6 +1819,36 @@ export default function App() {
                 ข้อมูลสรุปสถิติภาพรวมทั้งหมด
               </p>
             </div>
+            
+            <TeacherSubjectsDashboard 
+              currentTeacher={currentTeacher} 
+              systemSemester={systemSemester} 
+              systemAcademicYear={systemAcademicYear} 
+              onNavigateToSubject={(subject, grade) => {
+                 setSelectedHubSubject({ subjectName: subject, gradeLevel: grade });
+              }}
+              onAction={(action, subject, grade) => {
+                 if (action === 'gradebook') {
+                   setEvalInitialTab('grades');
+                   setEvalInitialSubject(subject);
+                   setEvalInitialGrade(grade);
+                   setActiveModule('analytics');
+                 } else if (action === 'plans') {
+                   setTeachingInitialSubject(subject);
+                   setTeachingInitialGrade(grade);
+                   setActiveTab('plan-list');
+                   setActiveModule('teaching');
+                 } else if (action === 'logs') {
+                   setTeachingInitialSubject(subject);
+                   setTeachingInitialGrade(grade);
+                   setActiveTab('dashboard');
+                   setActiveModule('teaching');
+                 } else if (action === 'attendance') {
+                   setClassroomInitialTab('attendance');
+                   setActiveModule('classroom');
+                 }
+              }}
+            />
 
             <TodayAttendanceWidget students={students} />
             <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
@@ -2262,6 +2300,8 @@ export default function App() {
                 <LessonLogList
                   records={records}
                   teachers={teachers}
+                  initialSubject={teachingInitialSubject}
+                  initialGrade={teachingInitialGrade}
                   showTeacherFilter={
                     currentTeacher.role === "admin" ||
                     currentTeacher.role === "academic" ||
@@ -2317,6 +2357,8 @@ export default function App() {
                 <LessonPlanList
                   plans={plans}
                   records={records}
+                  initialSubject={teachingInitialSubject}
+                  initialGrade={teachingInitialGrade}
                   teachers={teachers}
                   showTeacherFilter={
                     currentTeacher.role === "admin" ||
@@ -2348,6 +2390,7 @@ export default function App() {
             systemAcademicYear={systemAcademicYear}
             systemSemester={systemSemester}
             teachers={teachers}
+            initialTab={classroomInitialTab}
           />
         ) : activeModule === "academic" ? (
           <div className="relative animate-in fade-in duration-300">
@@ -3016,6 +3059,26 @@ export default function App() {
         onClose={() => setShowTeacherListModal(false)}
         teachers={teachers}
       />
+
+      {/* Classroom Hub Overlay */}
+      {selectedHubSubject && currentTeacher && (
+        <ClassroomHub
+          subjectName={selectedHubSubject.subjectName}
+          gradeLevel={selectedHubSubject.gradeLevel}
+          currentTeacher={currentTeacher}
+          systemSemester={systemSemester}
+          systemAcademicYear={systemAcademicYear}
+          students={students}
+          onClose={() => setSelectedHubSubject(null)}
+          onNavigateToEvaluation={(subject, grade) => {
+             setSelectedHubSubject(null);
+             setEvalInitialTab('grades');
+             setEvalInitialSubject(subject);
+             setEvalInitialGrade(grade);
+             setActiveModule('analytics');
+          }}
+        />
+      )}
     </div>
   );
 }
