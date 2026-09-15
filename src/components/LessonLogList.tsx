@@ -240,11 +240,22 @@ export function LessonLogList({
               className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
             >
               <option value="ทั้งหมด">วิชา: ทั้งหมด</option>
-              {SUBJECTS.map((subj) => (
-                <option key={subj} value={subj}>
-                  {subj}
-                </option>
-              ))}
+              {availableSubjects.map((s, idx) => {
+                if (typeof s === 'string') {
+                  return <option key={`s-${idx}`} value={s}>{s}</option>;
+                } else if (s.type === 'header') {
+                  return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>;
+                } else if (s.type === 'single') {
+                  return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                } else if (s.type === 'group') {
+                  return (
+                    <optgroup key={`g-${idx}`} label={s.groupName}>
+                      {s.subjects.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+                    </optgroup>
+                  );
+                }
+                return null;
+              })}
             </select>
           </div>
 
@@ -256,11 +267,16 @@ export function LessonLogList({
               className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs bg-white"
             >
               <option value="ทั้งหมด">ชั้นเรียน: ทั้งหมด</option>
-              {GRADE_LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl}
-                </option>
-              ))}
+              <optgroup label="ระดับปฐมวัย">
+                {GRADE_LEVELS.filter(g => g.includes('อนุบาล')).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </optgroup>
+              <optgroup label="ระดับประถมศึกษา">
+                {GRADE_LEVELS.filter(g => g.includes('ประถม')).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
 

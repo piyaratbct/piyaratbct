@@ -73,7 +73,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
       <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:overflow-visible">
         <div className="max-w-[210mm] mx-auto space-y-8 print:max-w-none print:m-0 print:space-y-0">
           
-          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative print:break-after-page" style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
+          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
             {/* Header */}
             <div className="flex justify-between items-start mb-6 border-b-2 border-slate-800 pb-4">
               <SchoolLogo className="h-24 w-24" />
@@ -191,7 +191,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
           </div>
 
           {/* Page 2 */}
-          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative print:break-after-page" style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
+          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
             
             {/* Part 4: Family Info */}
             <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">

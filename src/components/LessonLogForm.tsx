@@ -1,5 +1,6 @@
 import { sortSubjects } from '../types';
 import React, { useState, useEffect } from 'react';
+import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import { LessonRecord, Student, SUBJECTS, GRADE_LEVELS, SubjectType, Attachment, SEMESTERS, LessonPlan, PERIOD_OPTIONS, SAR_TAGS } from "../types";
 
 import { Save, RefreshCw, ChevronDown, Sparkles, BookCheck, ClipboardList, AlertTriangle, MessageSquareCode, CalendarDays, Paperclip, Link2, FileImage, FileText, Video as VideoIcon, Plus, X, Globe, Eye } from 'lucide-react';
@@ -69,7 +70,7 @@ interface LessonLogFormProps {
 }
 
 export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, systemAcademicYear = '2567', systemSemester = '1', preloadedPlan, onClearPreloadedPlan }: LessonLogFormProps) {
-  const [availableSubjects, setAvailableSubjects] = useState<any[]>(SUBJECTS);
+  const availableSubjects = useAvailableSubjects();
   const [subject, setSubject] = useState<string>(initialRecord?.subject || '');
   const [customSubject, setCustomSubject] = useState<string>('');
 
@@ -97,74 +98,7 @@ export function LessonLogForm({ initialRecord, teacherId, onSave, onCancel, syst
   const [lessonPlanId, setLessonPlanId] = useState<string | undefined>(initialRecord?.lessonPlanId);
   const [showSubjectsDropdown, setShowSubjectsDropdown] = useState(false);
 
-  useEffect(() => {
-        const fetchAvailableSubjects = async () => {
-      try {
-        const q = query(collection(db, 'curriculums'));
-        const snapshot = await getDocs(q);
-        
-        const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        allDocs.sort(sortSubjects);
-        const parentIds = new Set<string>();
-        
-        allDocs.forEach(data => {
-          if (data.isParent) parentIds.add(data.id);
-          if (data.parentId) parentIds.add(data.parentId);
-        });
-
-        const parentNames = new Set<string>();
-        const childMap = new Map<string, string[]>();
-        
-        allDocs.forEach(data => {
-          if ((parentIds.has(data.id) || data.isParent) && data.subjectName) {
-            parentNames.add(data.subjectName);
-            if (!childMap.has(data.subjectName)) childMap.set(data.subjectName, []);
-          }
-        });
-
-        allDocs.forEach(data => {
-          if (data.parentId) {
-            const parentDoc = allDocs.find(d => d.id === data.parentId);
-            if (parentDoc && parentDoc.subjectName && data.subjectName) {
-              const children = childMap.get(parentDoc.subjectName) || [];
-              if (!children.includes(data.subjectName)) {
-                children.push(data.subjectName);
-              }
-              childMap.set(parentDoc.subjectName, children);
-            }
-          }
-        });
-
-        const dropDownData = [];
-        
-        const standaloneSubjects = new Set<string>();
-        
-        allDocs.forEach(data => {
-          const isActuallyParent = parentIds.has(data.id) || data.isParent === true;
-          if (data.subjectName && !isActuallyParent && !parentNames.has(data.subjectName) && !data.parentId) {
-            standaloneSubjects.add(data.subjectName);
-          }
-        });
-        
-        standaloneSubjects.forEach(s => {
-          dropDownData.push({ type: 'single', name: s });
-        });
-        
-        parentNames.forEach(pName => {
-          const children = childMap.get(pName) || [];
-          if (children.length > 0) {
-            dropDownData.push({ type: 'group', groupName: pName, subjects: children });
-          }
-        });
-
-        dropDownData.push({ type: 'single', name: 'อื่นๆ' });
-        setAvailableSubjects(dropDownData);
-      } catch (error) {
-        console.error("Error fetching available subjects", error);
-      }
-    };
-    fetchAvailableSubjects();
-  }, []);
+  
 
   useEffect(() => {
     if (availableSubjects.length > 0 && !initialRecord && !preloadedPlan) {
