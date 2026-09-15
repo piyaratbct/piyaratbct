@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { AdmissionRecord } from '../types';
@@ -7,6 +7,13 @@ import { formatThaiDateTime } from '../lib/dateUtils';
 
 export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose: () => void }> = ({ record, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.body.classList.add('print-mode-active');
+    return () => {
+      document.body.classList.remove('print-mode-active');
+    };
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -73,7 +80,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
       <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:block print:h-auto print:overflow-visible print:w-full print:m-0">
         <div className="max-w-[210mm] mx-auto space-y-8 print:w-full print:max-w-none print:m-0 print:p-0 print:space-y-0">
           
-          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative print:w-full print:h-auto print:min-h-0 print:m-0" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
+          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative print:w-full print:h-auto print:min-h-0 print:m-0 print:p-0" style={{ maxWidth: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
             {/* Header */}
             <div className="flex justify-between items-start mb-2 border-b-2 border-slate-800 pb-4">
               <SchoolLogo className="h-16 w-16" />
@@ -261,7 +268,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
           </div>
 
           {/* Page 2 */}
-          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative mt-8 print:mt-0 print:break-before-page print:w-full print:h-auto print:min-h-0 print:m-0" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
+          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative mt-8 print:mt-0 print:break-before-page print:w-full print:h-auto print:min-h-0 print:m-0 print:p-0" style={{ maxWidth: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
             <div className="space-y-6 px-4 mb-2 pt-4">
               {/* Mother */}
               <div>
