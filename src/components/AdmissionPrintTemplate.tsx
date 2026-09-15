@@ -253,7 +253,16 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
                   </div>
                 </div>
               </div>
-              
+            </div> {/* Close Father's space-y-6 wrapper */}
+            
+            <div className="absolute bottom-[20mm] left-[20mm] right-[20mm] text-center text-xs text-slate-400">
+              เอกสารแผ่นที่ 1/2
+            </div>
+          </div>
+
+          {/* Page 2 */}
+          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative mt-8 print:mt-0" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
+            <div className="space-y-6 px-4 mb-2 pt-4">
               {/* Mother */}
               <div>
                 <h3 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1">ข้อมูลมารดา</h3>
@@ -380,15 +389,6 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
                 </div>
               </div>
             </div>
-
-            
-                          <div className="absolute bottom-[20mm] left-[20mm] right-[20mm] text-center text-xs text-slate-400">
-              เอกสารแผ่นที่ 1/2
-            </div>
-          </div>
-
-          {/* Page 2 */}
-          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative mt-8 print:mt-0" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
             {/* Part 5: Survey & Expectations */}
               {(record.surveySource?.length > 0 || record.surveyReasons?.length > 0 || record.surveyExpectations?.length > 0 || record.surveyPlan || record.additionalNotes) && (
                 <div className="mt-4">
