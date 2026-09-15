@@ -73,12 +73,12 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
       <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:h-auto print:overflow-visible">
         <div className="max-w-[210mm] mx-auto space-y-8 print:max-w-none print:m-0 print:space-y-0">
           
-          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
+          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
             {/* Header */}
-            <div className="flex justify-between items-start mb-6 border-b-2 border-slate-800 pb-4">
-              <SchoolLogo className="h-24 w-24" />
+            <div className="flex justify-between items-start mb-2 border-b-2 border-slate-800 pb-4">
+              <SchoolLogo className="h-16 w-16" />
               <div className="text-right">
-                <h1 className="text-3xl font-black text-slate-900 mb-1">ใบสมัครเข้าเรียน</h1>
+                <h1 className="text-2xl font-black text-slate-900 mb-1">ใบสมัครเข้าเรียน</h1>
                 <p className="text-slate-600 font-bold mb-2">เอกสารสำหรับการรับนักเรียนใหม่</p>
                 <div className="inline-block px-3 py-1 bg-slate-100 border border-slate-300 rounded text-sm font-bold text-slate-700">
                   ประจำปีการศึกษา {record.academicYear}
@@ -93,10 +93,10 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
             </div>
 
             {/* Part 1: Student Data */}
-            <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+            <h2 className="text-base font-black text-slate-800 mb-1.5 bg-slate-100 p-1.5 border-l-4 border-indigo-600 flex items-center">
               <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">1</span> ข้อมูลผู้สมัคร
             </h2>
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm mb-6 px-4">
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm mb-2 px-4">
               <div className="col-span-2">
                 <span className="font-bold text-slate-600">ชื่อ-นามสกุล: </span>
                 <span className="font-medium text-slate-900 border-b border-dotted border-slate-400 pb-0.5">
@@ -139,10 +139,10 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
             </div>
 
             {/* Part 2: Health Info */}
-            <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+            <h2 className="text-base font-black text-slate-800 mb-1.5 bg-slate-100 p-1.5 border-l-4 border-indigo-600 flex items-center">
               <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">2</span> ข้อมูลสุขภาพและอื่นๆ
             </h2>
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm mb-6 px-4">
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm mb-2 px-4">
               <div>
                 <span className="font-bold text-slate-600">หมู่เลือด: </span>
                 <span className="font-medium text-slate-900">{record.bloodGroup || '-'}</span>
@@ -174,10 +174,10 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
             </div>
 
             {/* Part 3: Address */}
-            <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+            <h2 className="text-base font-black text-slate-800 mb-1.5 bg-slate-100 p-1.5 border-l-4 border-indigo-600 flex items-center">
               <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">3</span> ที่อยู่ปัจจุบัน
             </h2>
-            <div className="grid grid-cols-1 gap-y-4 gap-x-8 text-sm mb-6 px-4">
+            <div className="grid grid-cols-1 gap-y-1.5 gap-x-8 text-sm mb-2 px-4">
               <div>
                 <span className="font-medium text-slate-900">
                   {formatAddress(record.addressObj) || record.address || '-'}
@@ -185,19 +185,12 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
               </div>
             </div>
 
-            <div className="absolute bottom-[20mm] left-[20mm] right-[20mm] text-center text-xs text-slate-400">
-              เอกสารแผ่นที่ 1/2
-            </div>
-          </div>
-
-          {/* Page 2 */}
-          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
-            
+            {/* Part 4 moved up */}
             {/* Part 4: Family Info */}
-            <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+            <h2 className="text-base font-black text-slate-800 mb-1.5 bg-slate-100 p-1.5 border-l-4 border-indigo-600 flex items-center">
               <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">4</span> ข้อมูลครอบครัว
             </h2>
-            <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm mb-6 px-4">
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm mb-2 px-4">
               <div>
                 <span className="font-bold text-slate-600">สถานภาพครอบครัว: </span>
                 <span className="font-medium text-slate-900">{record.familyStatus || '-'}</span>
@@ -216,11 +209,11 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
               </div>
             </div>
             
-            <div className="space-y-6 px-4 mb-6">
+            <div className="space-y-6 px-4 mb-2">
               {/* Father */}
               <div>
                 <h3 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1">ข้อมูลบิดา</h3>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm">
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm">
                   <div className="col-span-2">
                     <span className="font-bold text-slate-600">ชื่อ-นามสกุล: </span>
                     <span className="font-medium text-slate-900">{record.fatherName || `${record.fatherFirstName || ''} ${record.fatherLastName || ''}`.trim() || '-'}</span>
@@ -264,7 +257,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
               {/* Mother */}
               <div>
                 <h3 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1">ข้อมูลมารดา</h3>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm">
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm">
                   <div className="col-span-2">
                     <span className="font-bold text-slate-600">ชื่อ-นามสกุล: </span>
                     <span className="font-medium text-slate-900">{record.motherName || `${record.motherPrefix || ''} ${record.motherFirstName || ''} ${record.motherLastName || ''}`.trim() || '-'}</span>
@@ -308,7 +301,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
               {/* Guardian */}
               <div>
                 <h3 className="font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1">ข้อมูลผู้ปกครอง (กรณีไม่ใช่บิดา-มารดา)</h3>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm">
+                <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm">
                   <div className="col-span-2">
                     <span className="font-bold text-slate-600">ชื่อ-นามสกุล: </span>
                     <span className="font-medium text-slate-900">{record.guardianName || `${record.guardianFirstName || ''} ${record.guardianLastName || ''}`.trim() || '-'}</span>
@@ -389,13 +382,20 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
             </div>
 
             
-              {/* Part 5: Survey & Expectations */}
+                          <div className="absolute bottom-[20mm] left-[20mm] right-[20mm] text-center text-xs text-slate-400">
+              เอกสารแผ่นที่ 1/2
+            </div>
+          </div>
+
+          {/* Page 2 */}
+          <div className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative mt-8 print:mt-0" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
+            {/* Part 5: Survey & Expectations */}
               {(record.surveySource?.length > 0 || record.surveyReasons?.length > 0 || record.surveyExpectations?.length > 0 || record.surveyPlan || record.additionalNotes) && (
                 <div className="mt-4">
-                  <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+                  <h2 className="text-base font-black text-slate-800 mb-1.5 bg-slate-100 p-1.5 border-l-4 border-indigo-600 flex items-center">
                     <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">5</span> ข้อมูลเพิ่มเติมและแบบสำรวจ
                   </h2>
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm px-4">
+                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-8 text-sm px-4">
                     {record.surveySource && record.surveySource.length > 0 && (
                       <div className="col-span-2">
                         <span className="font-bold text-slate-600">ทราบข่าวการรับสมัครจาก: </span>
