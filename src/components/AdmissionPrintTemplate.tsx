@@ -56,7 +56,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 backdrop-blur-sm print:bg-white print:block">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 backdrop-blur-sm print:static print:h-auto print:bg-white print:block print:overflow-visible">
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 print:hidden shadow-sm z-10">
         <h2 className="text-xl font-black text-slate-800">ตัวอย่างก่อนพิมพ์: ใบสมัครเข้าเรียน</h2>
         <div className="flex items-center space-x-3">
@@ -70,7 +70,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:overflow-visible">
+      <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:h-auto print:overflow-visible">
         <div className="max-w-[210mm] mx-auto space-y-8 print:max-w-none print:m-0 print:space-y-0">
           
           <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative" style={{ width: '210mm', minHeight: '297mm', padding: '20mm', pageBreakAfter: 'always', breakAfter: 'page' }}>
