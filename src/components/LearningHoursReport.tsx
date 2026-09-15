@@ -87,8 +87,16 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
   }, []);
 
   const reportData = useMemo(() => {
-    const gradeSchedules = schedules.filter(s => s.gradeLevel === selectedGrade && (timeView === 'year' || s.semester === systemSemester));
-    const gradeSessions = sessions.filter(s => s.gradeLevel === selectedGrade && (timeView === 'year' || s.semester === systemSemester));
+    const gradeSchedules = schedules.filter(s => {
+      if (!s.gradeLevel) return false;
+      const rooms = s.gradeLevel.split(',').map(r => r.trim());
+      return rooms.includes(selectedGrade) && (timeView === 'year' || s.semester === systemSemester);
+    });
+    const gradeSessions = sessions.filter(s => {
+      if (!s.gradeLevel) return false;
+      const rooms = s.gradeLevel.split(',').map(r => r.trim());
+      return rooms.includes(selectedGrade) && (timeView === 'year' || s.semester === systemSemester);
+    });
 
     // Group by subject
     const subjectMap: Record<string, {
@@ -102,6 +110,7 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
       taughtPeriods: number;
       lastTaughtDate: string | null;
       dataSource: string;
+      childSubjects: Record<string, { periodsPerWeek: number, taughtPeriods: number, targetPeriodsTotal: number }>;
     }> = {};
     const seenPeriodsPerSubject: Record<string, Set<string>> = {};
     const seenSessionsPerSubject: Record<string, Set<string>> = {};
@@ -111,12 +120,15 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
     const targetBaseGrade = getBaseGrade(selectedGrade);
     
     const relevantCurriculums = curriculums.filter(c => {
-      if (c.gradeLevel) return getBaseGrade(c.gradeLevel) === targetBaseGrade;
+      if (c.gradeLevel && getBaseGrade(c.gradeLevel) === targetBaseGrade) return true;
+      if (c.gradeLevels && c.gradeLevels.some(g => getBaseGrade(g) === targetBaseGrade)) return true;
       return false;
     });
 
     relevantCurriculums.forEach(curr => {
-      if (!curr.subjectName || curr.isParent) return; // Skip parent subjects
+      if (!curr.subjectName) return;
+      // If the subject is a child subject (has parentId), skip it here because its targets and progress will be aggregated into the Parent Subject.
+      if (curr.parentId) return;
       
       const totalHours = curr.totalHours || curr.requiredHoursPerTerm || 0; // ชั่วโมง/ปีการศึกษา
       
@@ -130,14 +142,28 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
         targetPeriodsTotal: timeView === 'year' ? totalHours : Math.round(totalHours / 2),
         taughtPeriods: 0,
         lastTaughtDate: null,
-        dataSource: 'curriculum'
+        dataSource: 'curriculum',
+        childSubjects: {}
       };
     });
 
     // 2. Overlay with schedules to get teachers and periods per week
     gradeSchedules.forEach(sch => {
-      const subjectName = sch.subject === 'อื่นๆ' ? (sch.customSubject || 'อื่นๆ') : sch.subject;
+      let subjectName = sch.subject === 'อื่นๆ' ? (sch.customSubject || 'อื่นๆ') : sch.subject;
+      const safeSub = (subjectName || '').trim();
+      let currMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub && (c.gradeLevel === targetBaseGrade || (c.gradeLevels && c.gradeLevels.includes(targetBaseGrade))));
+      if (!currMatch) currMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub);
       
+      let isChild = false;
+      let childName = subjectName;
+      if (currMatch && currMatch.parentId) {
+          const parentMatch = curriculums.find(c => c.id === currMatch.parentId);
+          if (parentMatch && parentMatch.subjectName) {
+              subjectName = parentMatch.subjectName; // Group under parent
+              isChild = true;
+          }
+      }
+
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
           subject: subjectName,
@@ -149,7 +175,8 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
           targetPeriodsTotal: 0,
           taughtPeriods: 0,
           lastTaughtDate: null,
-          dataSource: 'schedule'
+          dataSource: 'schedule',
+          childSubjects: {}
         };
       } else {
         if (subjectMap[subjectName].teacherName === '-') {
@@ -159,7 +186,24 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
         }
       }
       
-      subjectMap[subjectName].periodsPerWeek += 1;
+      // Deduplicate periods (if multiple teachers teach the same period)
+      if (!seenPeriodsPerSubject[subjectName]) {
+         seenPeriodsPerSubject[subjectName] = new Set();
+      }
+      
+      // For children, we track uniqueness per child subject to allow same period across different child subjects (rare but possible),
+      // OR we just assume they teach different periods. If it's the SAME child subject, deduplicate.
+      const periodSig = isChild ? `${childName}-${sch.dayOfWeek}-${sch.period}` : `${sch.dayOfWeek}-${sch.period}`;
+      if (!seenPeriodsPerSubject[subjectName].has(periodSig)) {
+         seenPeriodsPerSubject[subjectName].add(periodSig);
+         subjectMap[subjectName].periodsPerWeek += 1;
+         if (isChild) {
+             if (!subjectMap[subjectName].childSubjects[childName]) {
+                 subjectMap[subjectName].childSubjects[childName] = { periodsPerWeek: 0, taughtPeriods: 0, targetPeriodsTotal: 0 };
+             }
+             subjectMap[subjectName].childSubjects[childName].periodsPerWeek += 1;
+         }
+      }
     });
     
     // Calculate expected schedule target
@@ -191,10 +235,24 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
           targetPeriodsTotal: 0,
           taughtPeriods: 0,
           lastTaughtDate: null,
-          dataSource: 'session'
+          dataSource: 'session',
+          childSubjects: {}
         };
       }
-      subjectMap[subjectName].taughtPeriods += 1;
+      if (!seenSessionsPerSubject[subjectName]) {
+         seenSessionsPerSubject[subjectName] = new Set();
+      }
+      const sessionSig = `${sess.date}-${sess.period}`;
+      if (!seenSessionsPerSubject[subjectName].has(sessionSig)) {
+         seenSessionsPerSubject[subjectName].add(sessionSig);
+         subjectMap[subjectName].taughtPeriods += 1;
+         if (isChild) {
+             if (!subjectMap[subjectName].childSubjects[childName]) {
+                 subjectMap[subjectName].childSubjects[childName] = { periodsPerWeek: 0, taughtPeriods: 0, targetPeriodsTotal: 0 };
+             }
+             subjectMap[subjectName].childSubjects[childName].taughtPeriods += 1;
+         }
+      }
       
       if (!subjectMap[subjectName].lastTaughtDate || sess.date > subjectMap[subjectName].lastTaughtDate!) {
         subjectMap[subjectName].lastTaughtDate = sess.date;
@@ -274,7 +332,24 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
                     <BookOpen className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 line-clamp-1" title={item.subject}>{item.subject}</h4>
+                    <div className="flex flex-col">
+                      <h4 className="font-bold text-slate-800 line-clamp-1" title={item.subject}>{item.subject}</h4>
+                      {Object.keys(item.childSubjects || {}).length > 0 && (
+                          <div className="mt-1 space-y-1">
+                              {Object.keys(item.childSubjects).map(child => (
+                                  <div key={child} className="text-[10px] text-slate-600 flex items-center justify-between gap-2 bg-slate-50 px-2 py-1 rounded">
+                                      <div className="flex items-center gap-1 line-clamp-1">
+                                          <span className="w-1 h-1 rounded-full bg-indigo-300 shrink-0"></span>
+                                          {child}
+                                      </div>
+                                      <div className="shrink-0 font-medium whitespace-nowrap">
+                                          {item.childSubjects[child].taughtPeriods} / {item.childSubjects[child].periodsPerWeek} คาบ
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">ครู: {item.teacherName}</p>
                   </div>
                 </div>

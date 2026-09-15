@@ -86,7 +86,7 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
       return `${subj}|${grade}`;
     }),
     ...schedules.map(s => {
-      const subj = s.subject;
+      const subj = (s.subject === 'อื่นๆ' || s.subject === 'บูรณาการ (PBL)') && s.customSubject ? s.customSubject : s.subject;
       const grade = s.gradeLevel || 'ไม่ระบุชั้น';
       return `${subj}|${grade}`;
     })
@@ -98,13 +98,14 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
       (((p.subject === 'อื่นๆ' || p.subject === 'บูรณาการ (PBL)') && p.customSubject === subj) || p.subject === subj) && 
       (p.gradeLevel === grade || (!p.gradeLevel && grade === 'ไม่ระบุชั้น'))
     );
-    const scheduledPeriodsPerWeek = schedules.filter(s => s.subject === subj && (s.gradeLevel === grade || (!s.gradeLevel && grade === 'ไม่ระบุชั้น'))).length;
+    const scheduledPeriodsPerWeek = schedules.filter(s => 
+      ((s.subject === 'อื่นๆ' || s.subject === 'บูรณาการ (PBL)') && s.customSubject ? s.customSubject === subj : s.subject === subj) && 
+      (s.gradeLevel === grade || (!s.gradeLevel && grade === 'ไม่ระบุชั้น'))
+    ).length;
     const expectedTotalPeriods = scheduledPeriodsPerWeek * WEEKS_PER_SEMESTER;
     
     const hasSchedule = expectedTotalPeriods > 0;
-    const percentage = hasSchedule 
-      ? Math.min((logs.length / expectedTotalPeriods) * 100, 100) 
-      : (totalLogs > 0 ? (logs.length / totalLogs) * 100 : 0);
+    const percentage = hasSchedule ? Math.min((logs.length / expectedTotalPeriods) * 100, 100) : 0;
 
     return {
       key: key,
@@ -318,15 +319,21 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
                         {item.hasSchedule && <span className="text-xs text-slate-400 font-normal ml-1">(ตามตารางสอน)</span>}
                       </span>
                       <span className="text-slate-900 font-bold">
-                        {item.count} {item.hasSchedule ? `/ ${item.expected}` : ''} คาบ ({Math.round(item.percentage)}%)
+                        {item.count} {item.hasSchedule ? `/ ${item.expected} คาบ (${Math.round(item.percentage)}%)` : 'คาบ'}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                        style={{ width: `${item.percentage || 1}%` }}
-                      ></div>
-                    </div>
+                    {item.hasSchedule ? (
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                          style={{ width: `${item.percentage || 0}%` }}
+                        ></div>
+                      </div>
+                    ) : (
+                      <div className="w-full bg-slate-100 flex items-center justify-center h-2.5 rounded-full overflow-hidden relative text-[8px] text-slate-400">
+                         ไม่มีข้อมูลตารางสอน
+                      </div>
+                    )}
                   </div>
                 );
               })}

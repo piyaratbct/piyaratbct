@@ -73,7 +73,7 @@ export function useAvailableSubjects(gradeLevel?: string) {
           const type = originalDoc?.subjectType || 'academic';
           const cat = originalDoc?.academicCategory || 'basic';
           
-          const item = { type: 'single', name: s, subjectType: type };
+          const item = { type: 'single', name: s, subjectType: type, totalHours: originalDoc?.totalHours, requiredHoursPerTerm: originalDoc?.requiredHoursPerTerm };
           
           if (type === 'activity') {
             activitySubjects.push(item);
@@ -92,7 +92,7 @@ export function useAvailableSubjects(gradeLevel?: string) {
             const type = originalDoc?.subjectType || 'academic';
             const cat = originalDoc?.academicCategory || 'basic';
             
-            const item = { type: 'group', groupName: pName, subjects: children };
+            const item = { type: 'group', groupName: pName, subjects: children, totalHours: originalDoc?.totalHours, requiredHoursPerTerm: originalDoc?.requiredHoursPerTerm };
             
             if (type === 'activity') {
               activitySubjects.push(item);

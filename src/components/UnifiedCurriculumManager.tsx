@@ -810,8 +810,8 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
                 <div className="relative">
                   <input 
                     type="number" 
-                    value={editingSubject.requiredHoursPerTerm || ''}
-                    onChange={e => setEditingSubject({...editingSubject, requiredHoursPerTerm: e.target.value ? Number(e.target.value) : undefined})}
+                    value={editingSubject.totalHours || editingSubject.requiredHoursPerTerm || ''}
+                    onChange={e => setEditingSubject({...editingSubject, totalHours: e.target.value ? Number(e.target.value) : undefined})}
                     className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm pr-10"
                     placeholder="เช่น 100"
                     min="1"

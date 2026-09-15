@@ -436,34 +436,85 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
             <div className="space-y-8">
               {BASE_GRADE_LEVELS.map(baseGrade => {
                 // Find all schedules that belong to this base grade (e.g. "ประถมศึกษาปีที่ 1" matches "ประถมศึกษาปีที่ 1/1", etc.)
-                const gradeSchedules = allSchedules.filter(s => s.gradeLevel && s.gradeLevel.startsWith(baseGrade));
+                const gradeSchedules = allSchedules.filter(s => 
+    s.gradeLevel && 
+    s.gradeLevel.startsWith(baseGrade) && 
+    (s.semester === systemSemester || !s.semester) // Fallback for old data without semester
+);
                 if (gradeSchedules.length === 0) return null;
 
                 // Group by SUBJECT first, then ROOM
-                const subjectGroups: Record<string, Record<string, { periods: number, days: number[], teachers: Set<string>, seenPeriods: Set<string> }>> = {};
+                const subjectGroups: Record<string, Record<string, { periods: number, days: number[], teachers: Set<string>, seenPeriods: Set<string>, childSubjects: Record<string, { periods: number, days: number[], teachers: Set<string>, seenPeriods: Set<string> }> }>> = {};
                 
                 gradeSchedules.forEach(curr => {
                   const subjectName = curr.subject === 'อื่นๆ' ? (curr.customSubject || 'อื่นๆ') : curr.subject;
-                  const room = curr.gradeLevel;
+                  const roomsList = curr.gradeLevel ? curr.gradeLevel.split(',').map(r => r.trim()).filter(r => r.startsWith(baseGrade)) : [baseGrade];
                   
-                  if (!subjectGroups[subjectName]) {
-                     subjectGroups[subjectName] = {};
-                  }
-                  if (!subjectGroups[subjectName][room]) {
-                     subjectGroups[subjectName][room] = { periods: 0, days: [], teachers: new Set(), seenPeriods: new Set() };
-                  }
                   
-                  const periodSig = `${curr.dayOfWeek}-${curr.period}`;
-                  if (!subjectGroups[subjectName][room].seenPeriods.has(periodSig)) {
-                     subjectGroups[subjectName][room].seenPeriods.add(periodSig);
-                     subjectGroups[subjectName][room].periods += 1;
-                     subjectGroups[subjectName][room].days.push(curr.dayOfWeek);
-                  }
+                  // Find curriculum for this scheduled subject
+                  const safeSub = (subjectName || '').trim();
+                  let curriculumMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub && (c.gradeLevel === baseGrade || (c.gradeLevels && c.gradeLevels.includes(baseGrade))));
+                  if (!curriculumMatch) curriculumMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub);
                   
-                  const teacher = teachers.find(t => t.id === curr.teacherId);
-                  if (teacher) {
-                    subjectGroups[subjectName][room].teachers.add(teacher.displayName || teacher.thaiName || '');
+                  let groupName = subjectName;
+                  let childName = null;
+                  
+                  if (curriculumMatch && curriculumMatch.parentId) {
+                      const parentMatch = curriculums.find(c => c.id === curriculumMatch.parentId);
+                      if (parentMatch && parentMatch.subjectName) {
+                          groupName = parentMatch.subjectName;
+                          childName = subjectName;
+                      }
                   }
+
+                  roomsList.forEach(room => {
+                      if (!subjectGroups[groupName]) {
+                         subjectGroups[groupName] = {};
+                      }
+                      if (!subjectGroups[groupName][room]) {
+                         subjectGroups[groupName][room] = { periods: 0, days: [], teachers: new Set(), seenPeriods: new Set(), childSubjects: {} };
+                      }
+                      
+                      const periodSig = `${curr.dayOfWeek}-${curr.period}`;
+                      const teacher = teachers.find(t => t.id === curr.teacherId);
+                      const tName = teacher ? (teacher.displayName || teacher.thaiName || '') : '';
+                      
+                      if (childName) {
+                          if (!subjectGroups[groupName][room].childSubjects[childName]) {
+                              subjectGroups[groupName][room].childSubjects[childName] = { periods: 0, days: [], teachers: new Set(), seenPeriods: new Set() };
+                          }
+                          if (!subjectGroups[groupName][room].childSubjects[childName].seenPeriods.has(periodSig)) {
+                              subjectGroups[groupName][room].childSubjects[childName].seenPeriods.add(periodSig);
+                              subjectGroups[groupName][room].childSubjects[childName].periods += 1;
+                              subjectGroups[groupName][room].childSubjects[childName].days.push(curr.dayOfWeek);
+                              
+                              // Add to parent as well (only if the parent hasn't seen this period FOR THIS CHILD, but actually parent periods are sum of child periods, we can just sum them without cross-child dedup)
+                              // Wait, what if two children are taught in the same period? Rare, but we just sum them.
+                              // Better to just track parent seenPeriods using a composite key: childName-periodSig to prevent deduping different children, 
+                              // BUT if it's the SAME child, dedup it.
+                              const parentSig = `${childName}-${periodSig}`;
+                              if (!subjectGroups[groupName][room].seenPeriods.has(parentSig)) {
+                                  subjectGroups[groupName][room].seenPeriods.add(parentSig);
+                                  subjectGroups[groupName][room].periods += 1;
+                                  subjectGroups[groupName][room].days.push(curr.dayOfWeek);
+                              }
+                          }
+                          if (tName) {
+                              subjectGroups[groupName][room].childSubjects[childName].teachers.add(tName);
+                              subjectGroups[groupName][room].teachers.add(tName);
+                          }
+                      } else {
+                          // No parent, standalone
+                          if (!subjectGroups[groupName][room].seenPeriods.has(periodSig)) {
+                              subjectGroups[groupName][room].seenPeriods.add(periodSig);
+                              subjectGroups[groupName][room].periods += 1;
+                              subjectGroups[groupName][room].days.push(curr.dayOfWeek);
+                          }
+                          if (tName) {
+                              subjectGroups[groupName][room].teachers.add(tName);
+                          }
+                      }
+                  }); // end roomsList
                 });
 
                 return (
@@ -514,7 +565,20 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                             
                             return (
                               <tr key={sub} className="hover:bg-slate-50 transition-colors">
-                                <td className="py-4 px-6 font-bold text-slate-800 align-top">{sub}</td>
+                                <td className="py-4 px-6 align-top">
+                                  <div className="font-bold text-slate-800">{sub}</div>
+                                  {Object.keys(rooms).length > 0 && Object.keys(Object.values(rooms)[0].childSubjects).length > 0 && (
+                                      <div className="mt-2 pl-3 border-l-2 border-indigo-200 space-y-1">
+                                          {Object.keys(Object.values(rooms)[0].childSubjects).map(child => (
+                                              <div key={child} className="text-xs text-slate-600 flex items-center gap-1">
+                                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-300"></span>
+                                                  {child}
+                                                  
+                                              </div>
+                                          ))}
+                                      </div>
+                                  )}
+                                </td>
                                 <td className="py-4 px-6 text-slate-600 align-top">
                                   {requiredHoursYear > 0 ? (
                                     <div className="flex flex-col gap-0.5">
@@ -529,6 +593,8 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                                       const rData = rooms[roomName];
                                       let actualHours = 0;
                                       if (teachingDaysCount) {
+                                         // Use unique days per period to avoid doubling if logic failed elsewhere, 
+                                         // though seenPeriods should have handled it. Just sum based on days array.
                                          rData.days.forEach(d => {
                                             actualHours += teachingDaysCount[d] || 0;
                                          });
@@ -629,7 +695,8 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                             {sched ? (
                               <div className="flex flex-col items-center justify-center gap-1">
                                 <span className="font-bold text-indigo-700 whitespace-nowrap">{sched.subject === 'อื่นๆ' ? (sched.customSubject || 'อื่นๆ') : sched.subject}</span>
-                                <span className="text-xs text-slate-500 whitespace-nowrap">{sched.teacherName}</span>
+                                {/* อัปเดตชื่อครูแบบ Real-time โดยดึงจาก teachers list เทียบ ID */}
+                                <span className="text-xs text-slate-500 whitespace-nowrap">{teachers.find(t => t.id === sched.teacherId)?.thaiName || sched.teacherName}</span>
                               </div>
                             ) : (
                               <span className="text-slate-300">-</span>

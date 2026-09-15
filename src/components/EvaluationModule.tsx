@@ -33,7 +33,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'character'>(initialTab || 'overview');
   const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
   const fetchedAvailableSubjects = useAvailableSubjects(selectedGrade);
-    const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || SUBJECTS[0]);
+    const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || '');
   const [scoutCampAttendees, setScoutCampAttendees] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
 
   useEffect(() => {
-    if (selectedSubject === 'กิจกรรมลูกเสือ') {
+    if ((selectedSubject && selectedSubject.includes('ลูกเสือ'))) {
       const q = query(collection(db, 'schoolEvents'), where('type', '==', 'scout_camp'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         let attendees = new Set<string>();
@@ -118,7 +118,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     );
   }, [currentTeacher, schedules, selectedSubject, selectedGrade]);
 
-  const isReadOnly = (isHistorical && currentTeacher?.role !== 'admin' && currentTeacher?.role !== 'academic') || (!isHistorical && !isTeacherAssigned);
+  const isReadOnly = (isHistorical && currentTeacher?.role !== 'admin' && currentTeacher?.role !== 'academic') || (!isHistorical && selectedSubject !== '' && !isTeacherAssigned);
 
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -159,7 +159,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     // calculate total target periods for the selected subject
     const periodsPerWeek = schedules.filter(s => s.subject === selectedSubject).length;
     // assuming 20 weeks per semester
-    const totalTargetPeriods = periodsPerWeek * 20;
+    let totalTargetPeriods = periodsPerWeek * 20;
+
+    // Override with Curriculum Structure if available
+    const currSubj = fetchedAvailableSubjects.find(s => {
+      if (s.type === 'single') return s.name === selectedSubject;
+      if (s.type === 'group') return s.groupName === selectedSubject;
+      return false;
+    });
+
+    if (currSubj) {
+      // Both totalHours and requiredHoursPerTerm hold the YEARLY hours (due to the UI label in CurriculumManager)
+      const yearlyHours = currSubj.totalHours || currSubj.requiredHoursPerTerm || 0;
+      if (yearlyHours > 0) {
+        totalTargetPeriods = Math.round(yearlyHours / 2); // Term Target
+      }
+    }
 
     // for each student, calculate how many times they were present/late/leave/sick
     const studentStats: Record<string, { present: number, leave: number, sick: number, absent: number, late: number }> = {};
@@ -181,7 +196,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       totalTargetPeriods,
       studentStats
     };
-  }, [schedules, attendanceSessions, selectedSubject, students]);
+  }, [schedules, attendanceSessions, selectedSubject, students, fetchedAvailableSubjects]);
 
   useEffect(() => {
     const prathomGrades = uniqueGrades.filter(g => g.includes('ประถม'));
@@ -329,10 +344,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   };
 
-  const calculateGrade = (total: number, subject: string, activities?: any, isScoutAttended?: boolean): string => {
-    if (subject === 'กิจกรรมลูกเสือ') {
+  const calculateGrade = (total: number, subject: string, activities?: any, isScoutAttended?: boolean, attendancePercentage?: number): string => {
+    if ((subject && subject.includes('ลูกเสือ'))) {
       const campAttended = isScoutAttended || activities?.scoutCamp === 1;
-      return (total >= 80 && campAttended) ? "ผ" : "มผ";
+      const attScore = (attendancePercentage !== undefined && attendancePercentage > 0) ? attendancePercentage : total;
+      return (attScore >= 80 && campAttended) ? "ผ" : "มผ";
     }
     if (subject === 'กิจกรรมอ่าน-เขียน') {
       if (total >= 80) return "3 (ดีเยี่ยม)";
@@ -388,7 +404,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         (updated.afterMidKnowledgeScore || 0) + 
         (updated.afterMidSoftSkillScore || 0) + 
         (updated.finalScore || 0));
-      updated.grade = calculateGrade(updated.totalScore, selectedSubject);
+      updated.grade = calculateGrade(updated.totalScore, selectedSubject, updated.activities, scoutCampAttendees.has(studentId), attendanceStats?.studentStats?.[studentId] ? (attendanceStats.totalTargetPeriods > 0 ? ((attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late) / attendanceStats.totalTargetPeriods) * 100 : ((attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late) / (attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late + attendanceStats.studentStats[studentId].leave + attendanceStats.studentStats[studentId].sick + attendanceStats.studentStats[studentId].absent)) * 100) : 0);
 
       return { ...prev, [key]: updated };
     });
@@ -449,7 +465,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         (updated.afterMidKnowledgeScore || 0) + 
         (updated.afterMidSoftSkillScore || 0) + 
         (updated.finalScore || 0));
-      updated.grade = calculateGrade(updated.totalScore, selectedSubject);
+      updated.grade = calculateGrade(updated.totalScore, selectedSubject, updated.activities, scoutCampAttendees.has(studentId), attendanceStats?.studentStats?.[studentId] ? (attendanceStats.totalTargetPeriods > 0 ? ((attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late) / attendanceStats.totalTargetPeriods) * 100 : ((attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late) / (attendanceStats.studentStats[studentId].present + attendanceStats.studentStats[studentId].late + attendanceStats.studentStats[studentId].leave + attendanceStats.studentStats[studentId].sick + attendanceStats.studentStats[studentId].absent)) * 100) : 0);
 
       return { ...prev, [key]: updated };
     });
@@ -498,11 +514,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
   };
 
-  const subjectTeacherName = schedules.length > 0 && schedules[0].teacherName
-    ? schedules[0].teacherName
-    : currentTeacher
-    ? `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`.trim()
-    : undefined;
+  const subjectTeacherName = React.useMemo(() => {
+    const schedule = schedules.find(s => s.gradeLevel === selectedGrade && (s.subject === selectedSubject || s.customSubject === selectedSubject));
+    if (schedule && schedule.teacherName) {
+      return schedule.teacherName;
+    }
+    return currentTeacher ? (currentTeacher.thaiName || currentTeacher.displayName || `${currentTeacher.firstName || ''} ${currentTeacher.lastName || ''}`.trim()) : undefined;
+  }, [schedules, selectedGrade, selectedSubject, currentTeacher]);
 
   const formatColumnHeader = (name: string, maxScore: number) => {
     let namePart = name;
@@ -672,6 +690,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onChange={(e) => setSelectedSubject(e.target.value)}
                     className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
+                    <option value="" disabled>-- กรุณาเลือกวิชา --</option>
                     {(() => {
                        
                       let finalSubjects = fetchedAvailableSubjects;
@@ -701,10 +720,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                             });
                         }
                       }
-
-                       
-                       
-                       
+                      
                       return finalSubjects.map((s: any, idx: number) => {
                         if (typeof s === 'string') {
                           return <option key={`s-${idx}`} value={s}>{s}</option>;
@@ -727,6 +743,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onChange={(e) => setSelectedGrade(e.target.value)}
                     className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
+                    <option value="" disabled>-- กรุณาเลือกวิชา --</option>
                     {(() => {
                        let availableGrades = uniqueGrades.filter(g => g.includes('ประถม'));
                        // Smart Filter: If not admin/academic, only show grades they teach for the selected subject
@@ -783,7 +800,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 </div>
               </div>
 
-              {!['กิจกรรมลูกเสือ', 'กิจกรรมอ่าน-เขียน'].includes(selectedSubject) ? ( <>
+              {!(selectedSubject && selectedSubject.includes('อ่าน-เขียน')) ? ( <>
               {/* Sub tabs for grades */}
                             <div className="flex overflow-x-auto border-b border-slate-200 mb-6">
                 <button
@@ -847,6 +864,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
                         const percentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
                         const isAtRisk = baseTotal > 0 && percentage < 80;
+                        const attendancePercentage = percentage;
 
                         return (
                           <tr key={student.id} className={`hover:bg-slate-50 transition-colors ${isAtRisk ? 'bg-rose-50/30' : ''}`}>
@@ -915,6 +933,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                             const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
                             const isScoutCampAttended = scoutCampAttendees.has(student.id);
                             const score = draftScores[key] || { activities: {}, totalScore: '-', grade: '-' };
+                            const stats = attendanceStats.studentStats[student.id];
+                            const totalAttended = stats.present + stats.late;
+                            const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+                            const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+                            const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
                             const part1Total = Number(((Number(score.beforeMidKnowledgeScore) || 0) + (Number(score.beforeMidSoftSkillScore) || 0) + (Number(score.afterMidKnowledgeScore) || 0) + (Number(score.afterMidSoftSkillScore) || 0)).toFixed(2));
                             
                             return (
@@ -995,6 +1018,175 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   </table>
                 ) : (
                   gradesSubTab === 'part2' ? (
+                  selectedSubjectType === 'activity' ? (
+                    <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
+                        <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
+                        {(selectedSubject && selectedSubject.includes('ลูกเสือ')) ? (
+                          <>
+                            <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">เวลาเรียน<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
+                            <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">กิจกรรมเข้าค่าย<br/><span className="text-xs font-normal text-slate-400">(ผ่าน/ไม่ผ่าน)</span></th>
+                          </>
+                        ) : (
+                           <>
+                            <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">เวลาเรียน<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
+                            <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">ผลงาน/ปฏิบัติ<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
+                          </>
+                        )}
+                        <th className="px-4 py-3 text-center bg-emerald-50">ผลการประเมินรวม<br/><span className="text-xs font-normal text-slate-400">(ผ/มผ)</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
+                        students.filter(s => s.gradeLevel === selectedGrade)
+                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
+                          .map((student) => {
+                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
+                            const score = draftScores[key] || { totalScore: '' };
+                            const stats = attendanceStats.studentStats[student.id];
+                            const totalAttended = stats.present + stats.late;
+                            const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+                            const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+                            const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
+                            
+                            return (
+                            <tr key={student.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50">
+                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
+                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
+                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
+                                <input disabled={student.status !== "active" || isReadOnly || (attendancePercentage !== undefined && attendancePercentage > 0)} type="number" min={0} max={100}
+                                  className={`w-16 p-1.5 text-center border border-slate-200 rounded focus:ring-2 focus:ring-emerald-500 outline-none ${(attendancePercentage !== undefined && attendancePercentage > 0) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
+                                  value={(attendancePercentage !== undefined && attendancePercentage > 0) ? attendancePercentage.toFixed(0) : (score.totalScore === '-' ? '' : score.totalScore)}
+                                  title={(attendancePercentage !== undefined && attendancePercentage > 0) ? 'คำนวณอัตโนมัติจากแท็บเวลาเรียน' : ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const numVal = val === '' ? 0 : Number(val);
+                                    setDraftScores(prev => ({
+                                      ...prev,
+                                      [key]: {
+                                        ...(prev[key] || {
+                                          id: `sc-${Date.now()}`,
+                                          studentId: student.id,
+                                          gradeLevel: selectedGrade,
+                                          academicYear: viewYear || '',
+                                          semester: viewSemester || '',
+                                          subject: selectedSubject,
+                                          teacherId: 'current-teacher',
+                                          beforeMidKnowledgeScore: 0,
+                                          beforeMidSoftSkillScore: 0,
+                                          midtermScore: 0,
+                                          afterMidKnowledgeScore: 0,
+                                          afterMidSoftSkillScore: 0,
+                                          finalScore: 0,
+                                          activities: {}
+                                        }),
+                                        totalScore: numVal,
+                                        grade: calculateGrade(numVal, selectedSubject, prev[key]?.activities, isScoutCampAttended, attendancePercentage)
+                                      }
+                                    }));
+                                  }}
+                                />
+                              </td>
+                              {(selectedSubject && selectedSubject.includes('ลูกเสือ')) ? (
+                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
+                                <label className="flex items-center justify-center gap-2 cursor-pointer">
+                                  <input 
+                                    type="checkbox"
+                                    className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                    checked={isScoutCampAttended || score.activities?.scoutCamp === 1}
+                                    disabled={isScoutCampAttended}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      setDraftScores(prev => {
+                                        const currentScore = prev[key] || {
+                                          id: `sc-${Date.now()}`,
+                                          studentId: student.id,
+                                          gradeLevel: selectedGrade,
+                                          academicYear: viewYear || '',
+                                          semester: viewSemester || '',
+                                          subject: selectedSubject,
+                                          teacherId: 'current-teacher',
+                                          beforeMidKnowledgeScore: 0,
+                                          beforeMidSoftSkillScore: 0,
+                                          midtermScore: 0,
+                                          afterMidKnowledgeScore: 0,
+                                          afterMidSoftSkillScore: 0,
+                                          finalScore: 0,
+                                          totalScore: 0,
+                                          activities: {}
+                                        };
+                                        const newActivities = { ...currentScore.activities, scoutCamp: isChecked ? 1 : 0 };
+                                        return {
+                                          ...prev,
+                                          [key]: {
+                                            ...currentScore,
+                                            activities: newActivities,
+                                            grade: calculateGrade(currentScore.totalScore, selectedSubject, newActivities, isScoutCampAttended, attendancePercentage)
+                                          }
+                                        };
+                                      });
+                                    }}
+                                  />
+                                  {isScoutCampAttended && <span className="absolute -top-2 -right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
+                                  <span className="text-xs font-medium text-slate-600">เข้าร่วม</span>
+                                </label>
+                              </td>
+                              ) : (
+                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
+                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={100}
+                                    className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    value={score.activities?.practicalScore === undefined ? '' : score.activities.practicalScore}
+                                    placeholder="ผลงาน"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const numVal = val === '' ? 0 : Number(val);
+                                      setDraftScores(prev => {
+                                        const currentScore = prev[key] || {
+                                          id: `sc-${Date.now()}`,
+                                          studentId: student.id,
+                                          gradeLevel: selectedGrade,
+                                          academicYear: viewYear || '',
+                                          semester: viewSemester || '',
+                                          subject: selectedSubject,
+                                          teacherId: 'current-teacher',
+                                          activities: {}
+                                        };
+                                        
+                                        const attScore = currentScore.totalScore === '-' || currentScore.totalScore === '' || currentScore.totalScore === undefined ? 0 : Number(currentScore.totalScore);
+                                        const totalAvg = (attScore + numVal) / 2;
+                                        
+                                        return {
+                                          ...prev,
+                                          [key]: {
+                                            ...currentScore,
+                                            activities: { ...currentScore.activities, practicalScore: numVal },
+                                            grade: totalAvg >= 80 ? 'ผ' : 'มผ' 
+                                          }
+                                        };
+                                      });
+                                    }}
+                                  />
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
+                                {score.grade || '-'}
+                              </td>
+                            </tr>
+                            );
+                          })
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  ) : (
                     <table className="w-full text-sm text-left">
                       <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                         <tr>
@@ -1068,7 +1260,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   {score.totalScore}
                                 </td>
                                 <td className="px-4 py-3 text-center font-black text-emerald-600 bg-indigo-50/30">
-                                  {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id)) || '-'}
+                                  {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id), undefined) || '-'}
                                 </td>
                               </tr>
                             )})
@@ -1081,7 +1273,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         )}
                       </tbody>
                     </table>
-                  ) : (
+                  )) : (
                     <div className="p-8 text-center text-slate-500">กำลังโหลดการตั้งค่า...</div>
                   )
                 )}
@@ -1099,7 +1291,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               </div>
 
               </>
-              ) : selectedSubject === 'กิจกรรมอ่าน-เขียน' ? (
+              ) : (
                 <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full mt-6">
                   <div className="flex justify-between items-center px-4 py-3 bg-amber-50/50 border-b border-amber-200 rounded-t-xl">
                     <h3 className="font-bold text-amber-800 text-sm flex items-center gap-2">
@@ -1200,123 +1392,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl max-w-full mt-6">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
-                        <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
-                        <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">เวลาเรียน<br/><span className="text-xs font-normal text-slate-400">(ร้อยละ)</span></th>
-                        <th className="px-3 py-3 text-center border-r border-slate-200 bg-emerald-50">กิจกรรมเข้าค่าย<br/><span className="text-xs font-normal text-slate-400">(ผ่าน/ไม่ผ่าน)</span></th>
-                        <th className="px-4 py-3 text-center bg-emerald-50">ผลการประเมินรวม<br/><span className="text-xs font-normal text-slate-400">(ผ/มผ)</span></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
-                        students.filter(s => s.gradeLevel === selectedGrade)
-                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
-                          .map((student) => {
-                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
-                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
-                            const score = draftScores[key] || { totalScore: '' };
-                            
-                            return (
-                            <tr key={student.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50">
-                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
-                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
-                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={100}
-                                  className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                  value={score.totalScore === '-' ? '' : score.totalScore}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const numVal = val === '' ? 0 : Number(val);
-                                    setDraftScores(prev => ({
-                                      ...prev,
-                                      [key]: {
-                                        ...(prev[key] || {
-                                          id: `sc-${Date.now()}`,
-                                          studentId: student.id,
-                                          gradeLevel: selectedGrade,
-                                          academicYear: viewYear || '',
-                                          semester: viewSemester || '',
-                                          subject: selectedSubject,
-                                          teacherId: 'current-teacher',
-                                          beforeMidKnowledgeScore: 0,
-                                          beforeMidSoftSkillScore: 0,
-                                          midtermScore: 0,
-                                          afterMidKnowledgeScore: 0,
-                                          afterMidSoftSkillScore: 0,
-                                          finalScore: 0,
-                                          activities: {}
-                                        }),
-                                        totalScore: numVal,
-                                        grade: calculateGrade(numVal, selectedSubject, prev[key]?.activities, isScoutCampAttended)
-                                      }
-                                    }));
-                                  }}
-                                />
-                              </td>
-                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <label className="flex items-center justify-center gap-2 cursor-pointer">
-                                  <input 
-                                    type="checkbox"
-                                    className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-                                    checked={isScoutCampAttended || score.activities?.scoutCamp === 1}
-                                    disabled={isScoutCampAttended}
-                                    onChange={(e) => {
-                                      const isChecked = e.target.checked;
-                                      setDraftScores(prev => {
-                                        const currentScore = prev[key] || {
-                                          id: `sc-${Date.now()}`,
-                                          studentId: student.id,
-                                          gradeLevel: selectedGrade,
-                                          academicYear: viewYear || '',
-                                          semester: viewSemester || '',
-                                          subject: selectedSubject,
-                                          teacherId: 'current-teacher',
-                                          beforeMidKnowledgeScore: 0,
-                                          beforeMidSoftSkillScore: 0,
-                                          midtermScore: 0,
-                                          afterMidKnowledgeScore: 0,
-                                          afterMidSoftSkillScore: 0,
-                                          finalScore: 0,
-                                          totalScore: 0,
-                                          activities: {}
-                                        };
-                                        const newActivities = { ...currentScore.activities, scoutCamp: isChecked ? 1 : 0 };
-                                        return {
-                                          ...prev,
-                                          [key]: {
-                                            ...currentScore,
-                                            activities: newActivities,
-                                            grade: calculateGrade(currentScore.totalScore, selectedSubject, newActivities, isScoutCampAttended)
-                                          }
-                                        };
-                                      });
-                                    }}
-                                  />
-                                  {isScoutCampAttended && <span className="absolute -top-2 -right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
-                                  <span className="text-xs font-medium text-slate-600">เข้าร่วม</span>
-                                </label>
-                              </td>
-                              <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
-                                {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id)) || '-'}
-                              </td>
-                            </tr>
-                            );
-                          })
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              
               )}            </div>
           )}
 

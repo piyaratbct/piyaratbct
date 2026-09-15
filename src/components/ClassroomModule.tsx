@@ -2108,6 +2108,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           teacher={currentTeacher!}
           academicYear={systemAcademicYear || ''}
           semester={systemSemester || ''}
+          allAssessments={allAssessments}
+          selectedMonth={selectedMonth}
           onClose={() => setPrintStudents(null)}
         />
       )}

@@ -3,12 +3,16 @@ import { Student, KindergartenAssessment, Teacher } from "../types";
 import { PDFPrintHelper, PrintPageContainer, PrintHeader, PrintSignatureBox } from "./PDFPrintHelper";
 import { formatThaiMonthYear } from "../lib/dateUtils";
 
+import { StudentAssessment } from "../types";
+
 interface KindergartenPrintTemplateProps {
   students: Student[];
   assessments: Record<string, KindergartenAssessment>;
   teacher: Teacher;
   academicYear: string;
   semester: string;
+  allAssessments?: StudentAssessment[];
+  selectedMonth?: string;
   onClose: () => void;
 }
 
@@ -18,8 +22,20 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
   teacher,
   academicYear,
   semester,
+  allAssessments = [],
+  selectedMonth = '',
   onClose,
 }) => {
+  const getBmiLabel = (bmi: number | null | undefined) => {
+    if (bmi === null || bmi === undefined) return '-';
+    if (bmi < 18.5) return 'ผอม/น้ำหนักน้อย';
+    if (bmi >= 18.5 && bmi < 23) return 'สมส่วน/ปกติ';
+    if (bmi >= 23 && bmi < 25) return 'ท้วม/น้ำหนักเกิน';
+    if (bmi >= 25 && bmi < 30) return 'อ้วน';
+    if (bmi >= 30) return 'อ้วนมาก';
+    return '-';
+  };
+
   const [isCompact, setIsCompact] = useState(false);
   const teacherIdentifier = (
     teacher.employeeId ||
@@ -91,16 +107,7 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                     <span className="text-slate-600">({student.nickname})</span>
                   )}
                 </div>
-                <div className="col-span-2 flex gap-4">
-                  <div>
-                    <span className="font-bold text-sky-900">น้ำหนัก:</span>{" "}
-                    {assessment.weight || student.weight || "-"} <span className="text-slate-600 text-[0.9em]">กก.</span>
-                  </div>
-                  <div>
-                    <span className="font-bold text-sky-900">ส่วนสูง:</span>{" "}
-                    {assessment.height || student.height || "-"} <span className="text-slate-600 text-[0.9em]">ซม.</span>
-                  </div>
-                </div>
+                {/* Removed weight/height from here since it's now in the table below */}
               </div>
             </div>
 
@@ -194,10 +201,53 @@ export const KindergartenPrintTemplate: React.FC<KindergartenPrintTemplateProps>
                 </div>
               </div>
             </div>
+            
+            {/* Health Info Section */}
+            {allAssessments && allAssessments.length > 0 && selectedMonth && (
+              <div className={`${isCompact ? "mt-4" : "mt-8"}`}>
+                <h3 className="font-bold text-sm mb-2 text-slate-800">ข้อมูลการเจริญเติบโตทางร่างกาย (ประจำเดือน {formatThaiMonthYear(selectedMonth)})</h3>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="border border-slate-300 py-2 px-4 text-center font-bold text-slate-700">เดือนที่ประเมิน</th>
+                      <th className="border border-slate-300 py-2 px-4 text-center font-bold text-slate-700">น้ำหนัก (กก.)</th>
+                      <th className="border border-slate-300 py-2 px-4 text-center font-bold text-slate-700">ส่วนสูง (ซม.)</th>
+                      <th className="border border-slate-300 py-2 px-4 text-center font-bold text-slate-700">BMI</th>
+                      <th className="border border-slate-300 py-2 px-4 text-center font-bold text-slate-700">ผลการประเมิน</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const healthData = allAssessments.find(a => a.studentId === student.id && a.month === selectedMonth);
+                      if (healthData && healthData.weight && healthData.height) {
+                        const w = healthData.weight;
+                        const h = healthData.height / 100;
+                        const bmi = w / (h * h);
+                        return (
+                          <tr>
+                            <td className="border border-slate-300 py-2 px-4 text-center font-bold">{formatThaiMonthYear(selectedMonth)}</td>
+                            <td className="border border-slate-300 py-2 px-4 text-center">{healthData.weight}</td>
+                            <td className="border border-slate-300 py-2 px-4 text-center">{healthData.height}</td>
+                            <td className="border border-slate-300 py-2 px-4 text-center">{bmi.toFixed(1)}</td>
+                            <td className="border border-slate-300 py-2 px-4 text-center">{getBmiLabel(bmi)}</td>
+                          </tr>
+                        );
+                      }
+                      return (
+                        <tr>
+                          <td className="border border-slate-300 py-2 px-4 text-center font-bold">{formatThaiMonthYear(selectedMonth)}</td>
+                          <td colSpan={4} className="border border-slate-300 py-2 px-4 text-center text-slate-500 italic">ไม่มีข้อมูลการวัดในเดือนนี้</td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Signatures */}
             <div
-              className={`border-t border-slate-200 flex justify-end font-serif ${isCompact ? "mt-8 pt-4" : "mt-12 pt-6"}`}
+              className={`border-t border-slate-200 flex justify-end font-serif ${isCompact ? "mt-4 pt-4" : "mt-12 pt-6"}`}
             >
               <div className="w-64">
                 <PrintSignatureBox

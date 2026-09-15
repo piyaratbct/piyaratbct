@@ -82,7 +82,14 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
         let studentScores: any[] = [];
         
         if (schoolSubjects.length > 0) {
-           const parentsAndStandalone = schoolSubjects.filter(s => s.isParent || (!s.isParent && !s.parentId)).sort(sortSubjects);
+           const isKinder = gradeLevel.includes('อนุบาล');
+           const isPrim = gradeLevel.includes('ประถม');
+           
+           const parentsAndStandalone = schoolSubjects.filter(s => {
+              if (isPrim && (s.subjectName.includes('ปฐมวัย') || s.subjectName.includes('การศึกษาปฐมวัย'))) return false;
+              if (isKinder && !s.subjectName.includes('ปฐมวัย')) return false;
+              return s.isParent || (!s.isParent && !s.parentId);
+           }).sort(sortSubjects);
            studentScores = parentsAndStandalone.map(subjectDef => {
              if (subjectDef.isParent) {
                 const children = schoolSubjects.filter(s => s.parentId === subjectDef.id);
@@ -153,10 +160,10 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
             const isPrimaryUpper = isPrimary && (gradeLevel.includes('4') || gradeLevel.includes('5') || gradeLevel.includes('6'));
             const isPrimaryLower = isPrimary && (gradeLevel.includes('1') || gradeLevel.includes('2') || gradeLevel.includes('3'));
   
-            if (isKindergarten && subject !== 'การศึกษาปฐมวัย') {
+            if (isKindergarten && !subject.includes('ปฐมวัย')) {
                return false;
             }
-            if (isPrimary && subject === 'การศึกษาปฐมวัย') {
+            if (isPrimary && subject.includes('ปฐมวัย')) {
                return false;
             }
 
