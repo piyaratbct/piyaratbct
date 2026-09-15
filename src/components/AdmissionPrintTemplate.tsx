@@ -388,7 +388,51 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
               </div>
             </div>
 
-            <div className="mt-20">
+            
+              {/* Part 5: Survey & Expectations */}
+              {(record.surveySource?.length > 0 || record.surveyReasons?.length > 0 || record.surveyExpectations?.length > 0 || record.surveyPlan || record.additionalNotes) && (
+                <div className="mt-4">
+                  <h2 className="text-base font-black text-slate-800 mb-3 bg-slate-100 p-2 border-l-4 border-indigo-600 flex items-center">
+                    <span className="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">5</span> ข้อมูลเพิ่มเติมและแบบสำรวจ
+                  </h2>
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm px-4">
+                    {record.surveySource && record.surveySource.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-600">ทราบข่าวการรับสมัครจาก: </span>
+                        <span className="font-medium text-slate-900">
+                          {record.surveySource.map(s => s === 'อื่นๆ' && record.surveySourceOther ? `อื่นๆ (${record.surveySourceOther})` : s).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {record.surveyReasons && record.surveyReasons.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-600">เหตุผลที่สนใจ: </span>
+                        <span className="font-medium text-slate-900">{record.surveyReasons.join(', ')}</span>
+                      </div>
+                    )}
+                    {record.surveyExpectations && record.surveyExpectations.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-600">ความคาดหวัง: </span>
+                        <span className="font-medium text-slate-900">{record.surveyExpectations.join(', ')}</span>
+                      </div>
+                    )}
+                    {record.surveyPlan && (
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-600">แผนการศึกษาต่อ: </span>
+                        <span className="font-medium text-slate-900">{record.surveyPlan}</span>
+                      </div>
+                    )}
+                    {record.additionalNotes && (
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-600">หมายเหตุเพิ่มเติม: </span>
+                        <span className="font-medium text-slate-900">{record.additionalNotes}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-8">
               <p className="text-sm font-bold text-slate-800 mb-8 px-4 leading-relaxed">
                 ข้าพเจ้าขอรับรองว่าข้อความข้างต้นเป็นความจริงทุกประการ หากมีข้อความใดเป็นเท็จ ข้าพเจ้ายินยอมให้ทางโรงเรียนพิจารณายกเลิกสิทธิ์การเข้าเรียน
               </p>

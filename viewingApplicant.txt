@@ -1,0 +1,201 @@
+                    <li>
+                      <span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">วันเกิด:</span> {viewingApplicant.birthDate || '-'}
+                      {viewingApplicant.birthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.birthDate)})</span>}
+                    </li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ที่อยู่:</span> <span className="text-xs">{formatAddress(viewingApplicant.addressObj)}</span></li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">รพ.ที่เกิด:</span> {viewingApplicant.birthHospital || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">จังหวัดที่เกิด:</span> {viewingApplicant.birthProvince || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สัญชาติ/เชื้อชาติ:</span> {viewingApplicant.nationality || '-'}/{viewingApplicant.ethnicity || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ศาสนา:</span> {viewingApplicant.religion || '-'}</li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                  <div>
+                    <h4 className="font-bold text-rose-600 mb-3 border-b pb-2 flex items-center gap-2">
+                      <Settings className="h-4 w-4" /> ข้อมูลสุขภาพ
+                    </h4>
+                    <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">หมู่เลือด:</span> {viewingApplicant.bloodGroup || '-'}</li>
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">น้ำหนัก/ส่วนสูง:</span> {viewingApplicant.weight ? viewingApplicant.weight + ' กก.' : '-'} / {viewingApplicant.height ? viewingApplicant.height + ' ซม.' : '-'}</li>
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">โรคประจำตัว:</span> {viewingApplicant.underlyingDisease || '-'}</li>
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">แพ้ยา:</span> {viewingApplicant.drugAllergy || '-'}</li>
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">แพ้อาหาร:</span> {viewingApplicant.foodAllergy || '-'}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-emerald-600 mb-3 border-b pb-2 flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" /> ประวัติการศึกษา
+                    </h4>
+                    <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">โรงเรียนเดิม:</span> {viewingApplicant.previousSchool || '-'}</li>
+                      <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">จังหวัดโรงเรียนเดิม:</span> {viewingApplicant.previousSchoolProvince || '-'}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Parents */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-blue-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลบิดา
+                  </h4>
+                  <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                    <li>
+                      <span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ชื่อ-นามสกุล:</span> {viewingApplicant.fatherFirstName || ''} {viewingApplicant.fatherLastName || '-'}
+                      {viewingApplicant.fatherBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.fatherBirthDate)})</span>}
+                    </li>
+                    
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.fatherFirstName || '', viewingApplicant.fatherLastName || '', viewingApplicant.fatherName || '', viewingApplicant.fatherNationality || '', viewingApplicant.fatherEthnicity || '')}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ศาสนา:</span> {viewingApplicant.fatherFirstName || viewingApplicant.fatherLastName || viewingApplicant.fatherName ? (viewingApplicant.fatherReligion || '-') : '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">อาชีพ:</span> {viewingApplicant.fatherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สถานที่ทำงาน:</span> {viewingApplicant.fatherWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.fatherWorkplaceProvince)}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">รายได้:</span> {viewingApplicant.fatherIncome || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">เบอร์โทรศัพท์:</span> {viewingApplicant.fatherPhone || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">Line ID:</span> {viewingApplicant.fatherLineId || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.fatherAddressObj, viewingApplicant.addressObj)}</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-pink-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลมารดา
+                  </h4>
+                  <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                    <li>
+                      <span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ชื่อ-นามสกุล:</span> {viewingApplicant.motherPrefix || ''}{viewingApplicant.motherFirstName || ''} {viewingApplicant.motherLastName || '-'}
+                      {viewingApplicant.motherBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.motherBirthDate)})</span>}
+                    </li>
+                    
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.motherFirstName || '', viewingApplicant.motherLastName || '', viewingApplicant.motherName || '', viewingApplicant.motherNationality || '', viewingApplicant.motherEthnicity || '')}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ศาสนา:</span> {viewingApplicant.motherFirstName || viewingApplicant.motherLastName || viewingApplicant.motherName ? (viewingApplicant.motherReligion || '-') : '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">อาชีพ:</span> {viewingApplicant.motherOccupation || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สถานที่ทำงาน:</span> {viewingApplicant.motherWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.motherWorkplaceProvince)}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">รายได้:</span> {viewingApplicant.motherIncome || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">เบอร์โทรศัพท์:</span> {viewingApplicant.motherPhone || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">Line ID:</span> {viewingApplicant.motherLineId || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.motherAddressObj, viewingApplicant.addressObj)}</span></li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Row 3: Guardian & Family */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-purple-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> ข้อมูลผู้ปกครอง
+                  </h4>
+                  <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                    <li>
+                      <span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ชื่อ-นามสกุล:</span> {viewingApplicant.guardianFirstName || ''} {viewingApplicant.guardianLastName || '-'}
+                      {viewingApplicant.guardianBirthDate && <span className="text-slate-500 text-xs ml-2">(อายุ: {calculateAge(viewingApplicant.guardianBirthDate)})</span>}
+                    </li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">เกี่ยวข้องเป็น:</span> {viewingApplicant.guardianRelation || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สัญชาติ/เชื้อชาติ:</span> {getParentNationality(viewingApplicant.guardianFirstName || '', viewingApplicant.guardianLastName || '', viewingApplicant.guardianName || '', viewingApplicant.guardianNationality || '', viewingApplicant.guardianEthnicity || '')}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ศาสนา:</span> {viewingApplicant.guardianReligion || '-'}</li>
+                    
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">อาชีพ:</span> {viewingApplicant.guardianOccupation || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">สถานที่ทำงาน:</span> {viewingApplicant.guardianWorkplace || '-'} {formatWorkplaceProvince(viewingApplicant.guardianWorkplaceProvince)}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">รายได้:</span> {viewingApplicant.guardianIncome || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">เบอร์โทรศัพท์:</span> {viewingApplicant.guardianPhone || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">Line ID:</span> {viewingApplicant.guardianLineId || '-'}</li>
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ที่อยู่:</span> <span className="text-xs">{getParentAddress(viewingApplicant.guardianAddressObj, viewingApplicant.addressObj)}</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="font-bold text-amber-600 mb-3 border-b pb-2 flex items-center gap-2">
+                    <Settings className="h-4 w-4" /> ข้อมูลครอบครัว
+                  </h4>
+                  <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                    <li><span className="text-slate-500 w-36 inline-block">สถานภาพครอบครัว:</span> {viewingApplicant.familyStatus || '-'}</li>
+                    <li><span className="text-slate-500 w-36 inline-block">นักเรียนอาศัยอยู่กับ:</span> {viewingApplicant.livingWith || '-'}</li>
+                    <li><span className="text-slate-500 w-36 inline-block">จำนวนพี่น้องร่วมบิดามารดา:</span> {viewingApplicant.siblingCount || '0'} คน</li>
+                    <li><span className="text-slate-500 w-36 inline-block">นักเรียนเป็นบุตรคนที่:</span> {viewingApplicant.siblingOrder || '1'}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <h4 className="font-bold text-red-600 mb-3 border-b pb-2 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" /> ผู้ติดต่อฉุกเฉิน
+                </h4>
+                <ul className="space-y-3 sm:space-y-2 text-sm text-slate-700">
+                  {viewingApplicant.fatherPhone && (
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">บิดา:</span> {viewingApplicant.fatherName || `${viewingApplicant.fatherFirstName || ''} ${viewingApplicant.fatherLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.fatherPhone}</span></li>
+                  )}
+                  {viewingApplicant.motherPhone && (
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">มารดา:</span> {viewingApplicant.motherName || `${viewingApplicant.motherPrefix || ''} ${viewingApplicant.motherFirstName || ''} ${viewingApplicant.motherLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.motherPhone}</span></li>
+                  )}
+                  {viewingApplicant.guardianPhone && (
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">ผู้ปกครอง:</span> {viewingApplicant.guardianName || `${viewingApplicant.guardianFirstName || ''} ${viewingApplicant.guardianLastName || ''}`.trim() || '-'} <span className="font-bold text-red-600 ml-2">{viewingApplicant.guardianPhone}</span></li>
+                  )}
+                  {viewingApplicant.emergencyContactName && (
+                    <li><span className="text-slate-500 text-xs sm:text-sm font-medium block sm:inline-block sm:w-32 shrink-0 text-slate-500/80 mb-0.5 sm:mb-0">{viewingApplicant.emergencyContactRelation || 'อื่นๆ'}:</span> {viewingApplicant.emergencyContactName} <span className="font-bold text-red-600 ml-2">{viewingApplicant.emergencyContactPhone || '-'}</span></li>
+                  )}
+                  {(!viewingApplicant.fatherPhone && !viewingApplicant.motherPhone && !viewingApplicant.guardianPhone && !viewingApplicant.emergencyContactName) && (
+                    <li className="text-slate-500 italic">- ไม่มีข้อมูลเบอร์โทรศัพท์ติดต่อฉุกเฉิน -</li>
+                  )}
+                </ul>
+              </div>
+
+            </div>
+            
+              {/* Survey Data (ถ้ามี) */}
+              {(viewingApplicant.surveySource?.length > 0 || viewingApplicant.surveyReasons?.length > 0 || viewingApplicant.surveyExpectations?.length > 0 || viewingApplicant.surveyPlan) && (
+                <div className="md:col-span-2 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                  <h4 className="font-bold text-indigo-800 text-sm mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" /> ข้อมูลแบบสำรวจความสนใจ
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {viewingApplicant.surveySource?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">ช่องทางการรับข่าวสาร:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveySource.map(s => (
+                            <li key={s}>{s === 'อื่นๆ' && viewingApplicant.surveySourceOther ? `อื่นๆ (${viewingApplicant.surveySourceOther})` : s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyReasons?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">เหตุผลที่สนใจ:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveyReasons.map(s => <li key={s}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyExpectations?.length > 0 && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">ความคาดหวัง:</span>
+                        <ul className="list-disc pl-4 text-sm text-slate-700">
+                          {viewingApplicant.surveyExpectations.map(s => <li key={s}>{s}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {viewingApplicant.surveyPlan && (
+                      <div>
+                        <span className="text-slate-500 text-xs font-bold block mb-1">แผนการศึกษาต่อ:</span>
+                        <p className="text-sm text-slate-700">{viewingApplicant.surveyPlan}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
+              <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors">
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      
+      {appToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
+            <div className="p-6">
