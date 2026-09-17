@@ -14,10 +14,11 @@ interface AttendanceTrackingProps {
   academicYear: string;
   initialDate?: string;
   initialPeriod?: string;
+  initialSubject?: string;
   onClose?: () => void;
 }
 
-export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear, initialDate, initialPeriod, onClose }: AttendanceTrackingProps) {
+export function AttendanceTracking({ students, gradeLevel, teacherId, teacherName, semester, academicYear, initialDate, initialPeriod, initialSubject, onClose }: AttendanceTrackingProps) {
   const [date, setDate] = useState<string>(initialDate || new Date().toISOString().slice(0, 10));
   const [period, setPeriod] = useState<string>(initialPeriod || PERIODS[1]);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +95,21 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           s.semester === semester &&
           s.academicYear === academicYear
         );
+
         setSchedules(filteredSchedules);
+        
+        // Auto-select period if initialSubject is provided and we haven't selected one manually
+        if (initialSubject) {
+          const selectedDayOfWeek = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])).getDay() : -1;
+          const matchingSchedule = filteredSchedules.find(s => 
+            s.dayOfWeek === selectedDayOfWeek && 
+            (s.subject === initialSubject || s.customSubject === initialSubject)
+          );
+          if (matchingSchedule) {
+            setPeriod(matchingSchedule.period);
+          }
+        }
+
       } catch (error) {
         console.error("Error fetching schedules:", error);
       }

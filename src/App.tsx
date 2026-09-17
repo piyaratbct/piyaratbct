@@ -201,6 +201,8 @@ export default function App() {
   const [teachingInitialGrade, setTeachingInitialGrade] = useState<string | undefined>(undefined);
 
   const [classroomInitialTab, setClassroomInitialTab] = useState<'students' | 'student360' | 'attendance' | 'assessments' | 'special-care' | undefined>(undefined);
+  const [classroomInitialGrade, setClassroomInitialGrade] = useState<string | undefined>(undefined);
+  const [classroomInitialSubject, setClassroomInitialSubject] = useState<string | undefined>(undefined);
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "plan-list" | "pbl-plan-form" | "pbl-log-form"
@@ -1823,15 +1825,17 @@ export default function App() {
                  } else if (action === 'plans') {
                    setTeachingInitialSubject(subject);
                    setTeachingInitialGrade(grade);
-                   setActiveTab('plan-list');
+                   setActiveTab('pbl-plan-form');
                    setActiveModule('teaching');
                  } else if (action === 'logs') {
                    setTeachingInitialSubject(subject);
                    setTeachingInitialGrade(grade);
-                   setActiveTab('dashboard');
+                   setActiveTab('pbl-log-form');
                    setActiveModule('teaching');
                  } else if (action === 'attendance') {
                    setClassroomInitialTab('attendance');
+                   setClassroomInitialGrade(grade);
+                   setClassroomInitialSubject(subject);
                    setActiveModule('classroom');
                  }
               }}
@@ -2312,6 +2316,8 @@ export default function App() {
                 <PBLLessonPlanForm
                   teacherId={currentTeacher.id}
                   teachers={teachers}
+                  initialSubject={teachingInitialSubject}
+                  initialGrade={teachingInitialGrade}
                   onSave={handleSavePlan}
                   initialPlan={editingPlan}
                   onCancel={
@@ -2378,6 +2384,8 @@ export default function App() {
             systemSemester={systemSemester}
             teachers={teachers}
             initialTab={classroomInitialTab}
+            initialGrade={classroomInitialGrade}
+            initialSubject={classroomInitialSubject}
           />
         ) : activeModule === "academic" ? (
           <div className="relative animate-in fade-in duration-300">

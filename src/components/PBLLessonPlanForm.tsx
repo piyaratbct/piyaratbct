@@ -44,6 +44,8 @@ export function PBLLessonPlanForm({
   systemAcademicYear,
   systemSemester,
   teachers = [],
+  initialSubject,
+  initialGrade,
 }: {
   teacherId: string;
   onSave: (plan: Omit<LessonPlan, "id" | "createdAt" | "updatedAt">) => void;
@@ -58,10 +60,11 @@ export function PBLLessonPlanForm({
   const [selectedGrades, setSelectedGrades] = useState<string[]>(
     initialPlan?.gradeLevel 
       ? initialPlan.gradeLevel.split(',').map(s => s.trim()).filter(Boolean)
-      : []
+      : initialGrade ? [initialGrade] : []
   );
   const defaultSemester = `ภาคเรียนที่ ${systemSemester === '1' || systemSemester === '2' ? systemSemester : '1'}/${systemAcademicYear || '2567'}`;
-  const [subject, setSubject] = useState<string>(initialPlan?.subject);
+  const [subject, setSubject] = useState<string>(
+    initialSubject ||initialPlan?.subject);
   const availableSubjects = useAvailableSubjects();
 
   

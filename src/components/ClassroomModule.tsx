@@ -60,6 +60,8 @@ interface ClassroomModuleProps {
   systemSemester?: string;
   teachers?: Teacher[];
   initialTab?: 'students' | 'student360' | 'attendance' | 'assessments' | 'special-care';
+  initialGrade?: string;
+  initialSubject?: string;
 }
 
 export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
@@ -68,6 +70,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   systemSemester = "1",
   teachers = [],
   initialTab,
+  initialGrade,
+  initialSubject,
 }) => {
   const [activeTab, setActiveTab] = useState<"students" | "student360" | "attendance" | "assessments" | "special-care">(
     initialTab || "students",
@@ -78,8 +82,8 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   }, [initialTab]);
   const [selectedStudent360, setSelectedStudent360] = useState<Student | null>(null);
 
-  const initialGrade = currentTeacher?.homeroomClass || currentTeacher?.coHomeroomClass || GRADE_LEVELS[0];
-  const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade);
+  const defaultGrade = initialGrade || currentTeacher?.homeroomClass || currentTeacher?.coHomeroomClass || GRADE_LEVELS[0];
+  const [selectedGrade, setSelectedGrade] = useState<string>(defaultGrade);
     const [students, setStudents] = useState<Student[]>([]);
   
   const uniqueGrades = React.useMemo(() => {
