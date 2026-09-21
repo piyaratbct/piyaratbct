@@ -99,43 +99,146 @@ export const KindergartenAssessmentModal: React.FC<KindergartenAssessmentModalPr
               ผลการประเมินพัฒนาการ (คำบรรยาย)
             </h4>
             
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">1. ด้านสุขภาวะทางกาย</label>
+            <div className="space-y-5">
+              {/* 1. ด้านสุขภาวะทางกาย */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <label className="text-sm font-bold text-slate-800">1. ด้านสุขภาวะทางกาย</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-500 mr-1">ระดับคุณภาพ:</span>
+                    {([3, 2, 1] as const).map(score => {
+                      const isSelected = formData.physicalScore === score;
+                      const label = score === 3 ? '3 ดี' : score === 2 ? '2 พอใช้' : '1 ควรส่งเสริม';
+                      const colorClass = score === 3 
+                        ? (isSelected ? 'bg-emerald-600 text-white font-bold shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200')
+                        : score === 2 
+                        ? (isSelected ? 'bg-sky-600 text-white font-bold shadow-sm' : 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-200')
+                        : (isSelected ? 'bg-rose-600 text-white font-bold shadow-sm' : 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200');
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, physicalScore: score }))}
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all ${colorClass}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <textarea
                   value={formData.physicalDev || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, physicalDev: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none bg-white"
                   rows={2}
                   placeholder="เช่น มีน้ำหนักและส่วนสูงตามเกณฑ์มาตรฐาน ใช้กล้ามเนื้อมัดเล็กมัดใหญ่ได้ดี..."
                 />
               </div>
-              <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">2. ด้านอารมณ์ จิตใจ และสังคม</label>
+
+              {/* 2. ด้านอารมณ์ จิตใจ และสังคม */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <label className="text-sm font-bold text-slate-800">2. ด้านอารมณ์ จิตใจ และสังคม</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-500 mr-1">ระดับคุณภาพ:</span>
+                    {([3, 2, 1] as const).map(score => {
+                      const isSelected = formData.emotionalScore === score;
+                      const label = score === 3 ? '3 ดี' : score === 2 ? '2 พอใช้' : '1 ควรส่งเสริม';
+                      const colorClass = score === 3 
+                        ? (isSelected ? 'bg-emerald-600 text-white font-bold shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200')
+                        : score === 2 
+                        ? (isSelected ? 'bg-sky-600 text-white font-bold shadow-sm' : 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-200')
+                        : (isSelected ? 'bg-rose-600 text-white font-bold shadow-sm' : 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200');
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, emotionalScore: score }))}
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all ${colorClass}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <textarea
                   value={formData.emotionalDev || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, emotionalDev: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none bg-white"
                   rows={2}
                   placeholder="เช่น ร่าเริงแจ่มใส ช่วยเหลือตนเองและแบ่งปันผู้อื่นได้ดี..."
                 />
               </div>
-              <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">3. ด้านความเป็นพลเมืองและความเป็นไทย</label>
+
+              {/* 3. ด้านความเป็นพลเมืองและความเป็นไทย */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <label className="text-sm font-bold text-slate-800">3. ด้านความเป็นพลเมืองและความเป็นไทย</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-500 mr-1">ระดับคุณภาพ:</span>
+                    {([3, 2, 1] as const).map(score => {
+                      const isSelected = formData.citizenshipScore === score;
+                      const label = score === 3 ? '3 ดี' : score === 2 ? '2 พอใช้' : '1 ควรส่งเสริม';
+                      const colorClass = score === 3 
+                        ? (isSelected ? 'bg-emerald-600 text-white font-bold shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200')
+                        : score === 2 
+                        ? (isSelected ? 'bg-sky-600 text-white font-bold shadow-sm' : 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-200')
+                        : (isSelected ? 'bg-rose-600 text-white font-bold shadow-sm' : 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200');
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, citizenshipScore: score }))}
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all ${colorClass}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <textarea
                   value={formData.citizenshipDev || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, citizenshipDev: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none bg-white"
                   rows={2}
                   placeholder="เช่น ปฏิบัติตามข้อตกลงของห้องเรียน ไหว้สวยและมีสัมมาคารวะ..."
                 />
               </div>
-              <div>
-                <label className="text-sm font-bold text-slate-700 block mb-1">4. ด้านสติปัญญา</label>
+
+              {/* 4. ด้านสติปัญญา */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <label className="text-sm font-bold text-slate-800">4. ด้านสติปัญญาและการเรียนรู้</label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-500 mr-1">ระดับคุณภาพ:</span>
+                    {([3, 2, 1] as const).map(score => {
+                      const isSelected = formData.intellectualScore === score;
+                      const label = score === 3 ? '3 ดี' : score === 2 ? '2 พอใช้' : '1 ควรส่งเสริม';
+                      const colorClass = score === 3 
+                        ? (isSelected ? 'bg-emerald-600 text-white font-bold shadow-sm' : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200')
+                        : score === 2 
+                        ? (isSelected ? 'bg-sky-600 text-white font-bold shadow-sm' : 'bg-white text-sky-700 hover:bg-sky-50 border border-sky-200')
+                        : (isSelected ? 'bg-rose-600 text-white font-bold shadow-sm' : 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200');
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, intellectualScore: score }))}
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all ${colorClass}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <textarea
                   value={formData.intellectualDev || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, intellectualDev: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none bg-white"
                   rows={2}
                   placeholder="เช่น สนใจเรียนรู้สิ่งใหม่ๆ สื่อสารได้ชัดเจน มีจินตนาการสร้างสรรค์..."
                 />

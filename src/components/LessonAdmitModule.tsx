@@ -608,7 +608,7 @@ const AdmissionManager: React.FC<{
 
 
   const surveySourceStats = React.useMemo(() => {
-    const stats = {};
+    const stats: Record<string, number> = {};
     applicants.forEach(app => {
       if (app.surveySource && Array.isArray(app.surveySource)) {
         app.surveySource.forEach(source => {
@@ -623,7 +623,7 @@ const AdmissionManager: React.FC<{
   }, [applicants]);
 
   const surveyReasonsStats = React.useMemo(() => {
-    const stats = {};
+    const stats: Record<string, number> = {};
     applicants.forEach(app => {
       if (app.surveyReasons && Array.isArray(app.surveyReasons)) {
         app.surveyReasons.forEach(reason => {
@@ -635,7 +635,7 @@ const AdmissionManager: React.FC<{
   }, [applicants]);
 
   const surveyExpectationsStats = React.useMemo(() => {
-    const stats = {};
+    const stats: Record<string, number> = {};
     applicants.forEach(app => {
       if (app.surveyExpectations && Array.isArray(app.surveyExpectations)) {
         app.surveyExpectations.forEach(exp => {

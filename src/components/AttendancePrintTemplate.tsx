@@ -76,7 +76,7 @@ export const AttendancePrintTemplate: React.FC<AttendancePrintTemplateProps> = (
                 <tr className="bg-slate-100">
                   <th className="border border-slate-900 px-2 py-2 text-center w-12" rowSpan={2}>เลขที่</th>
                   <th className="border border-slate-900 px-2 py-2 text-center w-24" rowSpan={2}>รหัสประจำตัว</th>
-                  <th className="border border-slate-900 px-4 py-2 text-left whitespace-nowrap" rowSpan={2}>ชื่อ-นามสกุล</th>
+                  <th className="border border-slate-900 px-3 py-2 text-left whitespace-nowrap w-56" rowSpan={2}>ชื่อ-นามสกุล</th>
                   <th className="border border-slate-900 px-2 py-1 text-center" colSpan={5}>สรุปเวลาเรียน (ครั้ง)</th>
                   <th className="border border-slate-900 px-2 py-2 text-center w-16 whitespace-nowrap" rowSpan={2}>รวมมาเรียน<br/><span className="text-[10px] font-normal">(คาบ)</span></th>
                   <th className="border border-slate-900 px-2 py-2 text-center w-16 whitespace-nowrap" rowSpan={2}>เวลาเรียนเต็ม<br/><span className="text-[10px] font-normal">(คาบ)</span></th>
@@ -103,7 +103,7 @@ export const AttendancePrintTemplate: React.FC<AttendancePrintTemplateProps> = (
                     <tr key={st.id}>
                       <td className="border border-slate-900 px-2 py-1 text-center">{st.number || "-"}</td>
                       <td className="border border-slate-900 px-2 py-1 text-center">{st.studentId}</td>
-                      <td className="border border-slate-900 px-4 py-1 text-left whitespace-nowrap">
+                      <td className="border border-slate-900 px-3 py-1 text-left whitespace-nowrap w-56 truncate">
                         {st.firstName} {st.lastName}
                       </td>
                       <td className="border border-slate-900 px-1 py-1 text-center">{stats.present || "-"}</td>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { BookOpen, Search, Plus, Edit, Trash2, Upload, CheckCircle2, Circle, Loader2, Save, X, ChevronDown, ChevronRight, Download, AlertTriangle, CheckCircle, AlertCircle, Award } from 'lucide-react';
+import { BookOpen, Search, Plus, Edit, Trash2, Upload, CheckCircle2, Circle, Loader2, Save, X, ChevronDown, ChevronRight, Download, AlertTriangle, CheckCircle, AlertCircle, Award, Sparkles } from 'lucide-react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, orderBy } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from '../lib/firebase';
 import { CurriculumSubject, CurriculumStandard, CurriculumIndicator, GRADE_LEVELS, BASE_GRADE_LEVELS, SUBJECTS, sortSubjects } from '../types';
 import { SubjectChildManager } from './SubjectChildManager';
 import { IntegratedUnitBuilder } from './IntegratedUnitBuilder';
+import { KindergartenTemplateModal } from './KindergartenTemplateModal';
+import { KINDERGARTEN_2568_STANDARDS, KINDERGARTEN_2568_UNITS } from '../lib/kindergartenCurriculumTemplate';
 
 import { Student } from '../types';
 interface CurriculumManagerProps {
@@ -30,6 +32,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
 
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [showKgTemplateModal, setShowKgTemplateModal] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' } | null>(null);
@@ -337,7 +340,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
           delete payload.academicCategory; 
         }
         
-        return setDoc(doc(db, 'curriculums', docId), payload);
+        return setDoc(doc(db, 'curriculums', docId), cleanFirestoreData(payload));
       });
 
       await Promise.all(promises);
@@ -384,6 +387,34 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
       handleFirestoreError(error, OperationType.DELETE, 'curriculums');
     } finally {
       setIsDeletingAll(false);
+    }
+  };
+
+    const importKindergarten68Standards = async (subjectId: string) => {
+    if (!selectedCurriculum) return;
+    setIsSaving(true);
+    try {
+      const newSubject: any = { ...selectedCurriculum };
+      newSubject.standards = KINDERGARTEN_2568_STANDARDS;
+      newSubject.units = KINDERGARTEN_2568_UNITS;
+      newSubject.totalHours = 1000;
+      newSubject.requiredHoursPerTerm = 500;
+      newSubject.subjectType = 'activity';
+      delete newSubject.academicCategory;
+      newSubject.updatedAt = new Date().toISOString();
+      const cleaned = cleanFirestoreData(newSubject);
+      await setDoc(doc(db, 'curriculums', newSubject.id), cleaned);
+      setCurriculums(prev => prev.map(c => c.id === newSubject.id ? cleaned : c));
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'นำเข้าแม่แบบสำเร็จ',
+        message: 'นำเข้าแม่แบบหลักสูตรปฐมวัย พ.ศ. 2568 (สมรรถนะ 4 ด้าน และสาระที่ควรเรียนรู้ 4 เรื่อง) เรียบร้อยแล้ว'
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'curriculums');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -568,6 +599,15 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
             accept=".xlsx, .xls" 
             className="hidden" 
           />
+          <button 
+            id="btn-import-kindergarten-template"
+            onClick={() => setShowKgTemplateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-lg font-bold shadow-sm transition-all whitespace-nowrap"
+            title="นำเข้าแม่แบบหลักสูตรการศึกษาปฐมวัย พ.ศ. 2568 (สมรรถนะ 4 ด้าน และสาระที่ควรเรียนรู้ 4 เรื่อง)"
+          >
+            <Sparkles className="h-4 w-4 text-pink-200" /> 
+            <span>แม่แบบหลักสูตรปฐมวัย 2568</span>
+          </button>
           <button 
             onClick={downloadTemplate}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg font-bold shadow-sm hover:bg-indigo-100 transition-colors whitespace-nowrap"
@@ -775,6 +815,38 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
                 )}
               </div>
               
+              
+              {canEdit && (
+                selectedCurriculum?.gradeLevel?.includes('อนุบาล') || 
+                (selectedCurriculum?.gradeLevels && selectedCurriculum.gradeLevels.some(g => g.includes('อนุบาล'))) ||
+                selectedCurriculum?.subjectName?.includes('ปฐมวัย')
+              ) && (
+                <div className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-pink-500 text-white rounded-xl shadow-sm">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-800 text-sm">หลักสูตรการศึกษาปฐมวัย พ.ศ. 2568 (สพฐ.)</span>
+                        <span className="text-[10px] bg-pink-200/60 text-pink-800 font-extrabold px-2 py-0.5 rounded-full">
+                          สมรรถนะ 4 ด้าน • สาระที่ควรเรียนรู้ 4 เรื่อง
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        โครงสร้างตัวชี้วัดสมรรถนะบูรณาการและหน่วยการเรียนรู้ตรงตามเกณฑ์ใหม่
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => importKindergarten68Standards(selectedCurriculum.id)}
+                    className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-xl font-bold shadow-sm transition-all text-xs flex items-center gap-2 shrink-0"
+                  >
+                    <Sparkles className="h-4 w-4 text-pink-200" />
+                    <span>นำเข้า/อัปเดตแม่แบบปฐมวัย 2568</span>
+                  </button>
+                </div>
+              )}
               {canEdit && selectedCurriculum?.subjectType === 'activity' && (
                 <div className="flex gap-2 mb-6">
                   <button 
@@ -868,9 +940,39 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
               </div>
             </div>
           ) : (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-full flex flex-col items-center justify-center text-slate-400 min-h-[400px]">
-              <BookOpen className="h-16 w-16 mb-4 text-slate-200" />
-              <p>เลือกรายวิชาทางด้านซ้าย หรือเพิ่มรายวิชาใหม่</p>
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col items-center justify-center text-center min-h-[460px]">
+              <div className="w-16 h-16 bg-pink-50 text-pink-500 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-pink-100">
+                <Sparkles className="h-8 w-8" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800 mb-1">ยินดีต้อนรับสู่ระบบจัดการหลักสูตรและรายวิชา</h3>
+              <p className="text-xs text-slate-500 max-w-md mb-6">
+                เลือกรายวิชาทางด้านซ้ายเพื่อดูหรือแก้ไขตัวชี้วัด หรือเริ่มต้นใช้งานแม่แบบหลักสูตรปฐมวัย พ.ศ. 2568 ได้ทันที
+              </p>
+              
+              <div className="p-5 bg-gradient-to-br from-pink-50/80 via-rose-50/50 to-amber-50/30 border border-pink-200/80 rounded-2xl max-w-lg w-full text-left shadow-sm">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 bg-gradient-to-br from-pink-500 to-rose-600 text-white rounded-xl mt-0.5 shadow-sm">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-slate-800">แม่แบบหลักสูตรการศึกษาปฐมวัย พ.ศ. 2568 (สพฐ.)</h4>
+                      <span className="text-[10px] bg-pink-100 text-pink-700 font-bold px-2 py-0.5 rounded-full">แนะนำ</span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                      ประกอบด้วย 4 สมรรถนะหลัก (16 ตัวชี้วัดสำคัญ) และสาระที่ควรเรียนรู้ 4 เรื่อง (15 หน่วยการเรียนรู้ Thematic Units) พร้อมโครงสร้างเวลาเรียน 1,000 ชม./ปี
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setShowKgTemplateModal(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2"
+                      >
+                        <Sparkles className="h-4 w-4 text-pink-200" /> คลิกนำเข้าแม่แบบหลักสูตรปฐมวัย 2568
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )
           )}
@@ -1297,6 +1399,27 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({ currentUse
             </div>
           </div>
         </div>
+      )}
+
+      {/* Kindergarten Template Modal */}
+      {showKgTemplateModal && (
+        <KindergartenTemplateModal
+          isOpen={showKgTemplateModal}
+          onClose={() => setShowKgTemplateModal(false)}
+          existingCurriculums={curriculums}
+          onSuccess={async (selectedId) => {
+            await fetchCurriculums();
+            if (selectedId) {
+              setSelectedCurriculumId(selectedId);
+            }
+            setAlertModal({
+              isOpen: true,
+              type: 'success',
+              title: 'นำเข้าแม่แบบสำเร็จ',
+              message: 'นำเข้าแม่แบบหลักสูตรปฐมวัย พ.ศ. 2568 (สมรรถนะ 4 ด้าน และสาระที่ควรเรียนรู้ 4 เรื่อง) เรียบร้อยแล้ว'
+            });
+          }}
+        />
       )}
 
     </div>

@@ -16,6 +16,8 @@ import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
 import { CharacterAssessmentView } from './CharacterAssessmentView';
+import { KindergartenEvaluationDashboard } from './KindergartenEvaluationDashboard';
+import { KindergartenAssessmentSheet } from './KindergartenAssessmentSheet';
 import { ShieldCheck } from 'lucide-react';
 
 interface EvaluationModuleProps {
@@ -31,6 +33,7 @@ interface EvaluationModuleProps {
 export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcademicYear, systemSemester, students: allStudents, currentTeacher, initialTab, initialSubject, initialGrade }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
   const [activeTab, setActiveTab] = useState<'overview' | 'grades' | 'kindergarten' | 'attendance' | 'character'>(initialTab || 'overview');
+  const [overviewSubTab, setOverviewSubTab] = useState<'primary' | 'kindergarten'>('primary');
   const [selectedGrade, setSelectedGrade] = useState<string>(initialGrade || GRADE_LEVELS.find(g => g.includes('ประถม')) || GRADE_LEVELS[0]);
   const fetchedAvailableSubjects = useAvailableSubjects(selectedGrade);
     const [selectedSubject, setSelectedSubject] = useState<string>(initialSubject || '');
@@ -646,7 +649,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 activeTab === 'kindergarten' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
               }`}
             >
-              <Award className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">ประเมินอนุบาล</span>
+              <Award className="h-5 w-5 lg:h-4 lg:w-4 shrink-0" /> <span className="text-left leading-tight whitespace-nowrap">ประเมินพัฒนาการปฐมวัย</span>
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
@@ -671,8 +674,45 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           {/* Tab Content */}
                       
           {activeTab === 'overview' && (
-            <div>
-              <LessonAchieve />
+            <div className="space-y-4">
+              {/* Sub-tab selection for Overview */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl w-fit border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => setOverviewSubTab('primary')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                    overviewSubTab === 'primary'
+                      ? 'bg-white text-emerald-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <span>ภาพรวมผลสัมฤทธิ์ประถมศึกษา</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOverviewSubTab('kindergarten')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                    overviewSubTab === 'kindergarten'
+                      ? 'bg-white text-emerald-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Award className="h-4 w-4 text-emerald-600" />
+                  <span>แดชบอร์ดพัฒนาการปฐมวัย</span>
+                </button>
+              </div>
+
+              {overviewSubTab === 'primary' ? (
+                <LessonAchieve />
+              ) : (
+                <KindergartenEvaluationDashboard
+                  students={allStudents}
+                  currentTeacher={currentTeacher}
+                  systemAcademicYear={viewYear || systemAcademicYear || '2567'}
+                  systemSemester={viewSemester || systemSemester || '1'}
+                />
+              )}
             </div>
           )}
 
@@ -1397,19 +1437,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           )}
 
           {activeTab === 'kindergarten' && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Award className="h-8 w-8" />
-              </div>
-              <h2 className="text-xl font-black text-slate-800">
-                <span className="block sm:inline">วัดและประเมินผล</span>
-                <span className="block sm:inline sm:ml-1">ระดับอนุบาล</span>
-              </h2>
-              <p className="text-slate-500">
-                ฟังก์ชันสำหรับประเมินพัฒนาการนักเรียนระดับปฐมวัย<br/>
-                (รอการกำหนดรูปแบบและวิธีการประเมิน)
-              </p>
-            </div>
+            <KindergartenAssessmentSheet
+              students={allStudents}
+              currentTeacher={currentTeacher}
+              systemAcademicYear={viewYear || systemAcademicYear || '2567'}
+              systemSemester={viewSemester || systemSemester || '1'}
+            />
           )}
 
           {activeTab === 'learning_hours' && (

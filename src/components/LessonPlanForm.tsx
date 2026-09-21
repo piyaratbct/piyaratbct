@@ -110,9 +110,13 @@ export function LessonPlanForm({
   const [kgEducationalGame, setKgEducationalGame] = useState(initialPlan?.kgEducationalGame || "");
   
   const [kgPhysicalDev, setKgPhysicalDev] = useState(initialPlan?.kgPhysicalDev || false);
-  const [kgEmotionalDev, setKgEmotionalDev] = useState(initialPlan?.kgEmotionalDev || false);
-  const [kgSocialDev, setKgSocialDev] = useState(initialPlan?.kgSocialDev || false);
-  const [kgCognitiveDev, setKgCognitiveDev] = useState(initialPlan?.kgCognitiveDev || false);
+  const [kgEmotionalSocialDev, setKgEmotionalSocialDev] = useState(
+    initialPlan?.kgEmotionalSocialDev ?? (initialPlan?.kgEmotionalDev || initialPlan?.kgSocialDev || false)
+  );
+  const [kgCitizenshipDev, setKgCitizenshipDev] = useState(initialPlan?.kgCitizenshipDev || false);
+  const [kgIntellectualDev, setKgIntellectualDev] = useState(
+    initialPlan?.kgIntellectualDev ?? (initialPlan?.kgCognitiveDev || false)
+  );
 
   const [activities, setActivities] = useState(initialPlan?.activities || "");
   const [materials, setMaterials] = useState(initialPlan?.materials || "");
@@ -353,9 +357,13 @@ export function LessonPlanForm({
       kgOutdoorActivity,
       kgEducationalGame,
       kgPhysicalDev,
-      kgEmotionalDev,
-      kgSocialDev,
-      kgCognitiveDev,
+      kgEmotionalSocialDev,
+      kgCitizenshipDev,
+      kgIntellectualDev,
+      // Backward compatibility
+      kgEmotionalDev: kgEmotionalSocialDev,
+      kgSocialDev: kgEmotionalSocialDev,
+      kgCognitiveDev: kgIntellectualDev,
 
       date,
       semester,
@@ -1033,28 +1041,72 @@ export function LessonPlanForm({
               </div>
 
               {/* Kindergarten Evaluation Domains */}
-              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-3">
-                <label className="block text-sm font-bold text-emerald-700 mb-2 flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-emerald-500" />
-                  5. การสังเกตและประเมินพัฒนาการ 4 ด้าน
-                </label>
-                <p className="text-[10px] text-emerald-600 mb-3">เลือกด้านพัฒนาการที่จะประเมินตามสภาพจริงในแผนนี้</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgPhysicalDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <input type="checkbox" checked={kgPhysicalDev} onChange={e => setKgPhysicalDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
-                    <span className="text-xs font-semibold">ด้านร่างกาย</span>
+              <div className="bg-gradient-to-r from-emerald-50/70 to-teal-50/70 p-4 rounded-2xl border border-emerald-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="block text-sm font-bold text-emerald-800 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    5. การสังเกตและประเมินพัฒนาการ 4 ด้าน (หลักสูตรปฐมวัย พ.ศ. 2568)
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgEmotionalDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <input type="checkbox" checked={kgEmotionalDev} onChange={e => setKgEmotionalDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
-                    <span className="text-xs font-semibold">ด้านอารมณ์/จิตใจ</span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold self-start sm:self-auto border border-emerald-200">
+                    หลักสูตรใหม่ พ.ศ. 2568
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-700">เลือกด้านพัฒนาการ/สมรรถนะที่จะสังเกตและประเมินตามสภาพจริงในแผนการจัดประสบการณ์นี้</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                  {/* 1. ด้านสุขภาวะทางกาย */}
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgPhysicalDev ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={kgPhysicalDev} 
+                      onChange={e => setKgPhysicalDev(e.target.checked)} 
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4 shrink-0" 
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">1. ด้านสุขภาวะทางกาย</span>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">สุขภาพอนามัย กล้ามเนื้อมัดใหญ่-เล็ก ความปลอดภัย</span>
+                    </div>
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgSocialDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <input type="checkbox" checked={kgSocialDev} onChange={e => setKgSocialDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
-                    <span className="text-xs font-semibold">ด้านสังคม</span>
+
+                  {/* 2. ด้านอารมณ์ จิตใจ และสังคม */}
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgEmotionalSocialDev ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={kgEmotionalSocialDev} 
+                      onChange={e => setKgEmotionalSocialDev(e.target.checked)} 
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4 shrink-0" 
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">2. ด้านอารมณ์ จิตใจ และสังคม</span>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">ร่าเริงแจ่มใส เห็นคุณค่าตนเอง วินัย การอยู่ร่วมกัน</span>
+                    </div>
                   </label>
-                  <label className={`flex items-center gap-2 px-3 py-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgCognitiveDev ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                    <input type="checkbox" checked={kgCognitiveDev} onChange={e => setKgCognitiveDev(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4" />
-                    <span className="text-xs font-semibold">ด้านสติปัญญา</span>
+
+                  {/* 3. ด้านความเป็นพลเมืองและความเป็นไทย */}
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgCitizenshipDev ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={kgCitizenshipDev} 
+                      onChange={e => setKgCitizenshipDev(e.target.checked)} 
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4 shrink-0" 
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">3. ด้านความเป็นพลเมืองและความเป็นไทย</span>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">กติกาห้องเรียน มารยาทไทย วัฒนธรรม สิ่งแวดล้อม</span>
+                    </div>
+                  </label>
+
+                  {/* 4. ด้านสติปัญญาและการเรียนรู้ */}
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border sm:cursor-pointer transition-all duration-200 ${kgIntellectualDev ? 'bg-emerald-100 border-emerald-400 text-emerald-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={kgIntellectualDev} 
+                      onChange={e => setKgIntellectualDev(e.target.checked)} 
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4 shrink-0" 
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">4. ด้านสติปัญญาและการเรียนรู้</span>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 leading-snug">การสื่อสาร การคิดแก้ปัญหา จินตนาการ วิทย์-คณิต</span>
+                    </div>
                   </label>
                 </div>
               </div>

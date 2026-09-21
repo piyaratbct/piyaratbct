@@ -52,11 +52,17 @@ export interface LessonRecord {
   kgOutdoorActivity?: string;
   kgEducationalGame?: string;
   
-  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน
-  kgPhysicalDev?: boolean;
+  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน (หลักสูตรปฐมวัย พ.ศ. 2568)
+  kgPhysicalDev?: boolean;          // 1. ด้านสุขภาวะทางกาย
+  kgEmotionalSocialDev?: boolean;   // 2. ด้านอารมณ์ จิตใจ และสังคม
+  kgCitizenshipDev?: boolean;       // 3. ด้านความเป็นพลเมืองและความเป็นไทย
+  kgIntellectualDev?: boolean;      // 4. ด้านสติปัญญาและการเรียนรู้
+  
+  // ย้อนหลังเข้ากันได้ (Backward Compatibility)
   kgEmotionalDev?: boolean;
   kgSocialDev?: boolean;
   kgCognitiveDev?: boolean;
+
   pblDrivingQuestion?: string;
   pblInvestigationSteps?: string;
   pblPresentation?: string;
@@ -146,8 +152,13 @@ export interface LessonPlan {
   kgOutdoorActivity?: string;
   kgEducationalGame?: string;
   
-  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน
-  kgPhysicalDev?: boolean;
+  // อนุบาล: การประเมินพัฒนาการ 4 ด้าน (หลักสูตรปฐมวัย พ.ศ. 2568)
+  kgPhysicalDev?: boolean;          // 1. ด้านสุขภาวะทางกาย
+  kgEmotionalSocialDev?: boolean;   // 2. ด้านอารมณ์ จิตใจ และสังคม
+  kgCitizenshipDev?: boolean;       // 3. ด้านความเป็นพลเมืองและความเป็นไทย
+  kgIntellectualDev?: boolean;      // 4. ด้านสติปัญญาและการเรียนรู้
+  
+  // ย้อนหลังเข้ากันได้ (Backward Compatibility)
   kgEmotionalDev?: boolean;
   kgSocialDev?: boolean;
   kgCognitiveDev?: boolean;
@@ -295,6 +306,12 @@ export interface KindergartenAssessment {
   emotionalDev: string;
   citizenshipDev: string;
   intellectualDev: string;
+  
+  // ระดับคุณภาพ ๓ ระดับ (3=ดี, 2=พอใช้, 1=ควรส่งเสริม)
+  physicalScore?: 1 | 2 | 3;
+  emotionalScore?: 1 | 2 | 3;
+  citizenshipScore?: 1 | 2 | 3;
+  intellectualScore?: 1 | 2 | 3;
   
   month?: string;
   teacherNotes?: string;

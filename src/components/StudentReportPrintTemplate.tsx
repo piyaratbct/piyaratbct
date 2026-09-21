@@ -71,11 +71,15 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
     .filter((s) => s.gradeLevel === gradeLevel)
     .sort((a, b) => Number(a.number || "0") - Number(b.number || "0"));
 
+  // Check if class has many subjects (primary curriculum usually has 9-14 subjects)
+  const isSubjectHeavy = schoolSubjects.length > 8 || displayedStudents.length > 0;
+  const effectiveCompact = isCompact || isSubjectHeavy;
+
   return (
     <PDFPrintHelper
       onClose={onClose}
       documentTitle={`สมุดพก_${gradeLevel}`}
-      isCompact={isCompact}
+      isCompact={effectiveCompact}
       onToggleCompact={() => setIsCompact(!isCompact)}
     >
       {displayedStudents.map((student) => {
@@ -200,12 +204,13 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
           : "-";
 
         return (
-          <PrintPageContainer key={student.id}>
+          <PrintPageContainer key={student.id} isCompact={effectiveCompact}>
             <PrintHeader
+              isCompact={effectiveCompact}
               title="สมุดพก / ใบแจ้งผลการเรียน (ปพ.6)"
               subtitle={
-                <div className="flex flex-col gap-1 mt-4 text-sm text-slate-800 bg-slate-50 p-4 rounded-xl border border-slate-200 text-left">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className={`flex flex-col gap-1 ${effectiveCompact ? "mt-1.5 p-2 text-xs rounded-lg" : "mt-3 p-3.5 text-sm rounded-xl"} text-slate-800 bg-slate-50 border border-slate-200 text-left`}>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                     <p><strong>ชื่อ-นามสกุล:</strong> {student.firstName} {student.lastName}</p>
                     <p><strong>รหัสประจำตัว:</strong> {student.studentId}</p>
                     <p><strong>ระดับชั้น:</strong> {gradeLevel}</p>
@@ -217,44 +222,46 @@ export const StudentReportPrintTemplate: React.FC<StudentReportPrintTemplateProp
               }
             />
 
-            <div className="mt-8 mb-8 min-h-[300px]">
-              <table className="w-full text-sm border-collapse border border-slate-900">
+            <div className={effectiveCompact ? "mt-2 mb-2" : "mt-4 mb-4"}>
+              <table className={`w-full ${effectiveCompact ? "text-xs" : "text-sm"} border-collapse border border-slate-900`}>
                 <thead>
                   <tr className="bg-slate-100">
-                    <th className="border border-slate-900 px-4 py-3 text-center w-24">รหัสวิชา</th>
-                    <th className="border border-slate-900 px-4 py-3 text-left">รายวิชา</th>
-                    <th className="border border-slate-900 px-4 py-3 text-center w-24">คะแนนรวม<br/>(100)</th>
-                    <th className="border border-slate-900 px-4 py-3 text-center w-24">ระดับผลการเรียน<br/>(เกรด)</th>
+                    <th className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1.5" : "px-3 py-2"} text-center w-24 sm:w-28`}>รหัสวิชา</th>
+                    <th className={`border border-slate-900 ${effectiveCompact ? "px-3 py-1.5" : "px-4 py-2"} text-left`}>รายวิชา</th>
+                    <th className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1.5" : "px-3 py-2"} text-center w-28 sm:w-32`}>คะแนนรวม<br/>(100)</th>
+                    <th className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1.5" : "px-3 py-2"} text-center w-28 sm:w-32`}>ระดับผลการเรียน<br/>(เกรด)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentScores.map((score, index) => (
                     <tr key={index}>
-                      <td className="border border-slate-900 px-4 py-1.5 text-center">{score.subjectCode}</td>
-                      <td className="border border-slate-900 px-4 py-1.5 text-left">{score.subjectName}</td>
-                      <td className="border border-slate-900 px-4 py-1.5 text-center">{score.totalScore}</td>
-                      <td className="border border-slate-900 px-4 py-1.5 text-center font-bold text-lg">{score.grade}</td>
+                      <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-0.5" : "px-3 py-1"} text-center`}>{score.subjectCode}</td>
+                      <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-0.5" : "px-3 py-1"} text-left`}>{score.subjectName}</td>
+                      <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-0.5" : "px-3 py-1"} text-center`}>{score.totalScore}</td>
+                      <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-0.5 font-bold text-sm" : "px-3 py-1 font-bold text-base"} text-center`}>{score.grade}</td>
                     </tr>
                   ))}
                   <tr className="bg-slate-50 font-bold">
-                    <td colSpan={2} className="border border-slate-900 px-4 py-3 text-right">สรุปผลการเรียน</td>
-                    <td className="border border-slate-900 px-4 py-3 text-center text-indigo-600">{totalEarnedScore}</td>
-                    <td className="border border-slate-900 px-4 py-3 text-center text-emerald-600 text-xl">GPA: {gpa}</td>
+                    <td colSpan={2} className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1" : "px-3 py-2"} text-right`}>สรุปผลการเรียน</td>
+                    <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1" : "px-3 py-2"} text-center text-indigo-600`}>{totalEarnedScore}</td>
+                    <td className={`border border-slate-900 ${effectiveCompact ? "px-2 py-1 text-sm" : "px-3 py-2 text-base"} text-center text-emerald-600 font-bold`}>GPA: {gpa}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
             {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 mt-12 page-break-inside-avoid">
+            <div className={`grid grid-cols-2 gap-4 ${effectiveCompact ? "mt-3" : "mt-6"} print-break-avoid page-break-inside-avoid`}>
               <PrintSignatureBox
                 role="ครูประจำชั้น"
                 name={homeroomTeacherName}
                 label="(ลงชื่อ) ....................................................... "
+                isCompact={effectiveCompact}
               />
               <PrintSignatureBox
                 role="ผู้อำนวยการโรงเรียน"
                 label="(ลงชื่อ) ....................................................... "
+                isCompact={effectiveCompact}
               />
             </div>
           </PrintPageContainer>

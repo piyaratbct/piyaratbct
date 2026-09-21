@@ -458,7 +458,7 @@ export function LessonPlanPrintTemplate({
             >
               {plan.isKindergarten ? (
                 <>
-                  {evaluationStep}. การสังเกตและประเมินพัฒนาการ 4 ด้าน
+                  {evaluationStep}. การสังเกตและประเมินพัฒนาการ 4 ด้าน (หลักสูตรปฐมวัย พ.ศ. 2568)
                 </>
               ) : (
                 <>
@@ -470,12 +470,36 @@ export function LessonPlanPrintTemplate({
               className={`pl-4 whitespace-pre-wrap text-slate-700 leading-relaxed bg-white ${isCompact ? "text-sm" : "text-base"}`}
             >
               {plan.isKindergarten ? (
-                <div className={`flex flex-wrap gap-4 ${isCompact ? "text-sm" : "text-base"}`}>
-                  {plan.kgPhysicalDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านร่างกาย</span>}
-                  {plan.kgEmotionalDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านอารมณ์/จิตใจ</span>}
-                  {plan.kgSocialDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านสังคม</span>}
-                  {plan.kgCognitiveDev && <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">✓ ด้านสติปัญญา</span>}
-                  {!plan.kgPhysicalDev && !plan.kgEmotionalDev && !plan.kgSocialDev && !plan.kgCognitiveDev && <span className="text-slate-500 italic">ไม่ได้ระบุด้านที่ประเมิน</span>}
+                <div className={`flex flex-wrap gap-2.5 ${isCompact ? "text-xs" : "text-sm"}`}>
+                  {plan.kgPhysicalDev && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">
+                      ✓ 1. ด้านสุขภาวะทางกาย
+                    </span>
+                  )}
+                  {(plan.kgEmotionalSocialDev || (!plan.kgEmotionalSocialDev && (plan.kgEmotionalDev || plan.kgSocialDev))) && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">
+                      ✓ 2. ด้านอารมณ์ จิตใจ และสังคม
+                    </span>
+                  )}
+                  {plan.kgCitizenshipDev && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">
+                      ✓ 3. ด้านความเป็นพลเมืองและความเป็นไทย
+                    </span>
+                  )}
+                  {(plan.kgIntellectualDev || (!plan.kgIntellectualDev && plan.kgCognitiveDev)) && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200">
+                      ✓ 4. ด้านสติปัญญาและการเรียนรู้
+                    </span>
+                  )}
+                  {!plan.kgPhysicalDev &&
+                    !plan.kgEmotionalSocialDev &&
+                    !plan.kgCitizenshipDev &&
+                    !plan.kgIntellectualDev &&
+                    !plan.kgEmotionalDev &&
+                    !plan.kgSocialDev &&
+                    !plan.kgCognitiveDev && (
+                      <span className="text-slate-500 italic">ไม่ได้ระบุด้านที่ประเมิน</span>
+                    )}
                 </div>
               ) : (
                 <div className="space-y-4">

@@ -222,7 +222,20 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
     // 3. Overlay with taught sessions
     gradeSessions.forEach(sess => {
       if (!sess.subject) return;
-      const subjectName = sess.subject;
+      let subjectName = sess.subject;
+      const safeSub = (subjectName || '').trim();
+      let currMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub && (c.gradeLevel === targetBaseGrade || (c.gradeLevels && c.gradeLevels.includes(targetBaseGrade))));
+      if (!currMatch) currMatch = curriculums.find(c => (c.subjectName || '').trim() === safeSub);
+
+      let isChild = false;
+      let childName = subjectName;
+      if (currMatch && currMatch.parentId) {
+          const parentMatch = curriculums.find(c => c.id === currMatch.parentId);
+          if (parentMatch && parentMatch.subjectName) {
+              subjectName = parentMatch.subjectName; // Group under parent
+              isChild = true;
+          }
+      }
       
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
