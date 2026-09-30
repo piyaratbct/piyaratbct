@@ -6,7 +6,7 @@ import {
   PrintHeader,
   PrintSignatureBox,
 } from "./PDFPrintHelper";
-import { Settings2 } from 'lucide-react';
+import { Settings2, Square, Hash, Edit3 } from 'lucide-react';
 
 export type RosterType = 
   | 'attendance_grid'     // ตารางเช็คชื่อ/จดคะแนน 10 ช่อง
@@ -35,6 +35,12 @@ export const StudentRosterPrintTemplate: React.FC<StudentRosterPrintTemplateProp
   const [rosterType, setRosterType] = useState<RosterType>('attendance_grid');
   const [customTitle, setCustomTitle] = useState('แบบบันทึกและตรวจเช็ครายชื่อนักเรียน');
   const [columnCount, setColumnCount] = useState(10);
+  const [headerStyle, setHeaderStyle] = useState<'blank' | 'numbers' | 'custom'>('blank');
+  const [customHeaders, setCustomHeaders] = useState<Record<number, string>>({});
+  const [includeSummary, setIncludeSummary] = useState(true);
+  const [includeNotes, setIncludeNotes] = useState(true);
+  const [summaryTitle, setSummaryTitle] = useState('รวม');
+  const [notesTitle, setNotesTitle] = useState('หมายเหตุ');
   const [purposeNote, setPurposeNote] = useState('');
   const [layout, setLayout] = useState<'portrait' | 'landscape'>('portrait');
   const [signatureCount, setSignatureCount] = useState<number>(homeroomTeachers?.length >= 2 ? 2 : 1);
@@ -149,22 +155,126 @@ export const StudentRosterPrintTemplate: React.FC<StudentRosterPrintTemplateProp
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
-          {rosterType === 'attendance_grid' ? (
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-600">จำนวนช่องตาราง:</span>
-              {[5, 8, 10, 12, 15].map(cnt => (
-                <button
-                  key={cnt}
-                  type="button"
-                  onClick={() => setColumnCount(cnt)}
-                  className={`px-3 py-1 rounded-md font-bold transition-all ${columnCount === cnt ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' : 'bg-slate-100 text-slate-600'}`}
-                >
-                  {cnt} ช่อง
-                </button>
-              ))}
+        <div className="flex flex-col gap-3 pt-2 border-t border-slate-100 text-xs">
+          {rosterType === 'attendance_grid' && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-600">จำนวนช่องตาราง:</span>
+                    {[5, 8, 10, 12, 15].map(cnt => (
+                      <button
+                        key={cnt}
+                        type="button"
+                        onClick={() => setColumnCount(cnt)}
+                        className={`px-3 py-1 rounded-md font-bold transition-all ${columnCount === cnt ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                        {cnt} ช่อง
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-600 mr-1">หัวคอลัมน์:</span>
+                    <button
+                      type="button"
+                      onClick={() => setHeaderStyle('blank')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${headerStyle === 'blank' ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      <span>ช่องว่างเปล่า (เว้นไว้เขียนเอง)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHeaderStyle('numbers')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${headerStyle === 'numbers' ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      <Hash className="w-3.5 h-3.5" />
+                      <span>ตัวเลขลำดับ (1, 2, 3...)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHeaderStyle('custom')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${headerStyle === 'custom' ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>กำหนดชื่อเอง</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-600 select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeSummary}
+                      onChange={(e) => setIncludeSummary(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>ช่อง "รวม"</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-600 select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeNotes}
+                      onChange={(e) => setIncludeNotes(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>ช่อง "หมายเหตุ"</span>
+                  </label>
+                </div>
+              </div>
+
+              {headerStyle === 'custom' && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 text-xs">ระบุชื่อหัวคอลัมน์แต่ละช่อง (สามารถพิมพ์ วันที่ / ชื่องาน / หัวข้อเก็บคะแนน):</span>
+                    <button
+                      type="button"
+                      onClick={() => setCustomHeaders({})}
+                      className="text-xs text-rose-600 hover:underline font-semibold"
+                    >
+                      ล้างทั้งหมดเป็นช่องเปล่า
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 gap-1.5">
+                    {Array.from({ length: columnCount }).map((_, cIdx) => (
+                      <input
+                        key={cIdx}
+                        type="text"
+                        placeholder={`ช่อง ${cIdx + 1}`}
+                        value={customHeaders[cIdx] || ''}
+                        onChange={(e) => setCustomHeaders(prev => ({ ...prev, [cIdx]: e.target.value }))}
+                        className="px-2 py-1 text-center border border-slate-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          ) : <div />}
+          )}
+
+          {rosterType === 'attendance_monthly' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-bold text-slate-600">หัวคอลัมน์:</span>
+              <button
+                type="button"
+                onClick={() => setHeaderStyle('blank')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${headerStyle === 'blank' ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                <Square className="w-3.5 h-3.5" />
+                <span>ช่องว่างเปล่า (เว้นไว้เขียนเอง)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHeaderStyle('numbers')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${headerStyle === 'numbers' ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                <Hash className="w-3.5 h-3.5" />
+                <span>ตัวเลขลำดับ (1, 2, 3...)</span>
+              </button>
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-600">จุดลงลายมือชื่อครูประจำชั้น:</span>
@@ -228,24 +338,46 @@ export const StudentRosterPrintTemplate: React.FC<StudentRosterPrintTemplateProp
                   {rosterType === 'attendance_grid' && (
                     <>
                       {Array.from({ length: columnCount }).map((_, cIdx) => (
-                        <th key={cIdx} className="border border-black py-1.5 px-1 text-center font-normal w-10 text-[10px]">
-                          {cIdx + 1}
+                        <th
+                          key={cIdx}
+                          className="border border-black py-2 px-1 text-center font-normal w-10 text-[10px] h-9 min-h-[36px] align-middle"
+                        >
+                          {headerStyle === 'blank' ? (
+                            <span className="inline-block w-full h-full min-h-[22px]">&nbsp;</span>
+                          ) : headerStyle === 'numbers' ? (
+                            cIdx + 1
+                          ) : (
+                            customHeaders[cIdx] || '\u00A0'
+                          )}
                         </th>
                       ))}
-                      <th className="border border-black py-1.5 px-2 text-center font-bold w-16">
-                        รวม
-                      </th>
-                      <th className="border border-black py-1.5 px-2 text-center font-bold w-20">
-                        หมายเหตุ
-                      </th>
+                      {includeSummary && (
+                        <th className="border border-black py-2 px-2 text-center font-bold w-16 align-middle">
+                          {summaryTitle || '\u00A0'}
+                        </th>
+                      )}
+                      {includeNotes && (
+                        <th className="border border-black py-2 px-2 text-center font-bold w-20 align-middle">
+                          {notesTitle || '\u00A0'}
+                        </th>
+                      )}
                     </>
                   )}
 
                   {rosterType === 'attendance_monthly' && (
                     <>
                       {Array.from({ length: 24 }).map((_, cIdx) => (
-                        <th key={cIdx} className="border border-black py-1 px-0.5 text-center font-normal text-[9px] w-6">
-                          {cIdx + 1}
+                        <th
+                          key={cIdx}
+                          className="border border-black py-1 px-0.5 text-center font-normal text-[9px] w-6 h-8 min-h-[26px] align-middle"
+                        >
+                          {headerStyle === 'blank' ? (
+                            <span className="inline-block w-full h-full min-h-[18px]">&nbsp;</span>
+                          ) : headerStyle === 'numbers' ? (
+                            cIdx + 1
+                          ) : (
+                            customHeaders[cIdx] || '\u00A0'
+                          )}
                         </th>
                       ))}
                       <th className="border border-black py-1 px-1 text-center font-bold text-[10px] w-10">มา</th>
@@ -326,8 +458,8 @@ export const StudentRosterPrintTemplate: React.FC<StudentRosterPrintTemplateProp
                           {Array.from({ length: columnCount }).map((_, cIdx) => (
                             <td key={cIdx} className="border border-black text-center"></td>
                           ))}
-                          <td className="border border-black text-center"></td>
-                          <td className="border border-black text-center"></td>
+                          {includeSummary && <td className="border border-black text-center"></td>}
+                          {includeNotes && <td className="border border-black text-center"></td>}
                         </>
                       )}
 
