@@ -51,7 +51,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     religion: '',
     fatherDob: '',
     motherDob: '',
-    previousSchool: ''
+    previousSchool: '',
+    destinationSchool: ''
   });
 
   useEffect(() => {
@@ -94,7 +95,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         religion: student.religion || '',
         fatherDob: student.fatherDob || '',
         motherDob: student.motherDob || '',
-        previousSchool: student.previousSchool || ''
+        previousSchool: student.previousSchool || '',
+        destinationSchool: student.destinationSchool || ''
       });
     } else {
       setFormData(prev => ({ ...prev, gradeLevel: selectedGrade }));
@@ -146,11 +148,16 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                       return;
                     }
                     
-                    const ext = 'jpg';
+                    const isWebP = base64.startsWith('data:image/webp');
+                    const ext = isWebP ? 'webp' : 'jpg';
+                    const contentType = isWebP ? 'image/webp' : 'image/jpeg';
                     const fileName = `students/${formData.studentId || Date.now()}_${Date.now()}.${ext}`;
                     const storageRef = ref(storage, fileName);
 
-                    await uploadString(storageRef, base64, 'data_url');
+                    await uploadString(storageRef, base64, 'data_url', {
+                      contentType,
+                      cacheControl: 'public, max-age=31536000, immutable',
+                    });
                     const downloadURL = await getDownloadURL(storageRef);
 
                     setFormData(prev => ({ ...prev, photoURL: downloadURL }));
@@ -562,19 +569,37 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
                 {GRADE_LEVELS.map(grade => (
                   <option key={grade} value={grade}>{grade}</option>
                 ))}
+                <option value="จบการศึกษา">จบการศึกษา</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">สถานะ</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">สถานะนักเรียน</label>
               <select
                 value={formData.status}
-                onChange={e => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+                onChange={e => setFormData({ ...formData, status: e.target.value as 'active' | 'graduated' | 'inactive' })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none"
               >
-                <option value="active">ปกติ</option>
+                <option value="active">ปกติ (กำลังศึกษา)</option>
+                <option value="graduated">จบการศึกษาแล้ว</option>
                 <option value="inactive">ย้าย/ออก</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              โรงเรียน/สถานศึกษาที่ศึกษาต่อ (destinationSchool)
+            </label>
+            <input
+              type="text"
+              value={formData.destinationSchool}
+              onChange={e => setFormData({ ...formData, destinationSchool: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none placeholder-slate-400"
+              placeholder="เช่น โรงเรียนมัธยมวัดดุสิตาราม, โรงเรียนสวนกุหลาบวิทยาลัย ฯลฯ"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              สำหรับบันทึกข้อมูลนักเรียนชั้น ป.6 ที่จบการศึกษา หรือนักเรียนที่ย้ายสถานศึกษาต่อ
+            </p>
           </div>
 
           <div className="pt-4 flex justify-end gap-3 mt-4 border-t border-slate-100">

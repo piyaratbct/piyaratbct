@@ -616,7 +616,7 @@ export const KindergartenAssessmentSheet: React.FC<KindergartenAssessmentSheetPr
               <thead>
                 <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-3 px-3 w-12 text-center">เลขที่</th>
-                  <th className="py-3 px-4 min-w-[180px]">ชื่อ - นามสกุล</th>
+                  <th className="py-3 px-4 min-w-[200px] whitespace-nowrap">ชื่อ - นามสกุล</th>
                   <th className="py-3 px-4 min-w-[170px] text-center bg-emerald-50/40 border-x border-slate-100">
                     <div className="flex items-center justify-center gap-1 text-emerald-900 font-bold">
                       <HeartPulse className="h-3.5 w-3.5 text-emerald-600" />
@@ -706,31 +706,17 @@ export const KindergartenAssessmentSheet: React.FC<KindergartenAssessmentSheetPr
                       </td>
 
                       {/* Student Name */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          {student.photoURL ? (
-                            <img 
-                              src={student.photoURL} 
-                              alt="" 
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200" 
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
-                              {student.firstName?.[0] || 'น'}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                              <span>{student.title || ''} {student.firstName} {student.lastName}</span>
-                              {hasUnsaved && (
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="ยังไม่บันทึก" />
-                              )}
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              รหัส {student.studentId || student.id.slice(0, 6)}
-                              {student.nickname && ` • (${student.nickname})`}
-                            </div>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div>
+                          <div className="font-bold text-slate-800 flex items-center gap-1.5 whitespace-nowrap">
+                            <span>{student.title || ''}{student.firstName} {student.lastName}</span>
+                            {hasUnsaved && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" title="ยังไม่บันทึก" />
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 whitespace-nowrap">
+                            รหัส {student.studentId || student.id.slice(0, 6)}
+                            {student.nickname && ` • (${student.nickname})`}
                           </div>
                         </div>
                       </td>

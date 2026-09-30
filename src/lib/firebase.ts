@@ -17,15 +17,19 @@ try {
 // Safe Firestore initialization
 export let db: any;
 try {
-  // Use initializeFirestore with experimentalAutoDetectLongPolling to avoid WebSocket connection blocks inside sandboxed iframe
-  db = initializeFirestore(app, {
-    
-  }, firebaseConfig.firestoreDatabaseId);
+  // Use initializeFirestore with experimentalAutoDetectLongPolling to avoid WebSocket connection drops inside sandboxed iframe
+  db = initializeFirestore(
+    app,
+    {
+      experimentalAutoDetectLongPolling: true,
+    },
+    firebaseConfig.firestoreDatabaseId
+  );
 } catch (e) {
-  console.warn("Firestore custom database-id setup failed, trying fallback default initialization:", e);
+  console.warn("Firestore custom database-id setup failed, trying fallback initialization:", e);
   try {
     db = initializeFirestore(app, {
-      
+      experimentalAutoDetectLongPolling: true,
     });
   } catch (err) {
     console.error("Firestore initialization completely failed:", err);
@@ -111,8 +115,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -127,8 +132,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  const isPermissionError = 
+    errorMessage.includes('permission-denied') || 
+    errorMessage.includes('Missing or insufficient permissions');
+
+  if (isPermissionError) {
+    console.error('Firestore Error (Permission): ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  } else {
+    // For network issues, offline, or transient backend unavailable states, log warning and let Firestore offline cache operate
+    console.warn('Firestore Operation Notice (Network/Status):', errorMessage, { operationType, path });
+  }
 }
 
 /**

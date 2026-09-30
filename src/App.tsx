@@ -1,5 +1,6 @@
 import { ClassroomHub } from "./components/ClassroomHub";
 import { AvatarUpload } from "./components/AvatarUpload";
+import { compressImageFile } from "./lib/imageUtils";
 import React, { useState, useEffect } from "react";
 import {
 Teacher, LessonRecord, LessonPlan, SUBJECTS, Student, AppNotification } from "./types";
@@ -210,8 +211,10 @@ export default function App() {
   const [selectedDashboardTeacherId, setSelectedDashboardTeacherId] =
     useState<string>("all");
 
-  // Custom School Logo States & Camera Capture
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
+  // Custom School Logo States & Camera Capture (instantly preloaded from local storage)
+  const [customLogo, setCustomLogo] = useState<string | null>(() => {
+    return safeLocalStorage.getItem("lessonlog_custom_logo") || null;
+  });
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
   const [systemAcademicYear, setSystemAcademicYear] = useState<string>("2569");
   const [systemSemester, setSystemSemester] = useState<string>("1");
@@ -380,23 +383,7 @@ export default function App() {
       setSysDashboardPassword(savedPassword);
     }
 
-    
-    let unsubNotifications = () => {};
-    if (currentTeacher) {
-      const qNotif = query(
-        collection(db, "notifications"),
-        where("userId", "==", currentTeacher.id)
-      );
-      unsubNotifications = onSnapshot(qNotif, (snapshot) => {
-        const fetchedNotifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppNotification));
-        // Sort by createdAt descending
-        fetchedNotifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setNotifications(fetchedNotifs);
-      });
-    }
-
     return () => {
-
       unsubAuth();
       unsubConfig();
       window.removeEventListener("app-safe-alert", handleSafeAlert);
@@ -529,7 +516,7 @@ export default function App() {
         }
       },
       (err) => {
-        console.error("Records snapshot failed:", err);
+        handleFirestoreError(err, OperationType.GET, "records");
       },
     );
 
@@ -547,7 +534,7 @@ export default function App() {
         setTeachers(fetchedTeachers);
       },
       (err) => {
-        console.error("Teachers catalog lookup error:", err);
+        handleFirestoreError(err, OperationType.GET, "teachers");
       },
     );
 
@@ -597,7 +584,7 @@ export default function App() {
           fetchedPlans.sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt));
           setPlans(fetchedPlans);
         },
-        (err) => console.error("Plans lookup error (admin):", err)
+        (err) => handleFirestoreError(err, OperationType.GET, "lessonPlans")
       );
     } else {
       // Clear plans initially to avoid stale data
@@ -606,13 +593,13 @@ export default function App() {
       unsubPlans = onSnapshot(
         query(collection(db, "lessonPlans"), where("teacherId", "==", currentTeacher.id)),
         (snapshot) => handlePlansSnapshot(snapshot, 'main'),
-        (err) => console.error("Plans lookup error (main):", err)
+        (err) => handleFirestoreError(err, OperationType.GET, "lessonPlans")
       );
 
       unsubPlansCo = onSnapshot(
         query(collection(db, "lessonPlans"), where("coTeachers", "array-contains", currentTeacher.id)),
         (snapshot) => handlePlansSnapshot(snapshot, 'co'),
-        (err) => console.error("Plans lookup error (co):", err)
+        (err) => handleFirestoreError(err, OperationType.GET, "lessonPlans")
       );
     }
 
@@ -634,7 +621,7 @@ export default function App() {
         setStudents(fetchedStudents); // Pass ALL students to the app, but rely on activeStudents for count
       },
       (err) => {
-        console.error("Students lookup error:", err);
+        handleFirestoreError(err, OperationType.GET, "students");
       },
     );
 
@@ -744,25 +731,34 @@ export default function App() {
     try {
       const video = videoRef.current;
       const canvas = document.createElement("canvas");
-      const size = Math.min(video.videoWidth || 480, video.videoHeight || 480);
-      canvas.width = size;
-      canvas.height = size;
+      const rawSize = Math.min(video.videoWidth || 480, video.videoHeight || 480);
+      const targetSize = Math.min(rawSize, 480); // Max 480x480 for fast loading
+      canvas.width = targetSize;
+      canvas.height = targetSize;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         setIsUploadingLogo(true);
         // Crop center to square
-        const sx = (video.videoWidth - size) / 2;
-        const sy = (video.videoHeight - size) / 2;
-        ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+        const sx = (video.videoWidth - rawSize) / 2;
+        const sy = (video.videoHeight - rawSize) / 2;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(video, sx, sy, rawSize, rawSize, 0, 0, targetSize, targetSize);
         
+        // Prefer WebP for superior speed and size
         canvas.toBlob(async (blob) => {
           if (!blob) {
             setIsUploadingLogo(false);
             return;
           }
           try {
-            const storageRef = ref(storage, `school_assets/logo_${Date.now()}_camera.png`);
-            const uploadResult = await uploadBytes(storageRef, blob);
+            const isWebP = blob.type === "image/webp";
+            const ext = isWebP ? "webp" : "jpg";
+            const storageRef = ref(storage, `school_assets/logo_${Date.now()}_camera.${ext}`);
+            const uploadResult = await uploadBytes(storageRef, blob, {
+              contentType: blob.type || "image/jpeg",
+              cacheControl: "public, max-age=31536000, immutable"
+            });
             const downloadUrl = await getDownloadURL(uploadResult.ref);
             
             setCustomLogo(downloadUrl);
@@ -780,7 +776,7 @@ export default function App() {
              setIsUploadingLogo(false);
              stopCamera();
           }
-        }, "image/png");
+        }, "image/webp", 0.85);
       } else {
         stopCamera();
       }
@@ -798,9 +794,20 @@ export default function App() {
     try {
       setIsUploadingLogo(true);
       
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, `school_assets/logo_${Date.now()}_${file.name}`);
-      const uploadResult = await uploadBytes(storageRef, file);
+      // Auto-compress image to lightweight WebP (max 480px, ~40-60KB) before uploading
+      const compressed = await compressImageFile(file, {
+        maxDimension: 480,
+        maxSizeMB: 0.1,
+        quality: 0.85,
+        preferWebP: true
+      });
+
+      const ext = compressed.contentType === 'image/webp' ? 'webp' : 'jpg';
+      const storageRef = ref(storage, `school_assets/logo_${Date.now()}.${ext}`);
+      const uploadResult = await uploadBytes(storageRef, compressed.blob, {
+        contentType: compressed.contentType,
+        cacheControl: "public, max-age=31536000, immutable"
+      });
       const downloadUrl = await getDownloadURL(uploadResult.ref);
       
       setCustomLogo(downloadUrl);
@@ -1535,6 +1542,9 @@ export default function App() {
                   <img
                     src={customLogo}
                     alt="School Custom Logo"
+                    loading="eager"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
                     className="h-full w-full object-contain p-1"
                   />
                 ) : (
@@ -1590,7 +1600,15 @@ export default function App() {
                 className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 hover:bg-slate-100 transition-colors"
               >
                 {currentTeacher.photoURL ? (
-                  <img src={currentTeacher.photoURL} alt={currentTeacher.thaiName} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                  <img
+                    src={currentTeacher.photoURL}
+                    alt={currentTeacher.thaiName}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="w-6 h-6 rounded-full object-cover shrink-0"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
                 ) : (
                   <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
                     {currentTeacher.thaiName.charAt(0)}
@@ -2601,11 +2619,16 @@ export default function App() {
                             return;
                         }
 
-                        const ext = 'jpg'; // Base64 data URL from cropper is usually jpeg/png
+                        const isWebP = base64.startsWith('data:image/webp');
+                        const ext = isWebP ? 'webp' : 'jpg';
+                        const contentType = isWebP ? 'image/webp' : 'image/jpeg';
                         const fileName = `avatars/${currentTeacher.id}_${Date.now()}.${ext}`;
                         const storageRef = ref(storage, fileName);
 
-                        await uploadString(storageRef, base64, 'data_url');
+                        await uploadString(storageRef, base64, 'data_url', {
+                          contentType,
+                          cacheControl: 'public, max-age=31536000, immutable'
+                        });
                         const downloadURL = await getDownloadURL(storageRef);
 
                         const updatedTeacher = { ...currentTeacher, photoURL: downloadURL };
@@ -2766,6 +2789,9 @@ export default function App() {
                           <img
                             src={customLogo}
                             alt="Custom school logo"
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
                             className="h-full w-full object-contain p-1"
                           />
                           <span className="absolute bottom-0 inset-x-0 bg-indigo-900/90 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none scale-90">

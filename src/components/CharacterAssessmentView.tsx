@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, GRADE_LEVELS, CharacterAssessment, StudentBadge, AttendanceSession, DisciplineIncident, SubjectScore } from '../types';
 import { Award, CheckCircle, Search, Medal, Sparkles, Filter, ChevronDown, User, ShieldCheck, AlertCircle, BookOpen, Flag, Clock, GraduationCap, ShieldAlert } from 'lucide-react';
 import { collection, doc, setDoc, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface CharacterAssessmentViewProps {
   students: Student[];
@@ -58,14 +58,18 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
       where('semester', '==', systemSemester)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Record<string, any> = {};
-      snapshot.docs.forEach(doc => {
-        const item = doc.data();
-        data[item.studentId] = item;
-      });
-      setAssessments(data);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data: Record<string, any> = {};
+        snapshot.docs.forEach(doc => {
+          const item = doc.data();
+          data[item.studentId] = item;
+        });
+        setAssessments(data);
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "characterAssessments")
+    );
 
     return () => unsubscribe();
   }, [systemAcademicYear, systemSemester]);
@@ -75,41 +79,62 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
     if (!systemAcademicYear || !systemSemester) return;
     
     // Attendance
-    const unsubAttendance = onSnapshot(query(collection(db, 'attendanceSessions'), 
-      where('academicYear', '==', systemAcademicYear), 
-      where('semester', '==', systemSemester)
-    ), snap => {
-      setAttendanceData(snap.docs.map(d => ({id: d.id, ...d.data()} as AttendanceSession)));
-    });
+    const unsubAttendance = onSnapshot(
+      query(collection(db, 'attendanceSessions'), 
+        where('academicYear', '==', systemAcademicYear), 
+        where('semester', '==', systemSemester)
+      ),
+      snap => {
+        setAttendanceData(snap.docs.map(d => ({id: d.id, ...d.data()} as AttendanceSession)));
+      },
+      err => handleFirestoreError(err, OperationType.GET, "attendanceSessions")
+    );
 
     // Discipline
-    const unsubDiscipline = onSnapshot(collection(db, 'disciplineIncidents'), snap => {
-      setDisciplineData(snap.docs.map(d => ({id: d.id, ...d.data()} as DisciplineIncident)));
-    });
+    const unsubDiscipline = onSnapshot(
+      collection(db, 'disciplineIncidents'),
+      snap => {
+        setDisciplineData(snap.docs.map(d => ({id: d.id, ...d.data()} as DisciplineIncident)));
+      },
+      err => handleFirestoreError(err, OperationType.GET, "disciplineIncidents")
+    );
 
     // Scores
-    const unsubScores = onSnapshot(query(collection(db, 'subject_scores'),
-      where('academicYear', '==', systemAcademicYear),
-      where('semester', '==', systemSemester)
-    ), snap => {
-      setScoresData(snap.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore)));
-    });
+    const unsubScores = onSnapshot(
+      query(collection(db, 'subject_scores'),
+        where('academicYear', '==', systemAcademicYear), 
+        where('semester', '==', systemSemester)
+      ),
+      snap => {
+        setScoresData(snap.docs.map(d => ({id: d.id, ...d.data()} as SubjectScore)));
+      },
+      err => handleFirestoreError(err, OperationType.GET, "subject_scores")
+    );
     
     // School Events (for trait evaluation)
-    const unsubEvents = onSnapshot(collection(db, 'schoolEvents'), snap => {
-      setSchoolEvents(snap.docs.map(d => ({id: d.id, ...d.data()})));
-    });
+    const unsubEvents = onSnapshot(
+      collection(db, 'schoolEvents'),
+      snap => {
+        setSchoolEvents(snap.docs.map(d => ({id: d.id, ...d.data()})));
+      },
+      err => handleFirestoreError(err, OperationType.GET, "schoolEvents")
+    );
     
     // Fetch lesson records for insights
-    const unsubRecords = onSnapshot(collection(db, 'records'), snap => {
-      setLessonRecords(snap.docs.map(d => ({id: d.id, ...d.data()})));
-    });
+    const unsubRecords = onSnapshot(
+      collection(db, 'records'),
+      snap => {
+        setLessonRecords(snap.docs.map(d => ({id: d.id, ...d.data()})));
+      },
+      err => handleFirestoreError(err, OperationType.GET, "records")
+    );
 
     return () => {
       unsubAttendance();
       unsubDiscipline();
       unsubScores();
       if(typeof unsubEvents === "function") unsubEvents();
+      unsubRecords();
     };
   }, [systemAcademicYear, systemSemester]);
 
@@ -122,17 +147,21 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
       where('semester', '==', systemSemester)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: Record<string, StudentBadge[]> = {};
-      snapshot.docs.forEach(doc => {
-        const item = doc.data() as StudentBadge;
-        if (!data[item.studentId]) {
-          data[item.studentId] = [];
-        }
-        data[item.studentId].push(item);
-      });
-      setBadges(data);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data: Record<string, StudentBadge[]> = {};
+        snapshot.docs.forEach(doc => {
+          const item = doc.data() as StudentBadge;
+          if (!data[item.studentId]) {
+            data[item.studentId] = [];
+          }
+          data[item.studentId].push(item);
+        });
+        setBadges(data);
+      },
+      err => handleFirestoreError(err, OperationType.GET, "studentBadges")
+    );
 
     return () => unsubscribe();
   }, [systemAcademicYear, systemSemester]);

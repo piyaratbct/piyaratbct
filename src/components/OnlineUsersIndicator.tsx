@@ -58,7 +58,15 @@ export function OnlineUsersIndicator({ currentTeacher, teachers }: Props) {
                 <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
                   <div className="h-8 w-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
                     {t.photoURL ? (
-                      <img src={t.photoURL} alt={t.thaiName} className="h-full w-full object-cover" />
+                      <img 
+                        src={t.photoURL} 
+                        alt={t.thaiName} 
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover" 
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
                     ) : (
                       t.thaiName ? t.thaiName.substring(0, 1) : t.displayName?.substring(0, 1) || '?'
                     )}

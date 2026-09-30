@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MilkReportPrintTemplate } from './MilkReportPrintTemplate';
 import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
 import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
 
@@ -58,26 +58,34 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   useEffect(() => {
     if (!academicYear || !semester) return;
     const calendarDocId = `${academicYear}_${semester}`;
-    const unsub = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.holidays) {
-          setHolidays(data.holidays.map((h: any) => h.date));
+    const unsub = onSnapshot(
+      doc(db, "schoolCalendar", calendarDocId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.holidays) {
+            setHolidays(data.holidays.map((h: any) => h.date));
+          }
         }
-      }
-    });
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "schoolCalendar")
+    );
     return () => unsub();
   }, [academicYear, semester]);
 
   // Fetch term dates
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.termStartDate) setTermStartDate(data.termStartDate);
-        if (data.termEndDate) setTermEndDate(data.termEndDate);
-      }
-    });
+    const unsub = onSnapshot(
+      doc(db, "config", "school"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.termStartDate) setTermStartDate(data.termStartDate);
+          if (data.termEndDate) setTermEndDate(data.termEndDate);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "config/school")
+    );
     return () => unsub();
   }, []);
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, LessonRecord, LessonPlan } from '../types';
 import { ShieldCheck, FileText, CheckCircle, Clock, AlertTriangle, Users } from 'lucide-react';
 
@@ -27,13 +27,19 @@ export const AdminMonitoringDashboard: React.FC<AdminMonitoringDashboardProps> =
 
   useEffect(() => {
     const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"), limit(50));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const logs: AuditLog[] = [];
-      snapshot.forEach((doc) => {
-        logs.push({ id: doc.id, ...doc.data() } as AuditLog);
-      });
-      setAuditLogs(logs);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const logs: AuditLog[] = [];
+        snapshot.forEach((doc) => {
+          logs.push({ id: doc.id, ...doc.data() } as AuditLog);
+        });
+        setAuditLogs(logs);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, "auditLogs");
+      }
+    );
     return () => unsub();
   }, []);
   // Compute Stats

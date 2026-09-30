@@ -1,7 +1,7 @@
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS, SUBJECTS } from '../types';
 import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2, BookOpen } from 'lucide-react';
 import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
@@ -38,13 +38,17 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
 
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.termStartDate) setTermStartDate(data.termStartDate);
-        if (data.termEndDate) setTermEndDate(data.termEndDate);
-      }
-    });
+    const unsub = onSnapshot(
+      doc(db, "config", "school"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.termStartDate) setTermStartDate(data.termStartDate);
+          if (data.termEndDate) setTermEndDate(data.termEndDate);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "config/school")
+    );
     return () => unsub();
   }, []);
 

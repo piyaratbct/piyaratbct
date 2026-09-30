@@ -50,8 +50,7 @@ service cloud.firestore {
     }
 
     match /teachers/{teacherId} {
-      allow get: if isSignedIn() && (request.auth.uid == teacherId || isAcademic());
-      allow list: if isSignedIn();
+      allow read: if isSignedIn();
       
       allow create: if isSignedIn() && request.auth.uid == teacherId 
                     && request.resource.data.id == teacherId
@@ -105,13 +104,7 @@ service cloud.firestore {
     }
 
     match /lessonPlans/{planId} {
-      allow get: if isSignedIn() && (isAcademic() || isAdmin() || resource.data.teacherId == request.auth.uid || (resource.data.coTeachers != null && request.auth.uid in resource.data.coTeachers));
-      allow list: if isSignedIn() && (
-        isAcademic() || 
-        isAdmin() ||
-        resource.data.teacherId == request.auth.uid || 
-        request.auth.uid in resource.data.coTeachers
-      );
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
       allow update: if isSignedIn() && (
         (request.resource.data.teacherId == resource.data.teacherId
@@ -180,7 +173,7 @@ service cloud.firestore {
     }
     
     match /auditLogs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAcademic() || isAdmin();
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
 
@@ -219,18 +212,14 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     match /pd_records/{recordId} {
-      allow read: if isSignedIn() && (
-        isAcademic() ||
-        isAdmin() ||
-        resource.data.teacherId == request.auth.uid
-      );
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid || isAdmin()
@@ -266,6 +255,12 @@ service cloud.firestore {
     match /schoolSubjects/{subjectId} {
       allow read: if isSignedIn();
       allow write: if isAcademic() || isAdmin();
+    }
+    match /deleted_students/{studentId} {
+      allow read, write: if isStudentManager() || isAdmin();
+    }
+    match /test/{docId} {
+      allow read: if true;
     }
   }
 }

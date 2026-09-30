@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, PDRecord, PDRecordType } from '../types';
 import { Award, BookOpen, GraduationCap, LayoutDashboard, Plus, Trash2, X, FileText, Pencil, ExternalLink, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 
@@ -27,10 +27,14 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
   useEffect(() => {
     if (!selectedTeacherId) return;
     const q = query(collection(db, 'pd_records'), where('teacherId', '==', selectedTeacherId));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const parsed = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PDRecord));
-      setRecords(parsed);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const parsed = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as PDRecord));
+        setRecords(parsed);
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "pd_records")
+    );
     return () => unsub();
   }, [selectedTeacherId]);
 
@@ -166,7 +170,15 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-center">
             {displayTeacher.photoURL ? (
-              <img src={displayTeacher.photoURL} alt={displayTeacher.thaiName} className="h-20 w-20 rounded-full mx-auto object-cover mb-4 border-2 border-fuchsia-100 shadow-sm" />
+              <img 
+                src={displayTeacher.photoURL} 
+                alt={displayTeacher.thaiName} 
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                className="h-20 w-20 rounded-full mx-auto object-cover mb-4 border-2 border-fuchsia-100 shadow-sm" 
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              />
             ) : (
               <div className="h-20 w-20 rounded-full bg-gradient-to-br from-fuchsia-100 to-pink-100 mx-auto flex items-center justify-center text-2xl font-black text-fuchsia-600 mb-4">
                 {displayTeacher.displayName?.charAt(0) || displayTeacher.thaiName?.charAt(0) || 'U'}

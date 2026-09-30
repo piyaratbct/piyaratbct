@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { TeacherSchedule, AttendanceSession, GRADE_LEVELS, Student } from '../types';
 import { BookOpen, Clock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -28,12 +28,16 @@ export function LearningHoursReport({ systemAcademicYear, systemSemester, studen
   }, [students]);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
-      }
-    });
+    const unsub = onSnapshot(
+      doc(db, "config", "school"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "config/school")
+    );
     return () => unsub();
   }, []);
 

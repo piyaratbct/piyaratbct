@@ -364,7 +364,14 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
         <div className="flex flex-col items-center justify-center">
           {customLogo ? (
             <div className="h-20 w-20 bg-white rounded-2xl flex items-center justify-center border border-sky-100 shadow-md transform hover:rotate-3 transition duration-300 overflow-hidden p-1.5 shrink-0">
-              <img src={customLogo} alt="School Logo" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
+              <img 
+                src={customLogo} 
+                alt="School Logo" 
+                loading="eager"
+                decoding="async"
+                referrerPolicy="no-referrer" 
+                className="h-full w-full object-contain" 
+              />
             </div>
           ) : (
             <div className="h-16 w-16 bg-gradient-to-tr from-sky-450 via-sky-500 to-pink-400 rounded-2xl flex items-center justify-center shadow-md transform hover:rotate-3 transition duration-300">

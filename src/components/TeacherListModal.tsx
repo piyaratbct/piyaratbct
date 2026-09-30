@@ -39,7 +39,15 @@ export function TeacherListModal({ isOpen, onClose, teachers }: TeacherListModal
             {teachers.map(teacher => (
               <div key={teacher.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
                 {teacher.photoURL ? (
-                  <img src={teacher.photoURL} alt={teacher.thaiName} className="h-10 w-10 rounded-full object-cover shrink-0 border border-slate-100" />
+                  <img 
+                    src={teacher.photoURL} 
+                    alt={teacher.thaiName} 
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="h-10 w-10 rounded-full object-cover shrink-0 border border-slate-100" 
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
                 ) : (
                   <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center shrink-0 font-bold">
                     {teacher.thaiName ? teacher.thaiName.charAt(0) : <User className="h-5 w-5" />}

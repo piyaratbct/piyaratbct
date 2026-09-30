@@ -115,6 +115,15 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                 </div>
                 <p className="font-semibold text-slate-800">{student.previousSchool || '-'}</p>
               </div>
+              {(student.destinationSchool || student.status === 'graduated') && (
+                <div>
+                  <div className="flex items-center gap-2 text-indigo-600 mb-1">
+                    <User className="h-4 w-4" />
+                    <span className="text-xs font-bold">สถานศึกษาที่ศึกษาต่อ</span>
+                  </div>
+                  <p className="font-semibold text-indigo-900">{student.destinationSchool || 'ยังไม่ระบุ'}</p>
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2">

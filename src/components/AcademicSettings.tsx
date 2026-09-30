@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { Settings, Save, AlertCircle, Plus, Trash2, Calendar } from "lucide-react";
 import { Teacher, SchoolHoliday } from "../types";
@@ -29,32 +29,40 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   const canEdit = currentTeacher.role === "admin" || currentTeacher.role === "academic";
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "school"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.systemAcademicYear) setAcademicYear(data.systemAcademicYear);
-        if (data.systemSemester) setSemester(data.systemSemester);
-        if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
-        if (data.termStartDate) setTermStartDate(data.termStartDate);
-        if (data.termEndDate) setTermEndDate(data.termEndDate);
-        if (data.passingGrade) setPassingGrade(data.passingGrade);
-      }
-    });
+    const unsub = onSnapshot(
+      doc(db, "config", "school"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.systemAcademicYear) setAcademicYear(data.systemAcademicYear);
+          if (data.systemSemester) setSemester(data.systemSemester);
+          if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
+          if (data.termStartDate) setTermStartDate(data.termStartDate);
+          if (data.termEndDate) setTermEndDate(data.termEndDate);
+          if (data.passingGrade) setPassingGrade(data.passingGrade);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "config/school")
+    );
 
     // Separately load holidays from schoolCalendar
     const calendarDocId = `${academicYear}_${semester}`;
-    const unsubCalendar = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.holidays) {
-          setHolidays(data.holidays);
+    const unsubCalendar = onSnapshot(
+      doc(db, "schoolCalendar", calendarDocId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.holidays) {
+            setHolidays(data.holidays);
+          } else {
+            setHolidays([]);
+          }
         } else {
           setHolidays([]);
         }
-      } else {
-        setHolidays([]);
-      }
-    });
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "schoolCalendar")
+    );
 
     return () => {
       unsub();

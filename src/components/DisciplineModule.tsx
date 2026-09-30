@@ -3,7 +3,7 @@ import { Teacher, Student, DisciplineIncident, GRADE_LEVELS } from '../types';
 import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock, Printer } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { formatThaiMonthYear, formatThaiDate } from '../lib/dateUtils';
 import { DisciplineSemesterReportPrintTemplate } from './DisciplineSemesterReportPrintTemplate';
 
@@ -63,14 +63,18 @@ export function DisciplineModule({
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const records: DisciplineIncident[] = [];
-      snapshot.forEach((docSnap) => {
-        records.push({ id: docSnap.id, ...docSnap.data() } as DisciplineIncident);
-      });
-      setIncidents(records);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const records: DisciplineIncident[] = [];
+        snapshot.forEach((docSnap) => {
+          records.push({ id: docSnap.id, ...docSnap.data() } as DisciplineIncident);
+        });
+        setIncidents(records);
+        setLoading(false);
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "disciplineIncidents")
+    );
 
     return () => unsubscribe();
   }, []);

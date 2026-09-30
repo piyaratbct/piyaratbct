@@ -47,13 +47,24 @@ export const SubjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, setting
 
   
   const handleSave = () => {
-    // Validate
-    const sumBMK = localSettings.beforeMidKnowledge.reduce((acc, c) => acc + Number(c.maxScore), 0);
-    const sumBMS = localSettings.beforeMidSoftSkill.reduce((acc, c) => acc + Number(c.maxScore), 0);
-    const sumAMK = localSettings.afterMidKnowledge.reduce((acc, c) => acc + Number(c.maxScore), 0);
-    const sumAMS = localSettings.afterMidSoftSkill.reduce((acc, c) => acc + Number(c.maxScore), 0);
+    // Validate that all activities have a valid name and maxScore > 0
+    const allActivities = [
+      ...localSettings.beforeMidKnowledge,
+      ...localSettings.beforeMidSoftSkill,
+      ...localSettings.afterMidKnowledge,
+      ...localSettings.afterMidSoftSkill
+    ];
 
-
+    for (const act of allActivities) {
+      if (!act.name.trim()) {
+        setError('กรุณาระบุชื่อกิจกรรมให้ครบถ้วนทุกช่อง');
+        return;
+      }
+      if (Number(act.maxScore) <= 0 || isNaN(Number(act.maxScore))) {
+        setError(`คะแนนเต็มของกิจกรรม "${act.name}" ต้องมากกว่า 0 คะแนน`);
+        return;
+      }
+    }
 
     setError(null);
     onSave(localSettings);

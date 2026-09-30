@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star } from 'lucide-react';
+import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star, FileSpreadsheet, AlertTriangle, ShieldAlert, Sparkles, CheckCircle2, ArrowDown, HelpCircle, Filter, FileQuestion } from 'lucide-react';
 import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, ActivityColumn, TeacherSchedule, AttendanceSession } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { LearningHoursReport } from './LearningHoursReport';
@@ -7,6 +7,9 @@ import { SubjectSettingsModal } from './SubjectSettingsModal';
 import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
 import { AttendancePrintTemplate } from './AttendancePrintTemplate';
 import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
+import { ExcelScoreImporterModal } from './ExcelScoreImporterModal';
+import { ScoreValidationErrorModal, ScoreValidationError } from './ScoreValidationErrorModal';
+import { MissingScorePromptModal, MissingScoreItem } from './MissingScorePromptModal';
 
 import { Printer } from 'lucide-react';
 
@@ -54,16 +57,22 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   useEffect(() => {
     if ((selectedSubject && selectedSubject.includes('ลูกเสือ'))) {
       const q = query(collection(db, 'schoolEvents'), where('type', '==', 'scout_camp'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        let attendees = new Set<string>();
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.attendeeIds) {
-            data.attendeeIds.forEach((id: string) => attendees.add(id));
-          }
-        });
-        setScoutCampAttendees(attendees);
-      });
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          let attendees = new Set<string>();
+          snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.attendeeIds) {
+              data.attendeeIds.forEach((id: string) => attendees.add(id));
+            }
+          });
+          setScoutCampAttendees(attendees);
+        },
+        (error) => {
+          handleFirestoreError(error, OperationType.GET, "schoolEvents");
+        }
+      );
       return () => unsubscribe();
     }
   }, [selectedSubject]);
@@ -87,6 +96,28 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   const [isSaving, setIsSaving] = useState(false);
   const [showWarningToast, setShowWarningToast] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
+
+  // Min/Max Validation states
+  const [validationErrors, setValidationErrors] = useState<ScoreValidationError[]>([]);
+  const [showValidationErrorModal, setShowValidationErrorModal] = useState(false);
+  const [clampToastMessage, setClampToastMessage] = useState<string | null>(null);
+
+  // Active Row Highlight & Focus HUD
+  const [focusedCell, setFocusedCell] = useState<{
+    studentId: string;
+    studentNumber: string;
+    studentName: string;
+    fieldId: string;
+    fieldName: string;
+    maxScore: number;
+  } | null>(null);
+
+  // Missing Score Detection states
+  const [showMissingScoreModal, setShowMissingScoreModal] = useState(false);
+  const [missingScoresList, setMissingScoresList] = useState<MissingScoreItem[]>([]);
+  const [highlightMissingCells, setHighlightMissingCells] = useState(true);
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [showOnlyMissing, setShowOnlyMissing] = useState<boolean>(false);
   
   const [gradesSubTab, setGradesSubTab] = useState<'attendance' | 'part1' | 'part2' | 'part3' | 'part4' | 'part5'>('attendance');
   const [schedules, setSchedules] = useState<TeacherSchedule[]>([]);
@@ -125,6 +156,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showExcelImporter, setShowExcelImporter] = useState(false);
   const [showPrintAttendance, setShowPrintAttendance] = useState(false);
   const [showPrintScore, setShowPrintScore] = useState(false);
   const [showPrintReport, setShowPrintReport] = useState(false);
@@ -217,9 +249,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       where('academicYear', '==', viewYear),
       where('semester', '==', viewSemester)
     );
-    const unSubSchedules = onSnapshot(sq, (snap) => {
-      setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSchedule)));
-    });
+    const unSubSchedules = onSnapshot(
+      sq,
+      (snap) => {
+        setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherSchedule)));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, "schedules");
+      }
+    );
 
     // Fetch attendance
     const aq = query(
@@ -229,9 +267,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       where('gradeLevel', '==', selectedGrade),
       where('subject', '==', selectedSubject)
     );
-    const unSubAttendance = onSnapshot(aq, (snap) => {
-      setAttendanceSessions(snap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceSession)));
-    });
+    const unSubAttendance = onSnapshot(
+      aq,
+      (snap) => {
+        setAttendanceSessions(snap.docs.map(d => ({ id: d.id, ...d.data() } as AttendanceSession)));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, "attendanceSessions");
+      }
+    );
 
     return () => {
       unSubSchedules();
@@ -274,42 +318,48 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       collection(db, 'lessonPlans'),
       where('gradeLevel', '>=', ''), // We'll filter in memory to handle comma separated grades
     );
-    const unsubLp = onSnapshot(lpQuery, (lpSnap) => {
-      const dynamicEvals = {
-        beforeMidKnowledge: [] as ActivityColumn[],
-        beforeMidSoftSkill: [] as ActivityColumn[],
-        afterMidKnowledge: [] as ActivityColumn[],
-        afterMidSoftSkill: [] as ActivityColumn[]
-      };
-      
-      lpSnap.docs.forEach(doc => {
-        const p = doc.data() as any;
-        // Check if plan matches current view
-        const expectedSemesterStr = `ภาคเรียนที่ ${viewSemester}/${viewYear}`;
-        const semesterMatch = !p.semester || p.semester === viewSemester || p.semester === expectedSemesterStr || p.semester.includes(viewSemester);
-        const subjectMatch = p.subject === selectedSubject || p.customSubject === selectedSubject;
-        const planGrades = p.gradeLevel ? p.gradeLevel.split(',').map((s: string) => s.trim()) : [];
-        const gradeMatch = planGrades.includes(selectedGrade) || p.gradeLevel === selectedGrade || (p.gradeLevel && p.gradeLevel.includes(selectedGrade)) || (selectedGrade && selectedGrade.includes(p.gradeLevel));
+    const unsubLp = onSnapshot(
+      lpQuery,
+      (lpSnap) => {
+        const dynamicEvals = {
+          beforeMidKnowledge: [] as ActivityColumn[],
+          beforeMidSoftSkill: [] as ActivityColumn[],
+          afterMidKnowledge: [] as ActivityColumn[],
+          afterMidSoftSkill: [] as ActivityColumn[]
+        };
         
-        if (semesterMatch && subjectMatch && gradeMatch && p.structuredEvaluations) {
-          p.structuredEvaluations.forEach((ev: any) => {
-             const act: ActivityColumn = {
-               id: ev.id,
-               name: `${ev.name} (${p.title})`,
-               maxScore: ev.maxScore || 0
-             };
-             if (ev.scorePeriod === 'after_mid') {
-               if (ev.kpa === 'K') dynamicEvals.afterMidKnowledge.push(act);
-               else dynamicEvals.afterMidSoftSkill.push(act);
-             } else {
-               if (ev.kpa === 'K') dynamicEvals.beforeMidKnowledge.push(act);
-               else dynamicEvals.beforeMidSoftSkill.push(act);
-             }
-          });
-        }
-      });
-      setLessonPlanEvals(dynamicEvals);
-    });
+        lpSnap.docs.forEach(doc => {
+          const p = doc.data() as any;
+          // Check if plan matches current view
+          const expectedSemesterStr = `ภาคเรียนที่ ${viewSemester}/${viewYear}`;
+          const semesterMatch = !p.semester || p.semester === viewSemester || p.semester === expectedSemesterStr || p.semester.includes(viewSemester);
+          const subjectMatch = p.subject === selectedSubject || p.customSubject === selectedSubject;
+          const planGrades = p.gradeLevel ? p.gradeLevel.split(',').map((s: string) => s.trim()) : [];
+          const gradeMatch = planGrades.includes(selectedGrade) || p.gradeLevel === selectedGrade || (p.gradeLevel && p.gradeLevel.includes(selectedGrade)) || (selectedGrade && selectedGrade.includes(p.gradeLevel));
+          
+          if (semesterMatch && subjectMatch && gradeMatch && p.structuredEvaluations) {
+            p.structuredEvaluations.forEach((ev: any) => {
+               const act: ActivityColumn = {
+                 id: ev.id,
+                 name: `${ev.name} (${p.title})`,
+                 maxScore: ev.maxScore || 0
+               };
+               if (ev.scorePeriod === 'after_mid') {
+                 if (ev.kpa === 'K') dynamicEvals.afterMidKnowledge.push(act);
+                 else dynamicEvals.afterMidSoftSkill.push(act);
+               } else {
+                 if (ev.kpa === 'K') dynamicEvals.beforeMidKnowledge.push(act);
+                 else dynamicEvals.beforeMidSoftSkill.push(act);
+               }
+            });
+          }
+        });
+        setLessonPlanEvals(dynamicEvals);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, "lessonPlans");
+      }
+    );
 
     const unsubscribe = onSnapshot(
       doc(db, "subject_settings", settingsId),
@@ -474,8 +524,625 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     });
   };
 
-  const handleSaveScores = async () => {
+  // Pure function to validate all scores against Min/Max constraints
+  const validateAllScores = (): ScoreValidationError[] => {
+    const errors: ScoreValidationError[] = [];
+    const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+    
+    studentsInGrade.forEach(student => {
+      const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+      const score = draftScores[key];
+      if (!score) return;
+      
+      const studentName = `${student.firstName} ${student.lastName}`;
+      const studentNumber = String(student.number || '-');
+      
+      // 1. Academic subject validations
+      if (selectedSubjectType === 'academic') {
+        // Part 1: Activities
+        if (effectiveSettings) {
+          const catMap = [
+            { key: 'beforeMidKnowledge' as const, name: 'ความรู้ก่อนกลางภาค', tab: 'part1' as const },
+            { key: 'beforeMidSoftSkill' as const, name: 'จิตพิสัยก่อนกลางภาค', tab: 'part1' as const },
+            { key: 'afterMidKnowledge' as const, name: 'ความรู้หลังกลางภาค', tab: 'part1' as const },
+            { key: 'afterMidSoftSkill' as const, name: 'จิตพิสัยหลังกลางภาค', tab: 'part1' as const }
+          ];
+          
+          catMap.forEach(({ key: catKey, name: catName, tab }) => {
+            effectiveSettings[catKey]?.forEach(act => {
+              const val = score.activities?.[act.id];
+              if (val !== undefined && val !== null && val !== 0 && typeof val === 'number') {
+                if (val < 0) {
+                  errors.push({
+                    studentId: student.id,
+                    studentNumber,
+                    studentName,
+                    fieldKey: act.id,
+                    activityId: act.id,
+                    fieldName: act.name,
+                    categoryName: catName,
+                    enteredValue: val,
+                    minAllowed: 0,
+                    maxAllowed: act.maxScore,
+                    message: `คะแนนติดลบ (${val}) ไม่ถูกต้อง`,
+                    targetTab: tab
+                  });
+                } else if (val > act.maxScore) {
+                  errors.push({
+                    studentId: student.id,
+                    studentNumber,
+                    studentName,
+                    fieldKey: act.id,
+                    activityId: act.id,
+                    fieldName: act.name,
+                    categoryName: catName,
+                    enteredValue: val,
+                    minAllowed: 0,
+                    maxAllowed: act.maxScore,
+                    message: `คะแนน (${val}) เกินคะแนนเต็ม ${act.maxScore}`,
+                    targetTab: tab
+                  });
+                }
+              }
+            });
+          });
+        }
+        
+        // Part 2: Midterm (max 20)
+        if (score.midtermScore !== undefined && score.midtermScore !== null && score.midtermScore !== 0) {
+          if (score.midtermScore < 0) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'midtermScore',
+              fieldName: 'สอบกลางภาค (Midterm)',
+              categoryName: 'การสอบวัดผล',
+              enteredValue: score.midtermScore,
+              minAllowed: 0,
+              maxAllowed: 20,
+              message: `คะแนนสอบกลางภาคติดลบ (${score.midtermScore})`,
+              targetTab: 'part2'
+            });
+          } else if (score.midtermScore > 20) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'midtermScore',
+              fieldName: 'สอบกลางภาค (Midterm)',
+              categoryName: 'การสอบวัดผล',
+              enteredValue: score.midtermScore,
+              minAllowed: 0,
+              maxAllowed: 20,
+              message: `คะแนนสอบกลางภาค (${score.midtermScore}) เกินคะแนนเต็ม 20`,
+              targetTab: 'part2'
+            });
+          }
+        }
+        
+        // Part 2: Final (max 20)
+        if (score.finalScore !== undefined && score.finalScore !== null && score.finalScore !== 0) {
+          if (score.finalScore < 0) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'finalScore',
+              fieldName: 'สอบปลายภาค (Final)',
+              categoryName: 'การสอบวัดผล',
+              enteredValue: score.finalScore,
+              minAllowed: 0,
+              maxAllowed: 20,
+              message: `คะแนนสอบปลายภาคติดลบ (${score.finalScore})`,
+              targetTab: 'part2'
+            });
+          } else if (score.finalScore > 20) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'finalScore',
+              fieldName: 'สอบปลายภาค (Final)',
+              categoryName: 'การสอบวัดผล',
+              enteredValue: score.finalScore,
+              minAllowed: 0,
+              maxAllowed: 20,
+              message: `คะแนนสอบปลายภาค (${score.finalScore}) เกินคะแนนเต็ม 20`,
+              targetTab: 'part2'
+            });
+          }
+        }
+        
+        // Part 2: Pre-Test & Post-Test (max 100)
+        if (score.preTestScore !== undefined && score.preTestScore !== null && score.preTestScore !== 0) {
+          if (score.preTestScore < 0 || score.preTestScore > 100) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'preTestScore',
+              fieldName: 'Pre-Test ก่อนเรียน',
+              categoryName: 'แบบทดสอบ',
+              enteredValue: score.preTestScore,
+              minAllowed: 0,
+              maxAllowed: 100,
+              message: `คะแนน Pre-Test ต้องอยู่ระหว่าง 0 - 100 (ระบุ: ${score.preTestScore})`,
+              targetTab: 'part2'
+            });
+          }
+        }
+        if (score.postTestScore !== undefined && score.postTestScore !== null && score.postTestScore !== 0) {
+          if (score.postTestScore < 0 || score.postTestScore > 100) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'postTestScore',
+              fieldName: 'Post-Test หลังเรียน',
+              categoryName: 'แบบทดสอบ',
+              enteredValue: score.postTestScore,
+              minAllowed: 0,
+              maxAllowed: 100,
+              message: `คะแนน Post-Test ต้องอยู่ระหว่าง 0 - 100 (ระบุ: ${score.postTestScore})`,
+              targetTab: 'part2'
+            });
+          }
+        }
+      }
+      
+      // 2. Activity Subject (practical score, attendance)
+      if (selectedSubjectType === 'activity') {
+        const practical = score.activities?.practicalScore;
+        if (practical !== undefined && practical !== null && practical !== 0) {
+          if (practical < 0 || practical > 100) {
+            errors.push({
+              studentId: student.id,
+              studentNumber,
+              studentName,
+              fieldKey: 'practicalScore',
+              fieldName: 'ผลงาน/ปฏิบัติ',
+              categoryName: 'การประเมินกิจกรรม',
+              enteredValue: practical,
+              minAllowed: 0,
+              maxAllowed: 100,
+              message: `คะแนนผลงาน/ปฏิบัติการต้องอยู่ระหว่าง 0 - 100 (ระบุ: ${practical})`,
+              targetTab: 'part2'
+            });
+          }
+        }
+      }
+    });
+    
+    return errors;
+  };
+
+  // Real-time reactive validation error tracking
+  const currentValidationErrors = React.useMemo(() => {
+    return validateAllScores();
+  }, [draftScores, effectiveSettings, selectedGrade, selectedSubject, viewYear, viewSemester, selectedSubjectType]);
+
+  // Pure function to clamp an individual student score
+  const clampSingleScore = (score: SubjectScore): { clamped: SubjectScore; count: number } => {
+    let count = 0;
+    const newActivities = { ...(score.activities || {}) };
+    let modified = false;
+
+    if (effectiveSettings) {
+      (['beforeMidKnowledge', 'beforeMidSoftSkill', 'afterMidKnowledge', 'afterMidSoftSkill'] as const).forEach(cat => {
+        effectiveSettings[cat]?.forEach(act => {
+          const val = newActivities[act.id];
+          if (val !== undefined && val !== null) {
+            if (val > act.maxScore) {
+              newActivities[act.id] = act.maxScore;
+              count++;
+              modified = true;
+            } else if (val < 0) {
+              newActivities[act.id] = 0;
+              count++;
+              modified = true;
+            }
+          }
+        });
+      });
+    }
+
+    let midterm = score.midtermScore;
+    if (midterm !== undefined && midterm !== null) {
+      if (midterm > 20) { midterm = 20; count++; modified = true; }
+      else if (midterm < 0) { midterm = 0; count++; modified = true; }
+    }
+
+    let finalVal = score.finalScore;
+    if (finalVal !== undefined && finalVal !== null) {
+      if (finalVal > 20) { finalVal = 20; count++; modified = true; }
+      else if (finalVal < 0) { finalVal = 0; count++; modified = true; }
+    }
+
+    let preTest = score.preTestScore;
+    if (preTest !== undefined && preTest !== null) {
+      if (preTest > 100) { preTest = 100; count++; modified = true; }
+      else if (preTest < 0) { preTest = 0; count++; modified = true; }
+    }
+
+    let postTest = score.postTestScore;
+    if (postTest !== undefined && postTest !== null) {
+      if (postTest > 100) { postTest = 100; count++; modified = true; }
+      else if (postTest < 0) { postTest = 0; count++; modified = true; }
+    }
+
+    if (!modified) {
+      return { clamped: score, count: 0 };
+    }
+
+    // Recalculate category totals
+    let bmk = score.beforeMidKnowledgeScore || 0;
+    let bms = score.beforeMidSoftSkillScore || 0;
+    let amk = score.afterMidKnowledgeScore || 0;
+    let ams = score.afterMidSoftSkillScore || 0;
+
+    if (effectiveSettings) {
+      const rawBMK = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+      const rawBMKMax = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
+      bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * 20).toFixed(2)) : rawBMK;
+
+      const rawBMS = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+      const rawBMSMax = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
+      bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * 10).toFixed(2)) : rawBMS;
+
+      const rawAMK = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+      const rawAMKMax = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
+      amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * 20).toFixed(2)) : rawAMK;
+
+      const rawAMS = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+      const rawAMSMax = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
+      ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * 10).toFixed(2)) : rawAMS;
+    }
+
+    const totalScore = Math.round(bmk + bms + (midterm || 0) + amk + ams + (finalVal || 0));
+    const grade = calculateGrade(totalScore, selectedSubject, newActivities, scoutCampAttendees.has(score.studentId), undefined);
+
+    const clamped: SubjectScore = {
+      ...score,
+      activities: newActivities,
+      beforeMidKnowledgeScore: bmk,
+      beforeMidSoftSkillScore: bms,
+      midtermScore: midterm,
+      afterMidKnowledgeScore: amk,
+      afterMidSoftSkillScore: ams,
+      finalScore: finalVal,
+      preTestScore: preTest,
+      postTestScore: postTest,
+      totalScore,
+      grade,
+      updatedAt: new Date().toISOString()
+    };
+
+    return { clamped, count };
+  };
+
+  // Auto-clamp all invalid scores in draftScores
+  const handleAutoClampDraftScores = () => {
+    const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+    const updatedDrafts = { ...draftScores };
+    let totalClamped = 0;
+
+    studentsInGrade.forEach(student => {
+      const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+      const scoreData = updatedDrafts[key];
+      if (scoreData) {
+        const { clamped, count } = clampSingleScore(scoreData);
+        totalClamped += count;
+        updatedDrafts[key] = clamped;
+      }
+    });
+
+    setDraftScores(updatedDrafts);
+    setClampToastMessage(`ปรับคะแนนให้อยู่ในเกณฑ์เรียบร้อยแล้ว (${totalClamped} จุด)`);
+    setTimeout(() => setClampToastMessage(null), 4000);
+    return totalClamped;
+  };
+
+  // Auto-clamp and immediately save to database
+  const handleAutoClampAndSave = async () => {
     if (isReadOnly) return;
+    setIsSaving(true);
+    try {
+      const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+      const updatedDrafts = { ...draftScores };
+      let totalClamped = 0;
+      const promises: Promise<any>[] = [];
+
+      studentsInGrade.forEach(student => {
+        const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+        const scoreData = updatedDrafts[key];
+        if (scoreData) {
+          const { clamped, count } = clampSingleScore(scoreData);
+          totalClamped += count;
+          updatedDrafts[key] = clamped;
+
+          const docId = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`.replace(/[\/]/g, '-');
+          promises.push(setDoc(doc(db, "subject_scores", docId), clamped));
+        }
+      });
+
+      setDraftScores(updatedDrafts);
+      await Promise.all(promises);
+
+      setShowValidationErrorModal(false);
+      setClampToastMessage(`ปรับคะแนนเกินเกณฑ์ให้อัตโนมัติ (${totalClamped} รายการ) และบันทึกลงฐานข้อมูลสำเร็จเรียบร้อย`);
+      setTimeout(() => setClampToastMessage(null), 5000);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "subject_scores");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Detect missing/blank scores
+  const detectMissingScores = (): MissingScoreItem[] => {
+    const missing: MissingScoreItem[] = [];
+    const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+
+    studentsInGrade.forEach(student => {
+      const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+      const score = draftScores[key];
+      const studentName = `${student.firstName} ${student.lastName}`;
+      const studentNumber = String(student.number || '-');
+
+      if (selectedSubjectType === 'academic') {
+        if (effectiveSettings) {
+          const catMap = [
+            { key: 'beforeMidKnowledge' as const, name: 'ความรู้ก่อนกลางภาค', tab: 'part1' as const },
+            { key: 'beforeMidSoftSkill' as const, name: 'จิตพิสัยก่อนกลางภาค', tab: 'part1' as const },
+            { key: 'afterMidKnowledge' as const, name: 'ความรู้หลังกลางภาค', tab: 'part1' as const },
+            { key: 'afterMidSoftSkill' as const, name: 'จิตพิสัยหลังกลางภาค', tab: 'part1' as const }
+          ];
+
+          catMap.forEach(({ key: catKey, name: catName, tab }) => {
+            effectiveSettings[catKey]?.forEach(act => {
+              const val = score?.activities?.[act.id];
+              // Missing if undefined, null, or empty string (note: 0 is NOT missing)
+              if (val === undefined || val === null || val === '') {
+                missing.push({
+                  studentId: student.id,
+                  studentNumber,
+                  studentName,
+                  fieldId: act.id,
+                  fieldName: act.name,
+                  categoryName: catName,
+                  maxScore: act.maxScore,
+                  targetTab: tab
+                });
+              }
+            });
+          });
+        }
+
+        // Check midterm & final
+        if (score?.midtermScore === undefined || score?.midtermScore === null || score?.midtermScore === '') {
+          missing.push({
+            studentId: student.id,
+            studentNumber,
+            studentName,
+            fieldId: 'midtermScore',
+            fieldName: 'สอบกลางภาค (Midterm)',
+            categoryName: 'การสอบวัดผล',
+            maxScore: 20,
+            targetTab: 'part2'
+          });
+        }
+        if (score?.finalScore === undefined || score?.finalScore === null || score?.finalScore === '') {
+          missing.push({
+            studentId: student.id,
+            studentNumber,
+            studentName,
+            fieldId: 'finalScore',
+            fieldName: 'สอบปลายภาค (Final)',
+            categoryName: 'การสอบวัดผล',
+            maxScore: 20,
+            targetTab: 'part2'
+          });
+        }
+      }
+    });
+
+    return missing;
+  };
+
+  const currentMissingScores = React.useMemo(() => {
+    return detectMissingScores();
+  }, [draftScores, effectiveSettings, selectedGrade, selectedSubject, viewYear, viewSemester, selectedSubjectType, students]);
+
+  const missingStudentIdSet = React.useMemo(() => {
+    return new Set(currentMissingScores.map(m => m.studentId));
+  }, [currentMissingScores]);
+
+  const studentsInSelectedGrade = React.useMemo(() => {
+    return students
+      .filter(s => s.gradeLevel === selectedGrade)
+      .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')));
+  }, [students, selectedGrade]);
+
+  const displayedStudents = React.useMemo(() => {
+    if (showOnlyMissing) {
+      return studentsInSelectedGrade.filter(s => missingStudentIdSet.has(s.id));
+    }
+    return studentsInSelectedGrade;
+  }, [studentsInSelectedGrade, showOnlyMissing, missingStudentIdSet]);
+
+  // Keyboard navigation: Enter / Down Arrow -> Next student row; Shift+Enter / Up Arrow -> Prev student row
+  const handleTableKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    sIdx: number,
+    cIdx: number,
+    totalStudents: number
+  ) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const targetIdx = e.shiftKey ? Math.max(0, sIdx - 1) : Math.min(totalStudents - 1, sIdx + 1);
+      const target = document.querySelector<HTMLInputElement>(`input[data-s-idx="${targetIdx}"][data-c-idx="${cIdx}"]`);
+      if (target) {
+        target.focus();
+        target.select();
+        const sId = target.getAttribute('data-student-id');
+        if (sId) setActiveStudentId(sId);
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const targetIdx = Math.min(totalStudents - 1, sIdx + 1);
+      const target = document.querySelector<HTMLInputElement>(`input[data-s-idx="${targetIdx}"][data-c-idx="${cIdx}"]`);
+      if (target) {
+        target.focus();
+        target.select();
+        const sId = target.getAttribute('data-student-id');
+        if (sId) setActiveStudentId(sId);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const targetIdx = Math.max(0, sIdx - 1);
+      const target = document.querySelector<HTMLInputElement>(`input[data-s-idx="${targetIdx}"][data-c-idx="${cIdx}"]`);
+      if (target) {
+        target.focus();
+        target.select();
+        const sId = target.getAttribute('data-student-id');
+        if (sId) setActiveStudentId(sId);
+      }
+    }
+  };
+
+  const handleFillZerosAndSave = async () => {
+    setShowMissingScoreModal(false);
+    const studentsInGrade = students.filter(s => s.gradeLevel === selectedGrade);
+    const updatedDrafts = { ...draftScores };
+
+    studentsInGrade.forEach(student => {
+      const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+      const existing = updatedDrafts[key] || {
+        id: `sc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        studentId: student.id,
+        gradeLevel: selectedGrade,
+        academicYear: viewYear || '',
+        semester: viewSemester || '',
+        subject: selectedSubject,
+        teacherId: 'current-teacher',
+        preTestScore: 0, postTestScore: 0,
+        beforeMidKnowledgeScore: 0, beforeMidSoftSkillScore: 0,
+        midtermScore: 0, afterMidKnowledgeScore: 0, afterMidSoftSkillScore: 0,
+        finalScore: 0, totalScore: 0, grade: "0", activities: {},
+        updatedAt: new Date().toISOString()
+      };
+
+      const newActivities = { ...(existing.activities || {}) };
+      if (effectiveSettings) {
+        (['beforeMidKnowledge', 'beforeMidSoftSkill', 'afterMidKnowledge', 'afterMidSoftSkill'] as const).forEach(cat => {
+          effectiveSettings[cat]?.forEach(act => {
+            if (newActivities[act.id] === undefined || newActivities[act.id] === null || newActivities[act.id] === '') {
+              newActivities[act.id] = 0;
+            }
+          });
+        });
+      }
+
+      let midterm = existing.midtermScore;
+      if (midterm === undefined || midterm === null || midterm === '') midterm = 0;
+      let finalVal = existing.finalScore;
+      if (finalVal === undefined || finalVal === null || finalVal === '') finalVal = 0;
+
+      // Recalculate category totals
+      let bmk = 0, bms = 0, amk = 0, ams = 0;
+      if (effectiveSettings) {
+        const rawBMK = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+        const rawBMKMax = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
+        bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * 20).toFixed(2)) : rawBMK;
+
+        const rawBMS = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+        const rawBMSMax = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
+        bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * 10).toFixed(2)) : rawBMS;
+
+        const rawAMK = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+        const rawAMKMax = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
+        amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * 20).toFixed(2)) : rawAMK;
+
+        const rawAMS = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
+        const rawAMSMax = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
+        ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * 10).toFixed(2)) : rawAMS;
+      }
+
+      const totalScore = Math.round(bmk + bms + Number(midterm) + amk + ams + Number(finalVal));
+      const grade = calculateGrade(totalScore, selectedSubject, newActivities, scoutCampAttendees.has(student.id), undefined);
+
+      updatedDrafts[key] = {
+        ...existing,
+        activities: newActivities,
+        beforeMidKnowledgeScore: bmk,
+        beforeMidSoftSkillScore: bms,
+        midtermScore: Number(midterm),
+        afterMidKnowledgeScore: amk,
+        afterMidSoftSkillScore: ams,
+        finalScore: Number(finalVal),
+        totalScore,
+        grade,
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    setDraftScores(updatedDrafts);
+
+    // Save to Firestore
+    setIsSaving(true);
+    try {
+      const promises = studentsInGrade.map(student => {
+        const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+        const scoreData = updatedDrafts[key];
+        const docId = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`.replace(/[\/]/g, '-');
+        return setDoc(doc(db, "subject_scores", docId), scoreData);
+      });
+      await Promise.all(promises);
+      setClampToastMessage('เติมคะแนน 0 ในช่องว่างที่ตกหล่น และบันทึกลงฐานข้อมูลเรียบร้อยแล้ว');
+      setTimeout(() => setClampToastMessage(null), 5000);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "subject_scores");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReviewMissing = (targetTab: 'part1' | 'part2') => {
+    setShowMissingScoreModal(false);
+    setHighlightMissingCells(true);
+    if (targetTab) setGradesSubTab(targetTab);
+    setTimeout(() => {
+      const firstMissing = document.querySelector<HTMLInputElement>('input[data-missing="true"]');
+      if (firstMissing) {
+        firstMissing.focus();
+        firstMissing.select();
+        firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
+  };
+
+  const handleSaveScores = async (bypassMissingCheck = false) => {
+    if (isReadOnly) return;
+
+    // PRE-SAVE VALIDATION 1: Prevent out-of-range scores from being saved to Firestore
+    const errors = validateAllScores();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidationErrorModal(true);
+      return; // STOP! ABORT SAVE!
+    }
+
+    // PRE-SAVE VALIDATION 2: Check for missing/blank scores
+    if (!bypassMissingCheck) {
+      const missing = detectMissingScores();
+      if (missing.length > 0) {
+        setMissingScoresList(missing);
+        setShowMissingScoreModal(true);
+        return; // Ask user how to proceed!
+      }
+    }
+
     setIsSaving(true);
     try {
       // Save all draft scores for the current selection
@@ -515,6 +1182,130 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleImportScoresFromExcel = async (
+    scoresToUpdate: Array<{
+      studentId: string;
+      beforeMidKnowledgeScore?: number;
+      beforeMidSoftSkillScore?: number;
+      midtermScore?: number;
+      afterMidKnowledgeScore?: number;
+      afterMidSoftSkillScore?: number;
+      finalScore?: number;
+      activities?: Record<string, number>;
+    }>,
+    newSettings?: SubjectSettings
+  ) => {
+    // 1. If newSettings provided, save it to Firestore
+    let activeSettings = effectiveSettings || subjectSettings;
+    if (newSettings) {
+      await setDoc(doc(db, "subject_settings", newSettings.id), newSettings);
+      setSubjectSettings(newSettings);
+      activeSettings = newSettings;
+    }
+
+    // 2. Prepare score updates
+    const targetBeforeMidKMax = 20;
+    const targetBeforeMidSMax = 10;
+    const targetAfterMidKMax = 20;
+    const targetAfterMidSMax = 10;
+
+    const rawBeforeMidKMax = activeSettings?.beforeMidKnowledge?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
+    const rawBeforeMidSMax = activeSettings?.beforeMidSoftSkill?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
+    const rawAfterMidKMax = activeSettings?.afterMidKnowledge?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
+    const rawAfterMidSMax = activeSettings?.afterMidSoftSkill?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
+
+    const newDraftScores = { ...draftScores };
+    const writePromises: Promise<any>[] = [];
+
+    scoresToUpdate.forEach(item => {
+      const key = `${item.studentId}_${viewYear}_${viewSemester}_${selectedSubject}`;
+      const existing = newDraftScores[key] || {
+        id: `sc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        studentId: item.studentId,
+        gradeLevel: selectedGrade,
+        academicYear: viewYear || '',
+        semester: viewSemester || '',
+        subject: selectedSubject,
+        teacherId: currentTeacher?.id || 'teacher',
+        preTestScore: 0,
+        postTestScore: 0,
+        beforeMidKnowledgeScore: 0,
+        beforeMidSoftSkillScore: 0,
+        midtermScore: 0,
+        afterMidKnowledgeScore: 0,
+        afterMidSoftSkillScore: 0,
+        finalScore: 0,
+        totalScore: 0,
+        grade: "0",
+        activities: {},
+        updatedAt: new Date().toISOString()
+      };
+
+      const mergedActivities = { ...(existing.activities || {}), ...(item.activities || {}) };
+
+      // Calculate category sums from activities if present
+      let bmk = existing.beforeMidKnowledgeScore || 0;
+      let bms = existing.beforeMidSoftSkillScore || 0;
+      let amk = existing.afterMidKnowledgeScore || 0;
+      let ams = existing.afterMidSoftSkillScore || 0;
+
+      if (activeSettings?.beforeMidKnowledge?.length) {
+        const rawSum = activeSettings.beforeMidKnowledge.reduce((sum, act) => sum + (mergedActivities[act.id] || 0), 0);
+        bmk = rawBeforeMidKMax > 0 ? Number(((rawSum / rawBeforeMidKMax) * targetBeforeMidKMax).toFixed(2)) : rawSum;
+      }
+      if (activeSettings?.beforeMidSoftSkill?.length) {
+        const rawSum = activeSettings.beforeMidSoftSkill.reduce((sum, act) => sum + (mergedActivities[act.id] || 0), 0);
+        bms = rawBeforeMidSMax > 0 ? Number(((rawSum / rawBeforeMidSMax) * targetBeforeMidSMax).toFixed(2)) : rawSum;
+      }
+      if (activeSettings?.afterMidKnowledge?.length) {
+        const rawSum = activeSettings.afterMidKnowledge.reduce((sum, act) => sum + (mergedActivities[act.id] || 0), 0);
+        amk = rawAfterMidKMax > 0 ? Number(((rawSum / rawAfterMidKMax) * targetAfterMidKMax).toFixed(2)) : rawSum;
+      }
+      if (activeSettings?.afterMidSoftSkill?.length) {
+        const rawSum = activeSettings.afterMidSoftSkill.reduce((sum, act) => sum + (mergedActivities[act.id] || 0), 0);
+        ams = rawAfterMidSMax > 0 ? Number(((rawSum / rawAfterMidSMax) * targetAfterMidSMax).toFixed(2)) : rawSum;
+      }
+
+      const midterm = item.midtermScore !== undefined ? item.midtermScore : (existing.midtermScore || 0);
+      const finalVal = item.finalScore !== undefined ? item.finalScore : (existing.finalScore || 0);
+
+      const totalScore = Math.round(bmk + bms + midterm + amk + ams + finalVal);
+      const grade = calculateGrade(
+        totalScore,
+        selectedSubject,
+        mergedActivities,
+        scoutCampAttendees.has(item.studentId),
+        attendanceStats?.studentStats?.[item.studentId]
+          ? (attendanceStats.totalTargetPeriods > 0
+              ? ((attendanceStats.studentStats[item.studentId].present + attendanceStats.studentStats[item.studentId].late) / attendanceStats.totalTargetPeriods) * 100
+              : 100)
+          : 0
+      );
+
+      const updatedScoreData: SubjectScore = {
+        ...existing,
+        beforeMidKnowledgeScore: bmk,
+        beforeMidSoftSkillScore: bms,
+        midtermScore: midterm,
+        afterMidKnowledgeScore: amk,
+        afterMidSoftSkillScore: ams,
+        finalScore: finalVal,
+        totalScore,
+        grade,
+        activities: mergedActivities,
+        updatedAt: new Date().toISOString()
+      };
+
+      newDraftScores[key] = updatedScoreData;
+
+      const docId = `${item.studentId}_${viewYear}_${viewSemester}_${selectedSubject}`.replace(/[\/]/g, '-');
+      writePromises.push(setDoc(doc(db, "subject_scores", docId), updatedScoreData));
+    });
+
+    setDraftScores(newDraftScores);
+    await Promise.all(writePromises);
   };
 
   const subjectTeacherName = React.useMemo(() => {
@@ -704,7 +1495,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               </div>
 
               {overviewSubTab === 'primary' ? (
-                <LessonAchieve />
+                <LessonAchieve 
+                  students={allStudents}
+                  academicYear={viewYear || systemAcademicYear || '2567'}
+                  semester={viewSemester || systemSemester || '1'}
+                />
               ) : (
                 <KindergartenEvaluationDashboard
                   students={allStudents}
@@ -819,6 +1614,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   >
                     <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
                   </button>
+                  <button 
+                    onClick={() => setShowExcelImporter(true)}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors border border-emerald-200 shadow-sm whitespace-nowrap"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> นำเข้าคะแนน Excel
+                  </button>
                   <button
                     onClick={() => setShowPrintAttendance(true)}
                     className="w-full justify-center sm:w-auto flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
@@ -839,6 +1640,220 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   </button>
                 </div>
               </div>
+
+              {/* Clamp Toast Notification */}
+              {clampToastMessage && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl flex items-center justify-between gap-3 text-xs font-bold animate-in fade-in shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <span>{clampToastMessage}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setClampToastMessage(null)}
+                    className="text-emerald-700 hover:text-emerald-900 text-xs px-2 py-1 rounded hover:bg-emerald-100"
+                  >
+                    ปิด
+                  </button>
+                </div>
+              )}
+
+              {/* Real-time Min/Max Validation Status Bar */}
+              <div className={`p-3.5 rounded-2xl border transition-all shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs ${
+                currentValidationErrors.length > 0
+                  ? 'bg-rose-50/90 border-rose-300 text-rose-800'
+                  : 'bg-emerald-50/60 border-emerald-200/80 text-emerald-800'
+              }`}>
+                {currentValidationErrors.length > 0 ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-rose-200/80 rounded-xl text-rose-700 shrink-0 animate-pulse">
+                        <AlertTriangle className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-rose-900">
+                            ตรวจพบคะแนนเกินเกณฑ์ [Min/Max Validation]
+                          </span>
+                          <span className="px-2 py-0.5 bg-rose-200 text-rose-800 text-[11px] font-black rounded-full">
+                            {currentValidationErrors.length} จุด
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-rose-700 mt-0.5">
+                          ระบบไม่อนุญาตให้บันทึกลงฐานข้อมูลจนกว่าจะแก้ไข หรือใช้ปุ่มปรับคะแนนให้อยู่ในเกณฑ์อัตโนมัติ
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValidationErrors(currentValidationErrors);
+                          setShowValidationErrorModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100 text-rose-700 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-sm text-xs cursor-pointer"
+                      >
+                        <ShieldAlert className="h-4 w-4" /> ดูรายการ ({currentValidationErrors.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAutoClampDraftScores}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm text-xs cursor-pointer active:scale-95"
+                      >
+                        <Sparkles className="h-4 w-4" /> ปรับให้อยู่ในเกณฑ์อัตโนมัติ
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-700 shrink-0">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-emerald-900">
+                        เกณฑ์ช่วงคะแนนขั้นต่ำ-สูงสุด [Min/Max]: ผ่านการตรวจสอบเรียบร้อย
+                      </span>
+                      <span className="text-[11px] text-emerald-700 ml-2 hidden sm:inline">
+                        (ไม่มีคะแนนเกินคะแนนเต็ม และไม่มีคะแนนติดลบ พร้อมบันทึกลงฐานข้อมูล)
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Missing Score Alert Banner & Keyboard Navigation Bar */}
+              {selectedSubjectType === 'academic' && (
+                <div className="space-y-2">
+                  {currentMissingScores.length > 0 ? (
+                    <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-200/80 text-amber-800 rounded-xl shrink-0">
+                          <FileQuestion className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-black text-sm text-amber-950">
+                              ระบบเตือนช่องคะแนนตกหล่น: พบช่องที่ยังไม่ได้กรอก
+                            </span>
+                            <span className="px-2 py-0.5 bg-amber-200 text-amber-900 text-[11px] font-black rounded-full">
+                              {currentMissingScores.length} ช่อง (จากนักเรียน {missingStudentIdSet.size} คน)
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-amber-800 mt-0.5">
+                            ระบบช่วยตรวจจับช่องว่างเพื่อป้องกันการลืมกรอกคะแนน สามารถกดปุ่มเพื่อข้ามไปยังช่องว่าง หรือกด [Enter] เพื่อเลื่อนกรอกต่อเนื่อง
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const firstMissing = document.querySelector<HTMLInputElement>('input[data-missing="true"]');
+                            if (firstMissing) {
+                              firstMissing.focus();
+                              firstMissing.select();
+                              firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              const sId = firstMissing.getAttribute('data-student-id');
+                              if (sId) setActiveStudentId(sId);
+                            } else {
+                              // If not in current tab, find which tab has the first missing item
+                              const firstItem = currentMissingScores[0];
+                              if (firstItem && firstItem.targetTab !== gradesSubTab) {
+                                setGradesSubTab(firstItem.targetTab);
+                                setTimeout(() => {
+                                  const target = document.querySelector<HTMLInputElement>('input[data-missing="true"]');
+                                  if (target) {
+                                    target.focus();
+                                    target.select();
+                                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    const sId = target.getAttribute('data-student-id');
+                                    if (sId) setActiveStudentId(sId);
+                                  }
+                                }, 150);
+                              }
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-sm text-xs cursor-pointer active:scale-95"
+                          title="ข้ามไปยังช่องคะแนนที่ยังไม่ได้กรอกช่องแรก"
+                        >
+                          <ArrowDown className="h-3.5 w-3.5 text-amber-600" /> ข้ามไปช่องว่างแรก
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowOnlyMissing(prev => !prev)}
+                          className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-sm text-xs cursor-pointer ${
+                            showOnlyMissing 
+                              ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md' 
+                              : 'bg-white border border-amber-300 text-amber-900 hover:bg-amber-100'
+                          }`}
+                          title="กรองตารางให้แสดงเฉพาะนักเรียนที่มีช่องคะแนนยังไม่กรอก"
+                        >
+                          <Filter className="h-3.5 w-3.5" /> 
+                          {showOnlyMissing ? 'แสดงทุกคน' : `กรองเฉพาะคนที่มีช่องว่าง (${missingStudentIdSet.size})`}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMissingScoresList(currentMissingScores);
+                            setShowMissingScoreModal(true);
+                          }}
+                          className="px-3.5 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm text-xs cursor-pointer active:scale-95"
+                        >
+                          <HelpCircle className="h-4 w-4" /> ดูรายการ / เติม 0
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-emerald-50/60 border border-emerald-200/80 rounded-2xl flex items-center justify-between text-xs text-emerald-800">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span className="font-bold text-emerald-900">
+                          ระบบเตือนช่องคะแนนตกหล่น: การกรอกคะแนนครบถ้วนทุกช่องเรียบร้อย
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 hidden sm:flex items-center gap-1.5 font-medium">
+                        <span>✨ ข้อมูลครบสมบูรณ์ พร้อมออก ปพ.5</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active Filter Notification Badge */}
+                  {showOnlyMissing && (
+                    <div className="p-2.5 bg-amber-100/80 border border-amber-300 text-amber-900 rounded-xl flex items-center justify-between text-xs font-bold animate-in fade-in">
+                      <div className="flex items-center gap-2">
+                        <Filter className="h-4 w-4 text-amber-700" />
+                        <span>กำลังแสดงเฉพาะนักเรียนที่มีช่องคะแนนตกหล่น ({displayedStudents.length} คน)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowOnlyMissing(false)}
+                        className="text-amber-800 hover:text-amber-950 underline text-xs cursor-pointer"
+                      >
+                        ยกเลิกการกรอง (แสดงนักเรียนทุกคน)
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Quick Keyboard Navigation Tip */}
+                  <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-[11px] text-slate-600">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-800 flex items-center gap-1">
+                        ⌨️ คีย์บอร์ดนำทาง:
+                      </span>
+                      <span>กด <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded shadow-xs font-mono text-[10px] text-slate-700 font-bold">Enter</kbd> หรือ <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded shadow-xs font-mono text-[10px] text-slate-700 font-bold">↓</kbd> เพื่อเลื่อนลงคนถัดไปทันที</span>
+                      <span className="text-slate-400">|</span>
+                      <span>กด <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded shadow-xs font-mono text-[10px] text-slate-700 font-bold">Shift+Enter</kbd> หรือ <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded shadow-xs font-mono text-[10px] text-slate-700 font-bold">↑</kbd> เพื่อเลื่อนขึ้น</span>
+                    </div>
+                    <div className="hidden lg:flex items-center gap-1.5 text-blue-700 font-medium">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                      <span>แถวนักเรียนจะไฮไลต์สีฟ้าอัตโนมัติ ไม่สับสนแถว</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {!(selectedSubject && selectedSubject.includes('อ่าน-เขียน')) ? ( <>
               {/* Sub tabs for grades */}
@@ -966,91 +1981,297 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       </tr>
                     </thead>
                     <tbody>
-                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
-                        students.filter(s => s.gradeLevel === selectedGrade)
-                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
-                          .map((student) => {
-                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
-                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
-                            const score = draftScores[key] || { activities: {}, totalScore: '-', grade: '-' };
-                            const stats = attendanceStats.studentStats[student.id];
-                            const totalAttended = stats.present + stats.late;
-                            const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
-                            const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
-                            const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
-                            const part1Total = Number(((Number(score.beforeMidKnowledgeScore) || 0) + (Number(score.beforeMidSoftSkillScore) || 0) + (Number(score.afterMidKnowledgeScore) || 0) + (Number(score.afterMidSoftSkillScore) || 0)).toFixed(2));
+                      {displayedStudents.length > 0 ? (
+                        displayedStudents.map((student, sIdx) => {
+                          const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+                          const isScoutCampAttended = scoutCampAttendees.has(student.id);
+                          const score = draftScores[key] || { activities: {}, totalScore: '-', grade: '-' };
+                          const stats = attendanceStats.studentStats[student.id];
+                          const totalAttended = stats.present + stats.late;
+                          const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+                          const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+                          const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
+                          const part1Total = Number(((Number(score.beforeMidKnowledgeScore) || 0) + (Number(score.beforeMidSoftSkillScore) || 0) + (Number(score.afterMidKnowledgeScore) || 0) + (Number(score.afterMidSoftSkillScore) || 0)).toFixed(2));
+                          const isRowActive = activeStudentId === student.id;
+
+                          const bmkLen = effectiveSettings.beforeMidKnowledge.length;
+                          const bmsLen = effectiveSettings.beforeMidSoftSkill.length;
+                          const amkLen = effectiveSettings.afterMidKnowledge.length;
+                          
+                          return (
+                          <tr 
+                            key={student.id} 
+                            className={`group border-b transition-all ${
+                              isRowActive 
+                                ? 'bg-blue-50/95 ring-2 ring-blue-500/80 shadow-md font-semibold' 
+                                : score.totalScore > 0 && score.totalScore < 50 
+                                  ? 'bg-rose-50/70 hover:bg-rose-100 border-slate-100' 
+                                  : 'hover:bg-slate-50 border-slate-100'
+                            }`}
+                          >
+                            <td className={`px-2 py-3 text-center font-medium sticky left-0 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                              isRowActive ? 'bg-blue-100 text-blue-900 font-black border-l-4 border-l-blue-600' : 'bg-white text-slate-700 group-hover:bg-slate-50'
+                            }`}>
+                              <div className="flex items-center justify-center gap-1">
+                                {isRowActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping shrink-0" />}
+                                <span>{student.number}</span>
+                              </div>
+                            </td>
+                            <td className={`px-4 py-3 font-medium whitespace-nowrap sticky left-[48px] z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                              isRowActive ? 'bg-blue-100 text-blue-950 font-bold' : 'bg-white text-slate-800 group-hover:bg-slate-50'
+                            }`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>{student.firstName} {student.lastName}</span>
+                                {isRowActive && (
+                                  <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse hidden sm:inline-block">
+                                    กำลังกรอก
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             
-                            return (
-                            <tr key={student.id} className={`group border-b border-slate-100 transition-colors ${score.totalScore > 0 && score.totalScore < 50 ? 'bg-rose-50/70 hover:bg-rose-100' : 'hover:bg-slate-50'}`}>
-                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
-                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
-                              
-                              {effectiveSettings.beforeMidKnowledge.map(act => (
-                                <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
-                                    className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="0"
-                                    value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > act.maxScore || Number(val) < 0)) return;
-                                      handleActivityScoreChange(student.id, 'beforeMidKnowledge', act.id, val);
-                                    }}
-                                  />
+                            {effectiveSettings.beforeMidKnowledge.map((act, actIdx) => {
+                              const actScore = score.activities?.[act.id];
+                              const isMissing = actScore === undefined || actScore === null || actScore === '';
+                              const isInvalid = actScore !== undefined && actScore !== null && actScore !== 0 && (actScore < 0 || actScore > act.maxScore);
+                              const colIdx = actIdx;
+
+                              return (
+                                <td key={act.id} className={`px-2 py-2 text-center border-r border-slate-100 transition-colors ${
+                                  isInvalid ? 'bg-rose-100/60' : isMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'
+                                }`}>
+                                  <div className="relative inline-flex flex-col items-center">
+                                    <input 
+                                      disabled={student.status !== "active" || isReadOnly} 
+                                      type="number" 
+                                      min={0} 
+                                      max={act.maxScore}
+                                      data-s-idx={sIdx}
+                                      data-c-idx={colIdx}
+                                      data-student-id={student.id}
+                                      data-missing={isMissing ? "true" : "false"}
+                                      className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                        isInvalid 
+                                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                          : isMissing
+                                            ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                      }`} 
+                                      placeholder="0"
+                                      value={actScore === 0 ? '' : actScore ?? ''}
+                                      title={
+                                        isInvalid 
+                                          ? `คะแนนเกินเกณฑ์! ต้องอยู่ระหว่าง 0 ถึง ${act.maxScore} (ระบุ: ${actScore})` 
+                                          : isMissing 
+                                            ? `ยังไม่ได้กรอกคะแนน (เต็ม ${act.maxScore})` 
+                                            : `คะแนนเต็ม ${act.maxScore}`
+                                      }
+                                      onFocus={(e) => {
+                                        setActiveStudentId(student.id);
+                                        e.target.select();
+                                      }}
+                                      onKeyDown={(e) => handleTableKeyDown(e, sIdx, colIdx, displayedStudents.length)}
+                                      onChange={(e) => {
+                                        handleActivityScoreChange(student.id, 'beforeMidKnowledge', act.id, e.target.value);
+                                      }}
+                                    />
+                                    {isInvalid ? (
+                                      <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                        {actScore > act.maxScore ? `>${act.maxScore}` : '<0'}
+                                      </span>
+                                    ) : isMissing ? (
+                                      <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                        ยังไม่กรอก
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
-                              ))}
-                              {effectiveSettings.beforeMidSoftSkill.map(act => (
-                                <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
-                                    className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="0"
-                                    value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > act.maxScore || Number(val) < 0)) return;
-                                      handleActivityScoreChange(student.id, 'beforeMidSoftSkill', act.id, val);
-                                    }}
-                                  />
+                              );
+                            })}
+                            {effectiveSettings.beforeMidSoftSkill.map((act, actIdx) => {
+                              const actScore = score.activities?.[act.id];
+                              const isMissing = actScore === undefined || actScore === null || actScore === '';
+                              const isInvalid = actScore !== undefined && actScore !== null && actScore !== 0 && (actScore < 0 || actScore > act.maxScore);
+                              const colIdx = bmkLen + actIdx;
+
+                              return (
+                                <td key={act.id} className={`px-2 py-2 text-center border-r border-slate-100 transition-colors ${
+                                  isInvalid ? 'bg-rose-100/60' : isMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'
+                                }`}>
+                                  <div className="relative inline-flex flex-col items-center">
+                                    <input 
+                                      disabled={student.status !== "active" || isReadOnly} 
+                                      type="number" 
+                                      min={0} 
+                                      max={act.maxScore}
+                                      data-s-idx={sIdx}
+                                      data-c-idx={colIdx}
+                                      data-student-id={student.id}
+                                      data-missing={isMissing ? "true" : "false"}
+                                      className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                        isInvalid 
+                                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                          : isMissing
+                                            ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                      }`} 
+                                      placeholder="0"
+                                      value={actScore === 0 ? '' : actScore ?? ''}
+                                      title={
+                                        isInvalid 
+                                          ? `คะแนนเกินเกณฑ์! ต้องอยู่ระหว่าง 0 ถึง ${act.maxScore} (ระบุ: ${actScore})` 
+                                          : isMissing 
+                                            ? `ยังไม่ได้กรอกคะแนน (เต็ม ${act.maxScore})` 
+                                            : `คะแนนเต็ม ${act.maxScore}`
+                                      }
+                                      onFocus={(e) => {
+                                        setActiveStudentId(student.id);
+                                        e.target.select();
+                                      }}
+                                      onKeyDown={(e) => handleTableKeyDown(e, sIdx, colIdx, displayedStudents.length)}
+                                      onChange={(e) => {
+                                        handleActivityScoreChange(student.id, 'beforeMidSoftSkill', act.id, e.target.value);
+                                      }}
+                                    />
+                                    {isInvalid ? (
+                                      <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                        {actScore > act.maxScore ? `>${act.maxScore}` : '<0'}
+                                      </span>
+                                    ) : isMissing ? (
+                                      <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                        ยังไม่กรอก
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
-                              ))}
-                              {effectiveSettings.afterMidKnowledge.map(act => (
-                                <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
-                                    className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="0"
-                                    value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > act.maxScore || Number(val) < 0)) return;
-                                      handleActivityScoreChange(student.id, 'afterMidKnowledge', act.id, val);
-                                    }}
-                                  />
+                              );
+                            })}
+                            {effectiveSettings.afterMidKnowledge.map((act, actIdx) => {
+                              const actScore = score.activities?.[act.id];
+                              const isMissing = actScore === undefined || actScore === null || actScore === '';
+                              const isInvalid = actScore !== undefined && actScore !== null && actScore !== 0 && (actScore < 0 || actScore > act.maxScore);
+                              const colIdx = bmkLen + bmsLen + actIdx;
+
+                              return (
+                                <td key={act.id} className={`px-2 py-2 text-center border-r border-slate-100 transition-colors ${
+                                  isInvalid ? 'bg-rose-100/60' : isMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'
+                                }`}>
+                                  <div className="relative inline-flex flex-col items-center">
+                                    <input 
+                                      disabled={student.status !== "active" || isReadOnly} 
+                                      type="number" 
+                                      min={0} 
+                                      max={act.maxScore}
+                                      data-s-idx={sIdx}
+                                      data-c-idx={colIdx}
+                                      data-student-id={student.id}
+                                      data-missing={isMissing ? "true" : "false"}
+                                      className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                        isInvalid 
+                                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                          : isMissing
+                                            ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                      }`} 
+                                      placeholder="0"
+                                      value={actScore === 0 ? '' : actScore ?? ''}
+                                      title={
+                                        isInvalid 
+                                          ? `คะแนนเกินเกณฑ์! ต้องอยู่ระหว่าง 0 ถึง ${act.maxScore} (ระบุ: ${actScore})` 
+                                          : isMissing 
+                                            ? `ยังไม่ได้กรอกคะแนน (เต็ม ${act.maxScore})` 
+                                            : `คะแนนเต็ม ${act.maxScore}`
+                                      }
+                                      onFocus={(e) => {
+                                        setActiveStudentId(student.id);
+                                        e.target.select();
+                                      }}
+                                      onKeyDown={(e) => handleTableKeyDown(e, sIdx, colIdx, displayedStudents.length)}
+                                      onChange={(e) => {
+                                        handleActivityScoreChange(student.id, 'afterMidKnowledge', act.id, e.target.value);
+                                      }}
+                                    />
+                                    {isInvalid ? (
+                                      <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                        {actScore > act.maxScore ? `>${act.maxScore}` : '<0'}
+                                      </span>
+                                    ) : isMissing ? (
+                                      <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                        ยังไม่กรอก
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
-                              ))}
-                              {effectiveSettings.afterMidSoftSkill.map(act => (
-                                <td key={act.id} className="px-2 py-2 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={act.maxScore}
-                                    className="w-12 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="0"
-                                    value={score.activities?.[act.id] === 0 ? '' : score.activities?.[act.id] || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > act.maxScore || Number(val) < 0)) return;
-                                      handleActivityScoreChange(student.id, 'afterMidSoftSkill', act.id, val);
-                                    }}
-                                  />
+                              );
+                            })}
+                            {effectiveSettings.afterMidSoftSkill.map((act, actIdx) => {
+                              const actScore = score.activities?.[act.id];
+                              const isMissing = actScore === undefined || actScore === null || actScore === '';
+                              const isInvalid = actScore !== undefined && actScore !== null && actScore !== 0 && (actScore < 0 || actScore > act.maxScore);
+                              const colIdx = bmkLen + bmsLen + amkLen + actIdx;
+
+                              return (
+                                <td key={act.id} className={`px-2 py-2 text-center border-r border-slate-100 transition-colors ${
+                                  isInvalid ? 'bg-rose-100/60' : isMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'
+                                }`}>
+                                  <div className="relative inline-flex flex-col items-center">
+                                    <input 
+                                      disabled={student.status !== "active" || isReadOnly} 
+                                      type="number" 
+                                      min={0} 
+                                      max={act.maxScore}
+                                      data-s-idx={sIdx}
+                                      data-c-idx={colIdx}
+                                      data-student-id={student.id}
+                                      data-missing={isMissing ? "true" : "false"}
+                                      className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                        isInvalid 
+                                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                          : isMissing
+                                            ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                      }`} 
+                                      placeholder="0"
+                                      value={actScore === 0 ? '' : actScore ?? ''}
+                                      title={
+                                        isInvalid 
+                                          ? `คะแนนเกินเกณฑ์! ต้องอยู่ระหว่าง 0 ถึง ${act.maxScore} (ระบุ: ${actScore})` 
+                                          : isMissing 
+                                            ? `ยังไม่ได้กรอกคะแนน (เต็ม ${act.maxScore})` 
+                                            : `คะแนนเต็ม ${act.maxScore}`
+                                      }
+                                      onFocus={(e) => {
+                                        setActiveStudentId(student.id);
+                                        e.target.select();
+                                      }}
+                                      onKeyDown={(e) => handleTableKeyDown(e, sIdx, colIdx, displayedStudents.length)}
+                                      onChange={(e) => {
+                                        handleActivityScoreChange(student.id, 'afterMidSoftSkill', act.id, e.target.value);
+                                      }}
+                                    />
+                                    {isInvalid ? (
+                                      <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                        {actScore > act.maxScore ? `>${act.maxScore}` : '<0'}
+                                      </span>
+                                    ) : isMissing ? (
+                                      <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                        ยังไม่กรอก
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </td>
-                              ))}
-                              
-                              <td className="px-3 py-3 text-center font-bold text-slate-800 border-l border-slate-100 bg-indigo-50/30">
-                                {part1Total}
-                              </td>
-                            </tr>
-                          )})
+                              );
+                            })}
+                            
+                            <td className="px-3 py-3 text-center font-bold text-slate-800 border-l border-slate-100 bg-indigo-50/30">
+                              {part1Total}
+                            </td>
+                          </tr>
+                        )})
                       ) : (
                         <tr>
                           <td colSpan={20} className="px-4 py-8 text-center text-slate-500">
-                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                            {showOnlyMissing ? 'ไม่พบนักเรียนที่มีช่องคะแนนตกหล่นในห้องนี้' : `ไม่พบข้อมูลนักเรียนในชั้น ${selectedGrade}`}
                           </td>
                         </tr>
                       )}
@@ -1079,148 +2300,192 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       </tr>
                     </thead>
                     <tbody>
-                      {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
-                        students.filter(s => s.gradeLevel === selectedGrade)
-                          .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
-                          .map((student) => {
-                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
-                            const isScoutCampAttended = scoutCampAttendees.has(student.id);
-                            const score = draftScores[key] || { totalScore: '' };
-                            const stats = attendanceStats.studentStats[student.id];
-                            const totalAttended = stats.present + stats.late;
-                            const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
-                            const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
-                            const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
-                            
-                            return (
-                            <tr key={student.id} className="group border-b border-slate-100 transition-colors hover:bg-slate-50">
-                              <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
-                              <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
-                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <input disabled={student.status !== "active" || isReadOnly || (attendancePercentage !== undefined && attendancePercentage > 0)} type="number" min={0} max={100}
-                                  className={`w-16 p-1.5 text-center border border-slate-200 rounded focus:ring-2 focus:ring-emerald-500 outline-none ${(attendancePercentage !== undefined && attendancePercentage > 0) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
-                                  value={(attendancePercentage !== undefined && attendancePercentage > 0) ? attendancePercentage.toFixed(0) : (score.totalScore === '-' ? '' : score.totalScore)}
-                                  title={(attendancePercentage !== undefined && attendancePercentage > 0) ? 'คำนวณอัตโนมัติจากแท็บเวลาเรียน' : ''}
+                      {displayedStudents.length > 0 ? (
+                        displayedStudents.map((student, sIdx) => {
+                          const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+                          const isScoutCampAttended = scoutCampAttendees.has(student.id);
+                          const score = draftScores[key] || { totalScore: '' };
+                          const stats = attendanceStats.studentStats[student.id];
+                          const totalAttended = stats.present + stats.late;
+                          const totalRecords = stats.present + stats.late + stats.leave + stats.sick + stats.absent;
+                          const baseTotal = attendanceStats.totalTargetPeriods > 0 ? attendanceStats.totalTargetPeriods : totalRecords;
+                          const attendancePercentage = baseTotal > 0 ? (totalAttended / baseTotal) * 100 : 0;
+                          const isRowActive = activeStudentId === student.id;
+                          
+                          return (
+                          <tr key={student.id} className={`group border-b transition-all ${
+                            isRowActive ? 'bg-blue-50/95 ring-2 ring-blue-500/80 shadow-md font-semibold' : 'hover:bg-slate-50 border-slate-100'
+                          }`}>
+                            <td className={`px-2 py-3 text-center font-medium sticky left-0 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                              isRowActive ? 'bg-blue-100 text-blue-900 font-black border-l-4 border-l-blue-600' : 'bg-white text-slate-700 group-hover:bg-slate-50'
+                            }`}>
+                              <div className="flex items-center justify-center gap-1">
+                                {isRowActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping shrink-0" />}
+                                <span>{student.number}</span>
+                              </div>
+                            </td>
+                            <td className={`px-4 py-3 font-medium whitespace-nowrap sticky left-[48px] z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                              isRowActive ? 'bg-blue-100 text-blue-950 font-bold' : 'bg-white text-slate-800 group-hover:bg-slate-50'
+                            }`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>{student.firstName} {student.lastName}</span>
+                                {isRowActive && (
+                                  <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse hidden sm:inline-block">
+                                    กำลังกรอก
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className={`px-3 py-3 text-center border-r border-slate-100 ${isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'}`}>
+                              <input 
+                                disabled={student.status !== "active" || isReadOnly || (attendancePercentage !== undefined && attendancePercentage > 0)} 
+                                type="number" 
+                                min={0} 
+                                max={100}
+                                data-s-idx={sIdx}
+                                data-c-idx={0}
+                                data-student-id={student.id}
+                                className={`w-16 p-1.5 text-center border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-all ${(attendancePercentage !== undefined && attendancePercentage > 0) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
+                                value={(attendancePercentage !== undefined && attendancePercentage > 0) ? attendancePercentage.toFixed(0) : (score.totalScore === '-' ? '' : score.totalScore)}
+                                title={(attendancePercentage !== undefined && attendancePercentage > 0) ? 'คำนวณอัตโนมัติจากแท็บเวลาเรียน' : ''}
+                                onFocus={(e) => {
+                                  setActiveStudentId(student.id);
+                                  e.target.select();
+                                }}
+                                onKeyDown={(e) => handleTableKeyDown(e, sIdx, 0, displayedStudents.length)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const numVal = val === '' ? 0 : Number(val);
+                                  setDraftScores(prev => ({
+                                    ...prev,
+                                    [key]: {
+                                      ...(prev[key] || {
+                                        id: `sc-${Date.now()}`,
+                                        studentId: student.id,
+                                        gradeLevel: selectedGrade,
+                                        academicYear: viewYear || '',
+                                        semester: viewSemester || '',
+                                        subject: selectedSubject,
+                                        teacherId: 'current-teacher',
+                                        beforeMidKnowledgeScore: 0,
+                                        beforeMidSoftSkillScore: 0,
+                                        midtermScore: 0,
+                                        afterMidKnowledgeScore: 0,
+                                        afterMidSoftSkillScore: 0,
+                                        finalScore: 0,
+                                        activities: {}
+                                      }),
+                                      totalScore: numVal,
+                                      grade: calculateGrade(numVal, selectedSubject, prev[key]?.activities, isScoutCampAttended, attendancePercentage)
+                                    }
+                                  }));
+                                }}
+                              />
+                            </td>
+                            {(selectedSubject && selectedSubject.includes('ลูกเสือ')) ? (
+                            <td className={`px-3 py-3 text-center border-r border-slate-100 ${isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'}`}>
+                              <label className="flex items-center justify-center gap-2 cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                                  checked={isScoutCampAttended || score.activities?.scoutCamp === 1}
+                                  disabled={isScoutCampAttended}
+                                  onFocus={() => setActiveStudentId(student.id)}
+                                  onChange={(e) => {
+                                    const isChecked = e.target.checked;
+                                    setDraftScores(prev => {
+                                      const currentScore = prev[key] || {
+                                        id: `sc-${Date.now()}`,
+                                        studentId: student.id,
+                                        gradeLevel: selectedGrade,
+                                        academicYear: viewYear || '',
+                                        semester: viewSemester || '',
+                                        subject: selectedSubject,
+                                        teacherId: 'current-teacher',
+                                        beforeMidKnowledgeScore: 0,
+                                        beforeMidSoftSkillScore: 0,
+                                        midtermScore: 0,
+                                        afterMidKnowledgeScore: 0,
+                                        afterMidSoftSkillScore: 0,
+                                        finalScore: 0,
+                                        totalScore: 0,
+                                        activities: {}
+                                      };
+                                      const newActivities = { ...currentScore.activities, scoutCamp: isChecked ? 1 : 0 };
+                                      return {
+                                        ...prev,
+                                        [key]: {
+                                          ...currentScore,
+                                          activities: newActivities,
+                                          grade: calculateGrade(currentScore.totalScore, selectedSubject, newActivities, isScoutCampAttended, attendancePercentage)
+                                        }
+                                      };
+                                    });
+                                  }}
+                                />
+                                {isScoutCampAttended && <span className="absolute -top-2 -right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
+                                <span className="text-xs font-medium text-slate-600">เข้าร่วม</span>
+                              </label>
+                            </td>
+                            ) : (
+                              <td className={`px-3 py-3 text-center border-r border-slate-100 ${isRowActive ? 'bg-blue-50/30' : 'bg-emerald-50/30'}`}>
+                                <input 
+                                  disabled={student.status !== "active" || isReadOnly} 
+                                  type="number" 
+                                  min={0} 
+                                  max={100}
+                                  data-s-idx={sIdx}
+                                  data-c-idx={1}
+                                  data-student-id={student.id}
+                                  className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                  value={score.activities?.practicalScore === undefined ? '' : score.activities.practicalScore}
+                                  placeholder="ผลงาน"
+                                  onFocus={(e) => {
+                                    setActiveStudentId(student.id);
+                                    e.target.select();
+                                  }}
+                                  onKeyDown={(e) => handleTableKeyDown(e, sIdx, 1, displayedStudents.length)}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     const numVal = val === '' ? 0 : Number(val);
-                                    setDraftScores(prev => ({
-                                      ...prev,
-                                      [key]: {
-                                        ...(prev[key] || {
-                                          id: `sc-${Date.now()}`,
-                                          studentId: student.id,
-                                          gradeLevel: selectedGrade,
-                                          academicYear: viewYear || '',
-                                          semester: viewSemester || '',
-                                          subject: selectedSubject,
-                                          teacherId: 'current-teacher',
-                                          beforeMidKnowledgeScore: 0,
-                                          beforeMidSoftSkillScore: 0,
-                                          midtermScore: 0,
-                                          afterMidKnowledgeScore: 0,
-                                          afterMidSoftSkillScore: 0,
-                                          finalScore: 0,
-                                          activities: {}
-                                        }),
-                                        totalScore: numVal,
-                                        grade: calculateGrade(numVal, selectedSubject, prev[key]?.activities, isScoutCampAttended, attendancePercentage)
-                                      }
-                                    }));
+                                    setDraftScores(prev => {
+                                      const currentScore = prev[key] || {
+                                        id: `sc-${Date.now()}`,
+                                        studentId: student.id,
+                                        gradeLevel: selectedGrade,
+                                        academicYear: viewYear || '',
+                                        semester: viewSemester || '',
+                                        subject: selectedSubject,
+                                        teacherId: 'current-teacher',
+                                        activities: {}
+                                      };
+                                      
+                                      const attScore = currentScore.totalScore === '-' || currentScore.totalScore === '' || currentScore.totalScore === undefined ? 0 : Number(currentScore.totalScore);
+                                      const totalAvg = (attScore + numVal) / 2;
+                                      
+                                      return {
+                                        ...prev,
+                                        [key]: {
+                                          ...currentScore,
+                                          activities: { ...currentScore.activities, practicalScore: numVal },
+                                          grade: totalAvg >= 80 ? 'ผ' : 'มผ' 
+                                        }
+                                      };
+                                    });
                                   }}
                                 />
                               </td>
-                              {(selectedSubject && selectedSubject.includes('ลูกเสือ')) ? (
-                              <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                <label className="flex items-center justify-center gap-2 cursor-pointer">
-                                  <input 
-                                    type="checkbox"
-                                    className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
-                                    checked={isScoutCampAttended || score.activities?.scoutCamp === 1}
-                                    disabled={isScoutCampAttended}
-                                    onChange={(e) => {
-                                      const isChecked = e.target.checked;
-                                      setDraftScores(prev => {
-                                        const currentScore = prev[key] || {
-                                          id: `sc-${Date.now()}`,
-                                          studentId: student.id,
-                                          gradeLevel: selectedGrade,
-                                          academicYear: viewYear || '',
-                                          semester: viewSemester || '',
-                                          subject: selectedSubject,
-                                          teacherId: 'current-teacher',
-                                          beforeMidKnowledgeScore: 0,
-                                          beforeMidSoftSkillScore: 0,
-                                          midtermScore: 0,
-                                          afterMidKnowledgeScore: 0,
-                                          afterMidSoftSkillScore: 0,
-                                          finalScore: 0,
-                                          totalScore: 0,
-                                          activities: {}
-                                        };
-                                        const newActivities = { ...currentScore.activities, scoutCamp: isChecked ? 1 : 0 };
-                                        return {
-                                          ...prev,
-                                          [key]: {
-                                            ...currentScore,
-                                            activities: newActivities,
-                                            grade: calculateGrade(currentScore.totalScore, selectedSubject, newActivities, isScoutCampAttended, attendancePercentage)
-                                          }
-                                        };
-                                      });
-                                    }}
-                                  />
-                                  {isScoutCampAttended && <span className="absolute -top-2 -right-2 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>}
-                                  <span className="text-xs font-medium text-slate-600">เข้าร่วม</span>
-                                </label>
-                              </td>
-                              ) : (
-                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-emerald-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={100}
-                                    className="w-16 p-1.5 text-center border border-slate-200 rounded bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                    value={score.activities?.practicalScore === undefined ? '' : score.activities.practicalScore}
-                                    placeholder="ผลงาน"
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const numVal = val === '' ? 0 : Number(val);
-                                      setDraftScores(prev => {
-                                        const currentScore = prev[key] || {
-                                          id: `sc-${Date.now()}`,
-                                          studentId: student.id,
-                                          gradeLevel: selectedGrade,
-                                          academicYear: viewYear || '',
-                                          semester: viewSemester || '',
-                                          subject: selectedSubject,
-                                          teacherId: 'current-teacher',
-                                          activities: {}
-                                        };
-                                        
-                                        const attScore = currentScore.totalScore === '-' || currentScore.totalScore === '' || currentScore.totalScore === undefined ? 0 : Number(currentScore.totalScore);
-                                        const totalAvg = (attScore + numVal) / 2;
-                                        
-                                        return {
-                                          ...prev,
-                                          [key]: {
-                                            ...currentScore,
-                                            activities: { ...currentScore.activities, practicalScore: numVal },
-                                            grade: totalAvg >= 80 ? 'ผ' : 'มผ' 
-                                          }
-                                        };
-                                      });
-                                    }}
-                                  />
-                                </td>
-                              )}
-                              <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
-                                {score.grade || '-'}
-                              </td>
-                            </tr>
-                            );
-                          })
+                            )}
+                            <td className="px-4 py-3 text-center font-bold text-lg text-emerald-700 bg-emerald-50/50">
+                              {score.grade || '-'}
+                            </td>
+                          </tr>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                            ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                            {showOnlyMissing ? 'ไม่พบนักเรียนที่มีช่องคะแนนตกหล่นในห้องนี้' : `ไม่พบข้อมูลนักเรียนในชั้น ${selectedGrade}`}
                           </td>
                         </tr>
                       )}
@@ -1241,73 +2506,229 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                         </tr>
                       </thead>
                       <tbody>
-                        {students.filter(s => s.gradeLevel === selectedGrade).length > 0 ? (
-                          students.filter(s => s.gradeLevel === selectedGrade)
-                            .sort((a, b) => (Number(a.number || '0') - Number(b.number || '0')))
-                            .map((student) => {
-                              const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
-                              const score = draftScores[key] || { 
-                                preTestScore: '', postTestScore: '', 
-                                midtermScore: '', finalScore: '', 
-                                totalScore: '-', grade: '-' 
-                              };
-                              
-                              return (
-                              <tr key={student.id} className={`group border-b border-slate-100 transition-colors ${score.totalScore > 0 && score.totalScore < 50 ? 'bg-rose-50/70 hover:bg-rose-100' : 'hover:bg-slate-50'}`}>
-                                <td className="px-2 py-3 text-center font-medium sticky left-0 bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.number}</td>
-                                <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap sticky left-[48px] bg-white z-10 border-r border-slate-200 group-hover:bg-slate-50 shadow-[1px_0_0_#e2e8f0]">{student.firstName} {student.lastName}</td>
-                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} 
-                                    className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
+                        {displayedStudents.length > 0 ? (
+                          displayedStudents.map((student, sIdx) => {
+                            const key = `${student.id}_${viewYear}_${viewSemester}_${selectedSubject}`;
+                            const score = draftScores[key] || { 
+                              preTestScore: '', postTestScore: '', 
+                              midtermScore: '', finalScore: '', 
+                              totalScore: '-', grade: '-' 
+                            };
+                            
+                            const isPreTestInvalid = score.preTestScore !== undefined && score.preTestScore !== null && score.preTestScore !== '' && score.preTestScore !== 0 && (Number(score.preTestScore) < 0 || Number(score.preTestScore) > 100);
+                            const isMidtermInvalid = score.midtermScore !== undefined && score.midtermScore !== null && score.midtermScore !== '' && score.midtermScore !== 0 && (Number(score.midtermScore) < 0 || Number(score.midtermScore) > 20);
+                            const isFinalInvalid = score.finalScore !== undefined && score.finalScore !== null && score.finalScore !== '' && score.finalScore !== 0 && (Number(score.finalScore) < 0 || Number(score.finalScore) > 20);
+                            const isPostTestInvalid = score.postTestScore !== undefined && score.postTestScore !== null && score.postTestScore !== '' && score.postTestScore !== 0 && (Number(score.postTestScore) < 0 || Number(score.postTestScore) > 100);
+                            
+                            const isMidtermMissing = score.midtermScore === undefined || score.midtermScore === null || score.midtermScore === '';
+                            const isFinalMissing = score.finalScore === undefined || score.finalScore === null || score.finalScore === '';
+                            const isRowActive = activeStudentId === student.id;
+
+                            return (
+                            <tr 
+                              key={student.id} 
+                              className={`group border-b transition-all ${
+                                isRowActive 
+                                  ? 'bg-blue-50/95 ring-2 ring-blue-500/80 shadow-md font-semibold' 
+                                  : score.totalScore > 0 && score.totalScore < 50 
+                                    ? 'bg-rose-50/70 hover:bg-rose-100 border-slate-100' 
+                                    : 'hover:bg-slate-50 border-slate-100'
+                              }`}
+                            >
+                              <td className={`px-2 py-3 text-center font-medium sticky left-0 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                                isRowActive ? 'bg-blue-100 text-blue-900 font-black border-l-4 border-l-blue-600' : 'bg-white text-slate-700 group-hover:bg-slate-50'
+                              }`}>
+                                <div className="flex items-center justify-center gap-1">
+                                  {isRowActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping shrink-0" />}
+                                  <span>{student.number}</span>
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 font-medium whitespace-nowrap sticky left-[48px] z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0] transition-colors ${
+                                isRowActive ? 'bg-blue-100 text-blue-950 font-bold' : 'bg-white text-slate-800 group-hover:bg-slate-50'
+                              }`}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{student.firstName} {student.lastName}</span>
+                                  {isRowActive && (
+                                    <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold animate-pulse hidden sm:inline-block">
+                                      กำลังกรอก
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`px-3 py-3 text-center border-r border-slate-100 transition-colors ${isPreTestInvalid ? 'bg-rose-100/60' : isRowActive ? 'bg-blue-50/30' : 'bg-sky-50/30'}`}>
+                                <div className="relative inline-flex flex-col items-center">
+                                  <input 
+                                    disabled={student.status !== "active" || isReadOnly} 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    data-s-idx={sIdx}
+                                    data-c-idx={0}
+                                    data-student-id={student.id}
+                                    className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                      isPreTestInvalid 
+                                        ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                        : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                    }`} 
                                     placeholder="0"
                                     value={score.preTestScore === 0 ? '' : score.preTestScore}
+                                    title={isPreTestInvalid ? `คะแนนต้องอยู่ระหว่าง 0 - 100 (ระบุ: ${score.preTestScore})` : 'คะแนนเต็ม 100'}
+                                    onFocus={(e) => {
+                                      setActiveStudentId(student.id);
+                                      e.target.select();
+                                    }}
+                                    onKeyDown={(e) => handleTableKeyDown(e, sIdx, 0, displayedStudents.length)}
                                     onChange={(e) => handleScoreChange(student.id, 'preTestScore', e.target.value)}
                                   />
-                                </td>
-                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-amber-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={20}
-                                    className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-amber-500" 
+                                  {isPreTestInvalid && (
+                                    <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                      เกิน 100
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className={`px-3 py-3 text-center border-r border-slate-100 transition-colors ${
+                                isMidtermInvalid ? 'bg-rose-100/60' : isMidtermMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-amber-50/30'
+                              }`}>
+                                <div className="relative inline-flex flex-col items-center">
+                                  <input 
+                                    disabled={student.status !== "active" || isReadOnly} 
+                                    type="number" 
+                                    min={0} 
+                                    max={20}
+                                    data-s-idx={sIdx}
+                                    data-c-idx={1}
+                                    data-student-id={student.id}
+                                    data-missing={isMidtermMissing ? "true" : "false"}
+                                    className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                      isMidtermInvalid 
+                                        ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                        : isMidtermMissing
+                                          ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                          : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                    }`} 
                                     placeholder="0"
                                     value={score.midtermScore === 0 ? '' : score.midtermScore}
+                                    title={
+                                      isMidtermInvalid 
+                                        ? `คะแนนสอบกลางภาคต้องอยู่ระหว่าง 0 - 20 (ระบุ: ${score.midtermScore})` 
+                                        : isMidtermMissing 
+                                          ? 'ยังไม่ได้กรอกคะแนนสอบกลางภาค (เต็ม 20)' 
+                                          : 'คะแนนเต็ม 20'
+                                    }
+                                    onFocus={(e) => {
+                                      setActiveStudentId(student.id);
+                                      e.target.select();
+                                    }}
+                                    onKeyDown={(e) => handleTableKeyDown(e, sIdx, 1, displayedStudents.length)}
                                     onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > 20 || Number(val) < 0)) return;
-                                      handleScoreChange(student.id, 'midtermScore', val);
+                                      handleScoreChange(student.id, 'midtermScore', e.target.value);
                                     }}
                                   />
-                                </td>
-                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-rose-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} max={20}
-                                    className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-rose-500" 
+                                  {isMidtermInvalid ? (
+                                    <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                      {Number(score.midtermScore) > 20 ? '>20' : '<0'}
+                                    </span>
+                                  ) : isMidtermMissing ? (
+                                    <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                      ยังไม่กรอก
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className={`px-3 py-3 text-center border-r border-slate-100 transition-colors ${
+                                isFinalInvalid ? 'bg-rose-100/60' : isFinalMissing && highlightMissingCells ? 'bg-amber-50/70' : isRowActive ? 'bg-blue-50/30' : 'bg-rose-50/30'
+                              }`}>
+                                <div className="relative inline-flex flex-col items-center">
+                                  <input 
+                                    disabled={student.status !== "active" || isReadOnly} 
+                                    type="number" 
+                                    min={0} 
+                                    max={20}
+                                    data-s-idx={sIdx}
+                                    data-c-idx={2}
+                                    data-student-id={student.id}
+                                    data-missing={isFinalMissing ? "true" : "false"}
+                                    className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                      isFinalInvalid 
+                                        ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                        : isFinalMissing
+                                          ? 'border-amber-300 bg-amber-50/50 text-amber-900 placeholder:text-amber-400 focus:ring-2 focus:ring-blue-500'
+                                          : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                    }`} 
                                     placeholder="0"
                                     value={score.finalScore === 0 ? '' : score.finalScore}
+                                    title={
+                                      isFinalInvalid 
+                                        ? `คะแนนสอบปลายภาคต้องอยู่ระหว่าง 0 - 20 (ระบุ: ${score.finalScore})` 
+                                        : isFinalMissing 
+                                          ? 'ยังไม่ได้กรอกคะแนนสอบปลายภาค (เต็ม 20)' 
+                                          : 'คะแนนเต็ม 20'
+                                    }
+                                    onFocus={(e) => {
+                                      setActiveStudentId(student.id);
+                                      e.target.select();
+                                    }}
+                                    onKeyDown={(e) => handleTableKeyDown(e, sIdx, 2, displayedStudents.length)}
                                     onChange={(e) => {
-                                      const val = e.target.value;
-                                      if (val !== '' && (Number(val) > 20 || Number(val) < 0)) return;
-                                      handleScoreChange(student.id, 'finalScore', val);
+                                      handleScoreChange(student.id, 'finalScore', e.target.value);
                                     }}
                                   />
-                                </td>
-                                <td className="px-3 py-3 text-center border-r border-slate-100 bg-sky-50/30">
-                                  <input disabled={student.status !== "active" || isReadOnly} type="number" min={0} 
-                                    className="w-14 text-center border border-slate-200 rounded p-1 text-xs outline-none focus:ring-1 focus:ring-sky-500" 
+                                  {isFinalInvalid ? (
+                                    <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                      {Number(score.finalScore) > 20 ? '>20' : '<0'}
+                                    </span>
+                                  ) : isFinalMissing ? (
+                                    <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
+                                      ยังไม่กรอก
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className={`px-3 py-3 text-center border-r border-slate-100 transition-colors ${isPostTestInvalid ? 'bg-rose-100/60' : isRowActive ? 'bg-blue-50/30' : 'bg-sky-50/30'}`}>
+                                <div className="relative inline-flex flex-col items-center">
+                                  <input 
+                                    disabled={student.status !== "active" || isReadOnly} 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    data-s-idx={sIdx}
+                                    data-c-idx={3}
+                                    data-student-id={student.id}
+                                    className={`w-14 text-center border rounded p-1 text-xs outline-none transition-all ${
+                                      isPostTestInvalid 
+                                        ? 'border-rose-500 bg-rose-50 text-rose-700 font-black ring-2 ring-rose-400 shadow-sm animate-pulse' 
+                                        : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white'
+                                    }`} 
                                     placeholder="0"
                                     value={score.postTestScore === 0 ? '' : score.postTestScore}
+                                    title={isPostTestInvalid ? `คะแนนต้องอยู่ระหว่าง 0 - 100 (ระบุ: ${score.postTestScore})` : 'คะแนนเต็ม 100'}
+                                    onFocus={(e) => {
+                                      setActiveStudentId(student.id);
+                                      e.target.select();
+                                    }}
+                                    onKeyDown={(e) => handleTableKeyDown(e, sIdx, 3, displayedStudents.length)}
                                     onChange={(e) => handleScoreChange(student.id, 'postTestScore', e.target.value)}
                                   />
-                                </td>
-                                <td className="px-4 py-3 text-center font-bold text-slate-800 border-r border-slate-100 bg-indigo-50/30">
-                                  {score.totalScore}
-                                </td>
-                                <td className="px-4 py-3 text-center font-black text-emerald-600 bg-indigo-50/30">
-                                  {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id), undefined) || '-'}
-                                </td>
-                              </tr>
+                                  {isPostTestInvalid && (
+                                    <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
+                                      เกิน 100
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-center font-bold text-slate-800 border-r border-slate-100 bg-indigo-50/30">
+                                {score.totalScore}
+                              </td>
+                              <td className="px-4 py-3 text-center font-black text-emerald-600 bg-indigo-50/30">
+                                {calculateGrade(score.totalScore || 0, selectedSubject, score.activities, scoutCampAttendees.has(student.id), undefined) || '-'}
+                              </td>
+                            </tr>
                             )})
                         ) : (
                           <tr>
                             <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
-                              ไม่พบข้อมูลนักเรียนในชั้น {selectedGrade}
+                              {showOnlyMissing ? 'ไม่พบนักเรียนที่มีช่องคะแนนตกหล่นในห้องนี้' : `ไม่พบข้อมูลนักเรียนในชั้น ${selectedGrade}`}
                             </td>
                           </tr>
                         )}
@@ -1319,15 +2740,43 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                 )}
               </div>
 
-              <div className="mt-6 flex justify-end gap-3">
-                <button 
-                  onClick={handleSaveScores}
-                  disabled={isSaving || isReadOnly}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50"
-                >
-                  <CheckCircle className="h-4 w-4" /> 
-                  {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-                </button>
+              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+                {currentValidationErrors.length > 0 ? (
+                  <div className="flex items-center gap-2 px-3.5 py-2 bg-rose-50 border border-rose-300 rounded-xl text-rose-700 text-xs font-bold animate-pulse">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>ไม่อนุญาตให้บันทึก: พบข้อมูลคะแนนเกินเกณฑ์ {currentValidationErrors.length} รายการ</span>
+                  </div>
+                ) : currentMissingScores.length > 0 ? (
+                  <div className="flex items-center gap-2 px-3.5 py-2 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs font-bold">
+                    <FileQuestion className="h-4 w-4 shrink-0 text-amber-600" />
+                    <span>แจ้งเตือน: มีช่องคะแนนยังไม่กรอก {currentMissingScores.length} ช่อง (ระบบจะถามยืนยันก่อนบันทึก)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>ข้อมูลคะแนนผ่านการตรวจสอบความถูกต้องและครบถ้วนเรียบร้อย</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  {currentValidationErrors.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAutoClampDraftScores}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="h-4 w-4 text-emerald-600" /> ปรับคะแนนอัตโนมัติ
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleSaveScores(false)}
+                    disabled={isSaving || isReadOnly}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle className="h-4 w-4" /> 
+                    {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                  </button>
+                </div>
               </div>
 
               </>
@@ -1482,6 +2931,20 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           onSave={handleSaveSettings}
         />
       )}
+
+      {showExcelImporter && (
+        <ExcelScoreImporterModal
+          isOpen={showExcelImporter}
+          onClose={() => setShowExcelImporter(false)}
+          selectedSubject={selectedSubject}
+          selectedGrade={selectedGrade}
+          academicYear={viewYear || "2567"}
+          semester={viewSemester || "1"}
+          students={students}
+          subjectSettings={effectiveSettings || subjectSettings}
+          onImportComplete={handleImportScoresFromExcel}
+        />
+      )}
       
       {showPrintAttendance && (
         <AttendancePrintTemplate
@@ -1519,6 +2982,41 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           academicYear={viewYear || "2567"}
           semester={systemSemester || "1"}
           onClose={() => setShowPrintReport(false)}
+        />
+      )}
+
+      {/* Min/Max Score Validation Error Modal */}
+      {showValidationErrorModal && (
+        <ScoreValidationErrorModal
+          isOpen={showValidationErrorModal}
+          onClose={() => setShowValidationErrorModal(false)}
+          errors={validationErrors}
+          onAutoClampAndSave={handleAutoClampAndSave}
+          onReviewManually={(targetTab) => {
+            setShowValidationErrorModal(false);
+            if (targetTab) {
+              setGradesSubTab(targetTab);
+            }
+          }}
+          subjectName={selectedSubject}
+          gradeLevel={selectedGrade}
+        />
+      )}
+
+      {/* Missing Scores Prompt Modal */}
+      {showMissingScoreModal && (
+        <MissingScorePromptModal
+          isOpen={showMissingScoreModal}
+          onClose={() => setShowMissingScoreModal(false)}
+          missingItems={missingScoresList}
+          onConfirmSaveAsIs={() => {
+            setShowMissingScoreModal(false);
+            handleSaveScores(true);
+          }}
+          onFillZerosAndSave={handleFillZerosAndSave}
+          onReviewMissing={handleReviewMissing}
+          subjectName={selectedSubject}
+          gradeLevel={selectedGrade}
         />
       )}
     </div>

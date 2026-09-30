@@ -462,27 +462,13 @@ export const KindergartenEvaluationDashboard: React.FC<KindergartenEvaluationDas
                       <td className="py-3 px-4 text-center font-bold text-slate-700">
                         {student.number || '-'}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          {student.photoURL ? (
-                            <img 
-                              src={student.photoURL} 
-                              alt="" 
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200" 
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-700 flex items-center justify-center font-bold text-xs">
-                              {student.firstName?.[0] || 'น'}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-bold text-slate-800">
-                              {student.title || ''} {student.firstName} {student.lastName}
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              รหัส {student.studentId || student.id.slice(0, 6)}
-                            </div>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div>
+                          <div className="font-bold text-slate-800 whitespace-nowrap">
+                            {student.title || ''}{student.firstName} {student.lastName}
+                          </div>
+                          <div className="text-[10px] text-slate-400 whitespace-nowrap">
+                            รหัส {student.studentId || student.id.slice(0, 6)}
                           </div>
                         </div>
                       </td>

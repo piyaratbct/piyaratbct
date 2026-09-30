@@ -445,7 +445,13 @@ export function PrintTemplate({ record, teacher, academicHead, currentUser, cust
               <div className={`relative rounded-2xl overflow-hidden border border-slate-300 shadow-xs flex items-center justify-center bg-white print:border-black ${
                 isCompact ? 'h-18 w-18' : 'h-28 w-28'
               }`}>
-                <img src={customLogo} alt="School Logo" className="h-full w-full object-contain p-1" />
+                <img 
+                  src={customLogo} 
+                  alt="School Logo" 
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-contain p-1" 
+                />
               </div>
             ) : (
               <SchoolLogo className={`drop-shadow-sm print:drop-shadow-none ${

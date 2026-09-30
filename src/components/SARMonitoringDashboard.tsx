@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, getDocs, where, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, PDRecord, Student, KindergartenAssessment } from '../types';
 import { ShieldCheck, GraduationCap, BookOpen, FileText, Bell, Search, AlertCircle, CheckCircle2, TrendingUp, Target, Award, Users, Activity, Layers, ClipboardList, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -35,38 +35,66 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
     // Fetch all related collections for the dashboard
     const fetchData = async () => {
       // 1. PD Records
-      const pdUnsub = onSnapshot(query(collection(db, 'pd_records')), (snap) => {
-        setPdRecords(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PDRecord)));
-      }, (err) => console.error("Error loading PD Records:", err));
+      const pdUnsub = onSnapshot(
+        query(collection(db, 'pd_records')),
+        (snap) => {
+          setPdRecords(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PDRecord)));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "pd_records")
+      );
 
       // 2. Lesson Plans
-      const plansUnsub = onSnapshot(query(collection(db, 'lessonPlans')), (snap) => {
-        setLessonPlans(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => console.error("Error loading Lesson Plans:", err));
+      const plansUnsub = onSnapshot(
+        query(collection(db, 'lessonPlans')),
+        (snap) => {
+          setLessonPlans(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "lessonPlans")
+      );
 
       // 3. Discipline Incidents
-      const discUnsub = onSnapshot(query(collection(db, 'disciplineIncidents')), (snap) => {
-        setDisciplineIncidents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => console.error("Error loading Discipline Incidents:", err));
+      const discUnsub = onSnapshot(
+        query(collection(db, 'disciplineIncidents')),
+        (snap) => {
+          setDisciplineIncidents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "disciplineIncidents")
+      );
 
       // 4. Subject Scores
-      const scoresUnsub = onSnapshot(query(collection(db, 'subject_scores')), (snap) => {
-        setSubjectScores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => console.error("Error loading Subject Scores:", err));
+      const scoresUnsub = onSnapshot(
+        query(collection(db, 'subject_scores')),
+        (snap) => {
+          setSubjectScores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "subject_scores")
+      );
 
       // 5. Lesson Records
-      const recordsUnsub = onSnapshot(query(collection(db, 'records')), (snap) => {
-        setLessonRecords(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => console.error("Error loading Lesson Records:", err));
+      const recordsUnsub = onSnapshot(
+        query(collection(db, 'records')),
+        (snap) => {
+          setLessonRecords(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "records")
+      );
 
       // 6. Kindergarten Assessments
-      const saUnsub = onSnapshot(query(collection(db, 'studentAssessments')), (snap) => {
-        setStudentAssessments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (err) => console.error("Error loading Student Assessments:", err));
+      const saUnsub = onSnapshot(
+        query(collection(db, 'studentAssessments')),
+        (snap) => {
+          setStudentAssessments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "studentAssessments")
+      );
 
-      const kgUnsub = onSnapshot(query(collection(db, 'kindergartenAssessments')), (snap) => {
-        setKgAssessments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as KindergartenAssessment)));
-      }, (err) => console.error("Error loading KG Assessments:", err));
+      const kgUnsub = onSnapshot(
+        query(collection(db, 'kindergartenAssessments')),
+        (snap) => {
+          setKgAssessments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as KindergartenAssessment)));
+        },
+        (err) => handleFirestoreError(err, OperationType.GET, "kindergartenAssessments")
+      );
 
       setLoading(false);
 

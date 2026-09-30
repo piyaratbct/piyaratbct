@@ -1,7 +1,7 @@
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, PERIODS, BASE_GRADE_LEVELS, sortSubjects } from '../types';
 import { Calendar, Trash2, Plus, User, BookOpen, AlertCircle } from 'lucide-react';
 
@@ -29,22 +29,30 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
 
   useEffect(() => {
     // Listen to academic settings (holidays, start/end dates)
-    const unsubConfig = onSnapshot(doc(db, "config", "school"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.termStartDate) setTermStart(data.termStartDate);
-        if (data.termEndDate) setTermEnd(data.termEndDate);
-      }
-    });
+    const unsubConfig = onSnapshot(
+      doc(db, "config", "school"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.termStartDate) setTermStart(data.termStartDate);
+          if (data.termEndDate) setTermEnd(data.termEndDate);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "config/school")
+    );
 
     const calendarDocId = `${systemAcademicYear}_${systemSemester}`;
-    const unsubCalendar = onSnapshot(doc(db, "schoolCalendar", calendarDocId), (docSnap) => {
-      if (docSnap.exists() && docSnap.data().holidays) {
-        setHolidays(docSnap.data().holidays);
-      } else {
-        setHolidays([]);
-      }
-    });
+    const unsubCalendar = onSnapshot(
+      doc(db, "schoolCalendar", calendarDocId),
+      (docSnap) => {
+        if (docSnap.exists() && docSnap.data().holidays) {
+          setHolidays(docSnap.data().holidays);
+        } else {
+          setHolidays([]);
+        }
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "schoolCalendar")
+    );
 
     const fetchData = async () => {
       try {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, updateDoc, doc, onSnapshot } from "firebase/firestore";
 import { Teacher, GRADE_LEVELS } from "../types";
 import { Users, Edit2, Save, X, Search, Shield, GraduationCap, Phone, UserCircle } from "lucide-react";
@@ -31,22 +31,26 @@ export function StaffManager({ currentTeacher }: StaffManagerProps) {
   const canEdit = currentTeacher.role === "admin" || currentTeacher.role === "academic" || currentTeacher.role === "deputy";
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "teachers"), (snapshot) => {
-      const fetched: Teacher[] = [];
-      snapshot.forEach(doc => {
-        fetched.push(doc.data() as Teacher);
-      });
-      // Sort by role then name
-      fetched.sort((a, b) => {
-        const roleWeight = { admin: 1, deputy: 2, academic: 3, discipline: 4, teacher: 5, staff: 6 } as any;
-        const wA = roleWeight[a.role || 'teacher'] || 99;
-        const wB = roleWeight[b.role || 'teacher'] || 99;
-        if (wA !== wB) return wA - wB;
-        return (a.thaiName || "").localeCompare(b.thaiName || "");
-      });
-      setTeachers(fetched);
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      collection(db, "teachers"),
+      (snapshot) => {
+        const fetched: Teacher[] = [];
+        snapshot.forEach(doc => {
+          fetched.push(doc.data() as Teacher);
+        });
+        // Sort by role then name
+        fetched.sort((a, b) => {
+          const roleWeight = { admin: 1, deputy: 2, academic: 3, discipline: 4, teacher: 5, staff: 6 } as any;
+          const wA = roleWeight[a.role || 'teacher'] || 99;
+          const wB = roleWeight[b.role || 'teacher'] || 99;
+          if (wA !== wB) return wA - wB;
+          return (a.thaiName || "").localeCompare(b.thaiName || "");
+        });
+        setTeachers(fetched);
+        setLoading(false);
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "teachers")
+    );
 
     return () => unsub();
   }, []);

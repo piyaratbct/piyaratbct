@@ -30,6 +30,7 @@ import { AssessmentPrintTemplate } from "./AssessmentPrintTemplate";
 import { KindergartenPrintTemplate } from "./KindergartenPrintTemplate";
 import { HealthPrintTemplate } from "./HealthPrintTemplate";
 import { ParentFeedbackPrintTemplate } from "./ParentFeedbackPrintTemplate";
+import { StudentRosterPrintTemplate } from "./StudentRosterPrintTemplate";
 import { ImportStudentData } from "./ImportStudentData";
 import { StudentModal } from "./StudentModal";
 import { BatchPromotionModal } from "./BatchPromotionModal";
@@ -124,6 +125,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   const [printStudents, setPrintStudents] = useState<Student[] | null>(null);
   const [printHealthStudents, setPrintHealthStudents] = useState<Student[] | null>(null);
   const [showFeedbackPrint, setShowFeedbackPrint] = useState(false);
+  const [showRosterPrint, setShowRosterPrint] = useState(false);
 
   // Student Form state
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -152,6 +154,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
 
 
   const isStudentManager = currentTeacher?.role && ['admin', 'academic', 'deputy', 'discipline', 'staff'].includes(currentTeacher.role);
+  const canPromote = currentTeacher?.role && ['admin', 'academic', 'deputy'].includes(currentTeacher.role);
   const canDeleteStudent = currentTeacher?.role === 'admin';
 
   useEffect(() => {
@@ -896,6 +899,13 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                     <option value="female">เพศ: หญิง</option>
                   </select>
                   <button
+                    onClick={() => setShowRosterPrint(true)}
+                    className="w-full justify-center sm:w-auto bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+                    title="พิมพ์ใบรายชื่อนักเรียน ตารางเช็คชื่อ หรือใบลงลายมือชื่อ"
+                  >
+                    <Printer className="h-4 w-4 text-pink-400" /> พิมพ์ใบรายชื่อ
+                  </button>
+                  <button
                     onClick={exportToCSV}
                     className="w-full justify-center sm:w-auto bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors border border-indigo-200"
                   >
@@ -922,12 +932,14 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
                       >
                         <UserPlus className="h-4 w-4" /> เพิ่มนักเรียน
                       </button>
-                      <button
-                        onClick={() => setShowBatchPromotion(true)}
-                        className="w-full justify-center sm:w-auto bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
-                      >
-                        <TrendingUp className="h-4 w-4" /> เลื่อนชั้นทั้งห้อง
-                      </button>
+                      {canPromote && (
+                        <button
+                          onClick={() => setShowBatchPromotion(true)}
+                          className="w-full justify-center sm:w-auto bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
+                        >
+                          <TrendingUp className="h-4 w-4" /> เลื่อนชั้นทั้งห้อง
+                        </button>
+                      )}
                       {GRADE_LEVELS.some(g => g.startsWith(selectedGrade + "/")) && (
                         <button
                           onClick={() => setShowAssignSection(true)}
@@ -2135,6 +2147,18 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           academicYear={systemAcademicYear}
           semester={systemSemester}
           onClose={() => setShowFeedbackPrint(false)}
+        />
+      )}
+
+      {/* Student Roster Print Overlay */}
+      {showRosterPrint && (
+        <StudentRosterPrintTemplate
+          students={displayedStudents}
+          gradeLevel={selectedGrade}
+          academicYear={systemAcademicYear || '2567'}
+          semester={systemSemester || '1'}
+          homeroomTeachers={homeroomTeachers}
+          onClose={() => setShowRosterPrint(false)}
         />
       )}
     </div>

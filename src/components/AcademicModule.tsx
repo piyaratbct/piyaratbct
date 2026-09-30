@@ -8,7 +8,8 @@ import {
   GraduationCap,
   ShieldCheck,
   CalendarDays,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert
 } from "lucide-react";
 import { SchoolEventCalendar } from "./SchoolEventCalendar";
 import { PromotionManager } from "./PromotionManager";
@@ -44,6 +45,7 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
   teachers,
 }) => {
   const students = React.useMemo(() => allStudents.filter(s => s.status === 'active' || !s.status), [allStudents]);
+  const canManagePromotion = currentTeacher?.role === 'admin' || currentTeacher?.role === 'academic' || currentTeacher?.role === 'deputy';
   const [activeTab, setActiveTab] = useState<"calendar" | "settings" | "staff" | "schedule" | "promotion" | "curriculum" | "eportfolio" | "classrooms">("calendar");
   const [upcomingEventCount, setUpcomingEventCount] = useState(0);
 
@@ -139,16 +141,18 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
           <Users className="h-4 w-4" /> บุคลากรและชั้นเรียน
         </button>
         
-        <button
-          onClick={() => setActiveTab("promotion")}
-          className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
-            activeTab === "promotion"
-              ? "bg-indigo-50 text-indigo-700"
-              : "text-slate-500 hover:bg-slate-50"
-          }`}
-        >
-          <GraduationCap className="h-4 w-4" /> เลื่อนชั้นนักเรียน
-        </button>
+        {canManagePromotion && (
+          <button
+            onClick={() => setActiveTab("promotion")}
+            className={`flex-none flex flex-row items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+              activeTab === "promotion"
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <GraduationCap className="h-4 w-4" /> เลื่อนชั้นนักเรียน
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab("curriculum")}
@@ -241,11 +245,32 @@ export const AcademicModule: React.FC<AcademicModuleProps> = ({
       )}
 
       {activeTab === "promotion" && (
-        <PromotionManager 
-          currentAcademicYear={systemAcademicYear} 
-          targetAcademicYear={String(parseInt(systemAcademicYear || "2567") + 1)} 
-          students={students} 
-        />
+        canManagePromotion ? (
+          <PromotionManager 
+            currentAcademicYear={systemAcademicYear} 
+            targetAcademicYear={String(parseInt(systemAcademicYear || "2567") + 1)} 
+            students={students} 
+            currentTeacher={currentTeacher}
+          />
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center max-w-2xl mx-auto my-6">
+            <div className="h-16 w-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">จำกัดสิทธิ์การเข้าถึง</h3>
+            <p className="text-slate-600 text-sm leading-relaxed mb-4">
+              หน้า <strong>"จัดการเลื่อนชั้นและจบการศึกษา"</strong> ถูกจำกัดสิทธิ์การเข้าถึงสำหรับครูผู้สอน
+              ฟังก์ชันนี้สงวนสิทธิ์เฉพาะฝ่ายวิชาการ (Academic), ผู้บริหาร (Deputy) และผู้ดูแลระบบ (Admin) เท่านั้น
+              เพื่อป้องกันความผิดพลาดของข้อมูลสถานะนักเรียนทั้งโรงเรียน
+            </p>
+            <button
+              onClick={() => setActiveTab("calendar")}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
+            >
+              กลับไปยังหน้าปฏิทินกิจกรรม
+            </button>
+          </div>
+        )
       )}
 
 

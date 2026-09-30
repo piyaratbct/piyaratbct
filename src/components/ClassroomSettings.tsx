@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClassroomConfig, Teacher, Student, GRADE_LEVELS } from '../types';
 import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Plus, Edit2, Trash2, Save, X, AlertCircle, Users, BookOpen, RefreshCw } from 'lucide-react';
 
 interface ClassroomSettingsProps {
@@ -23,11 +23,15 @@ export const ClassroomSettings: React.FC<ClassroomSettingsProps> = ({ students, 
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'classrooms'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ClassroomConfig);
-      setClassrooms(data.sort((a, b) => a.name.localeCompare(b.name, 'th')));
-      setHasLoaded(true);
-    });
+    const unsubscribe = onSnapshot(
+      collection(db, 'classrooms'),
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ClassroomConfig);
+        setClassrooms(data.sort((a, b) => a.name.localeCompare(b.name, 'th')));
+        setHasLoaded(true);
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, "classrooms")
+    );
     return () => unsubscribe();
   }, []);
 

@@ -12,7 +12,13 @@ interface AvatarUploadProps {
 
 export function AvatarUpload({ url, name, onUpload, size = 'md', editable = false }: AvatarUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset error if url changes
+  React.useEffect(() => {
+    setImgError(false);
+  }, [url]);
 
   const sizeClasses = {
     xs: 'w-5 h-5 text-[9px]',
@@ -27,16 +33,18 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     
+    if (!file) return;
+
     if (!file.type.startsWith("image/")) {
       alert("กรุณาอัปโหลดไฟล์รูปภาพ (JPEG, PNG, WebP) เท่านั้น");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    
 
     try {
       setIsUploading(true);
-      const base64Str = await resizeImageFile(file, 0.2, 400, 400); // Max 200KB, 400x400
+      // High-performance compression: max 300x300, ~30-50KB WebP
+      const base64Str = await resizeImageFile(file, 0.08, 320, 320);
       await onUpload(base64Str);
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -49,19 +57,23 @@ export function AvatarUpload({ url, name, onUpload, size = 'md', editable = fals
     }
   };
 
-  const initials = name ? name.charAt(0) : '?';
+  const initials = name ? name.trim().charAt(0) : '?';
 
   return (
     <div className={`relative inline-block ${editable ? 'cursor-pointer group' : ''}`} onClick={() => editable && !isUploading && fileInputRef.current?.click()}>
-      {url ? (
+      {url && !imgError ? (
         <img 
           src={url} 
           alt={name} 
-          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-white shadow-sm`}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setImgError(true)}
+          className={`${sizeClasses[size]} rounded-full object-cover border-2 border-white shadow-sm bg-slate-100`}
         />
       ) : (
-        <div className={`${sizeClasses[size]} rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border-2 border-white shadow-sm`}>
-          <User className="w-1/2 h-1/2" />
+        <div className={`${sizeClasses[size]} rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center border-2 border-white shadow-sm select-none`}>
+          {name ? initials : <User className="w-1/2 h-1/2 text-slate-400" />}
         </div>
       )}
 
