@@ -1523,7 +1523,7 @@ export default function App() {
   }
 
   if (!currentTeacher) {
-    return <AuthView onLogin={handleLogin} customLogo={customLogo} />;
+    return <AuthView onLogin={handleLogin} customLogo={customLogo} systemAcademicYear={systemAcademicYear} />;
   }
 
   return (

@@ -1,12 +1,16 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, Download, Loader2, Check } from 'lucide-react';
 import { AdmissionRecord } from '../types';
 import { SchoolLogo } from './PrintTemplate';
 import { formatThaiDateTime } from '../lib/dateUtils';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose: () => void }> = ({ record, onClose }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('print-mode-active');
@@ -17,6 +21,62 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!contentRef.current || isDownloading) return;
+    try {
+      setIsDownloading(true);
+      const element = contentRef.current;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      if (pdfHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      } else {
+        let heightLeft = pdfHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position = heightLeft - pdfHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+          heightLeft -= pageHeight;
+        }
+      }
+
+      const studentName = `${record.firstName || ''}_${record.lastName || ''}`.trim() || 'นักเรียนใหม่';
+      const year = record.academicYear || '2570';
+      const fileName = `ใบสมัครเข้าเรียน_${studentName}_ปีการศึกษา${year}.pdf`.replace(/\s+/g, '_');
+      pdf.save(fileName);
+
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error generating PDF with html2canvas, falling back to print dialog:', err);
+      window.print();
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const formatAddress = (addrObj?: any) => {
@@ -66,12 +126,39 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 backdrop-blur-sm print:absolute print:left-0 print:top-0 print:h-auto print:bg-white print:block print:overflow-visible">
       <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 print:hidden shadow-sm z-10">
         <h2 className="text-xl font-black text-slate-800">ตัวอย่างก่อนพิมพ์: ใบสมัครเข้าเรียน</h2>
-        <div className="flex items-center space-x-3">
-          <button onClick={handlePrint} className="flex items-center space-x-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isDownloading}
+            className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer ${
+              downloadSuccess
+                ? 'bg-emerald-600 text-white ring-2 ring-emerald-300'
+                : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white'
+            } disabled:opacity-50`}
+            title="ดาวน์โหลดไฟล์เอกสาร PDF ลงในเครื่องทันที"
+          >
+            {isDownloading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>กำลังสร้าง PDF...</span>
+              </>
+            ) : downloadSuccess ? (
+              <>
+                <Check className="h-4 w-4" />
+                <span>ดาวน์โหลดสำเร็จ!</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>ดาวน์โหลดไฟล์ PDF</span>
+              </>
+            )}
+          </button>
+          <button onClick={handlePrint} className="flex items-center space-x-2 px-4 sm:px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer" title="พิมพ์เอกสาร หรือเลือกบันทึกเป็น PDF ผ่านเบราว์เซอร์">
             <Printer className="h-4 w-4" />
             <span>พิมพ์เอกสาร</span>
           </button>
-          <button onClick={onClose} className="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">
+          <button onClick={onClose} className="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer" title="ปิดหน้าต่าง">
             <X className="h-5 w-5" />
           </button>
         </div>

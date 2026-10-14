@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Teacher, SUBJECTS } from '../types';
-import { BookOpen, UserPlus, LogIn, Award, Building2, Phone, User, Mail, ShieldCheck, KeyRound, Shield, Loader2 } from 'lucide-react';
+import { BookOpen, UserPlus, LogIn, Award, Building2, Phone, User, Mail, ShieldCheck, KeyRound, Shield, Loader2, GraduationCap } from 'lucide-react';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import firebaseConfig from '../../firebase-applet-config.json';
+import { ParentAdmissionModal } from './ParentAdmissionModal';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -17,9 +18,11 @@ import {
 interface AuthViewProps {
   onLogin: (teacher: Teacher) => void;
   customLogo?: string | null;
+  systemAcademicYear?: string;
 }
 
-export function AuthView({ onLogin, customLogo }: AuthViewProps) {
+export function AuthView({ onLogin, customLogo, systemAcademicYear = '2569' }: AuthViewProps) {
+  const [showParentAdmissionModal, setShowParentAdmissionModal] = useState(false);
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -391,7 +394,42 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
+      {/* For Parents: New Student Admission Card */}
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-2xl p-4 sm:p-5 shadow-lg text-white flex flex-col sm:flex-row items-center justify-between gap-4 border border-emerald-400/30">
+          <div className="flex items-center gap-3.5 text-center sm:text-left">
+            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+              <GraduationCap className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <span className="bg-white/25 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full tracking-wide">
+                  สำหรับผู้ปกครอง
+                </span>
+                <span className="text-emerald-100 text-[11px] font-medium">
+                  ปีการศึกษา {String(Number(systemAcademicYear || '2569') + 1)}
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                รับสมัครนักเรียนใหม่
+              </h3>
+              <p className="text-xs text-emerald-100">
+                กรอกใบสมัครออนไลน์ได้ด้วยตนเอง โดยไม่ต้องสมัครสมาชิก
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowParentAdmissionModal(true)}
+            className="w-full sm:w-auto px-5 py-2.5 bg-white text-emerald-700 hover:bg-emerald-50 active:scale-95 font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>กรอกใบสมัคร</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
         <div className="bg-white py-8 px-6 sm:px-10 rounded-2xl shadow-xl border border-slate-100">
           
           {/* Tabs Selector */}
@@ -519,6 +557,17 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
                     <span>เข้าสู่ระบบ / Login</span>
                   )}
                 </button>
+
+                <div className="pt-2 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowParentAdmissionModal(true)}
+                    className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-1"
+                  >
+                    <GraduationCap className="h-4 w-4" />
+                    <span>ผู้ปกครองประสงค์จะสมัครเรียนใหม่? คลิกที่นี่เพื่อกรอกใบสมัคร (ไม่ต้องเข้าสู่ระบบ)</span>
+                  </button>
+                </div>
               </div>
             </form>
           ) : (
@@ -736,6 +785,14 @@ export function AuthView({ onLogin, customLogo }: AuthViewProps) {
 
         </div>
       </div>
+
+      {/* Parent Admission Modal */}
+      <ParentAdmissionModal
+        isOpen={showParentAdmissionModal}
+        onClose={() => setShowParentAdmissionModal(false)}
+        systemAcademicYear={systemAcademicYear}
+        customLogo={customLogo}
+      />
     </div>
   );
 }

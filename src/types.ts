@@ -383,6 +383,13 @@ export interface SubjectSettings {
   beforeMidSoftSkill: ActivityColumn[];
   afterMidKnowledge: ActivityColumn[];
   afterMidSoftSkill: ActivityColumn[];
+  // สัดส่วนคะแนนเต็มของแต่ละหมวด (Default: 20, 10, 20, 10 / กลางภาค 20 / ปลายภาค 20 รวม 100)
+  targetBeforeMidKnowledge?: number;
+  targetBeforeMidSoftSkill?: number;
+  targetAfterMidKnowledge?: number;
+  targetAfterMidSoftSkill?: number;
+  targetMidterm?: number;
+  targetFinal?: number;
 }
 
 export interface StudentAssessment {

@@ -174,6 +174,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     if (!subjectSettings) return null;
     return {
       ...subjectSettings,
+      targetBeforeMidKnowledge: subjectSettings.targetBeforeMidKnowledge ?? 20,
+      targetBeforeMidSoftSkill: subjectSettings.targetBeforeMidSoftSkill ?? 10,
+      targetAfterMidKnowledge: subjectSettings.targetAfterMidKnowledge ?? 20,
+      targetAfterMidSoftSkill: subjectSettings.targetAfterMidSoftSkill ?? 10,
+      targetMidterm: subjectSettings.targetMidterm ?? 20,
+      targetFinal: subjectSettings.targetFinal ?? 20,
       beforeMidKnowledge: [...subjectSettings.beforeMidKnowledge, ...lessonPlanEvals.beforeMidKnowledge],
       beforeMidSoftSkill: [...subjectSettings.beforeMidSoftSkill, ...lessonPlanEvals.beforeMidSoftSkill],
       afterMidKnowledge: [...subjectSettings.afterMidKnowledge, ...lessonPlanEvals.afterMidKnowledge],
@@ -492,10 +498,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       const rawSum = effectiveSettings?.[category]?.reduce((sum, act) => sum + (updatedActivities[act.id] || 0), 0) || 0;
       const rawMaxSum = effectiveSettings?.[category]?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
       
-      const targetMax = category === 'beforeMidKnowledge' ? 20 : 
-                        category === 'beforeMidSoftSkill' ? 10 : 
-                        category === 'afterMidKnowledge' ? 20 : 
-                        category === 'afterMidSoftSkill' ? 10 : 0;
+      const targetMax = category === 'beforeMidKnowledge' ? (effectiveSettings?.targetBeforeMidKnowledge ?? 20) : 
+                        category === 'beforeMidSoftSkill' ? (effectiveSettings?.targetBeforeMidSoftSkill ?? 10) : 
+                        category === 'afterMidKnowledge' ? (effectiveSettings?.targetAfterMidKnowledge ?? 20) : 
+                        category === 'afterMidSoftSkill' ? (effectiveSettings?.targetAfterMidSoftSkill ?? 10) : 0;
       
       // Proportional calculation (rounded to 2 decimal places)
       let categorySum = rawSum;
@@ -588,7 +594,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           });
         }
         
-        // Part 2: Midterm (max 20)
+        // Part 2: Midterm (dynamic max)
+        const allowedMidtermMax = effectiveSettings?.targetMidterm ?? 20;
         if (score.midtermScore !== undefined && score.midtermScore !== null && score.midtermScore !== 0) {
           if (score.midtermScore < 0) {
             errors.push({
@@ -600,11 +607,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               categoryName: 'การสอบวัดผล',
               enteredValue: score.midtermScore,
               minAllowed: 0,
-              maxAllowed: 20,
+              maxAllowed: allowedMidtermMax,
               message: `คะแนนสอบกลางภาคติดลบ (${score.midtermScore})`,
               targetTab: 'part2'
             });
-          } else if (score.midtermScore > 20) {
+          } else if (score.midtermScore > allowedMidtermMax) {
             errors.push({
               studentId: student.id,
               studentNumber,
@@ -614,14 +621,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               categoryName: 'การสอบวัดผล',
               enteredValue: score.midtermScore,
               minAllowed: 0,
-              maxAllowed: 20,
-              message: `คะแนนสอบกลางภาค (${score.midtermScore}) เกินคะแนนเต็ม 20`,
+              maxAllowed: allowedMidtermMax,
+              message: `คะแนนสอบกลางภาค (${score.midtermScore}) เกินคะแนนเต็ม ${allowedMidtermMax}`,
               targetTab: 'part2'
             });
           }
         }
         
-        // Part 2: Final (max 20)
+        // Part 2: Final (dynamic max)
+        const allowedFinalMax = effectiveSettings?.targetFinal ?? 20;
         if (score.finalScore !== undefined && score.finalScore !== null && score.finalScore !== 0) {
           if (score.finalScore < 0) {
             errors.push({
@@ -633,11 +641,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               categoryName: 'การสอบวัดผล',
               enteredValue: score.finalScore,
               minAllowed: 0,
-              maxAllowed: 20,
+              maxAllowed: allowedFinalMax,
               message: `คะแนนสอบปลายภาคติดลบ (${score.finalScore})`,
               targetTab: 'part2'
             });
-          } else if (score.finalScore > 20) {
+          } else if (score.finalScore > allowedFinalMax) {
             errors.push({
               studentId: student.id,
               studentNumber,
@@ -647,8 +655,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
               categoryName: 'การสอบวัดผล',
               enteredValue: score.finalScore,
               minAllowed: 0,
-              maxAllowed: 20,
-              message: `คะแนนสอบปลายภาค (${score.finalScore}) เกินคะแนนเต็ม 20`,
+              maxAllowed: allowedFinalMax,
+              message: `คะแนนสอบปลายภาค (${score.finalScore}) เกินคะแนนเต็ม ${allowedFinalMax}`,
               targetTab: 'part2'
             });
           }
@@ -748,14 +756,16 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
 
     let midterm = score.midtermScore;
+    const allowedMidMax = effectiveSettings?.targetMidterm ?? 20;
     if (midterm !== undefined && midterm !== null) {
-      if (midterm > 20) { midterm = 20; count++; modified = true; }
+      if (midterm > allowedMidMax) { midterm = allowedMidMax; count++; modified = true; }
       else if (midterm < 0) { midterm = 0; count++; modified = true; }
     }
 
     let finalVal = score.finalScore;
+    const allowedFinMax = effectiveSettings?.targetFinal ?? 20;
     if (finalVal !== undefined && finalVal !== null) {
-      if (finalVal > 20) { finalVal = 20; count++; modified = true; }
+      if (finalVal > allowedFinMax) { finalVal = allowedFinMax; count++; modified = true; }
       else if (finalVal < 0) { finalVal = 0; count++; modified = true; }
     }
 
@@ -782,21 +792,26 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     let ams = score.afterMidSoftSkillScore || 0;
 
     if (effectiveSettings) {
+      const targetBMK = effectiveSettings.targetBeforeMidKnowledge ?? 20;
+      const targetBMS = effectiveSettings.targetBeforeMidSoftSkill ?? 10;
+      const targetAMK = effectiveSettings.targetAfterMidKnowledge ?? 20;
+      const targetAMS = effectiveSettings.targetAfterMidSoftSkill ?? 10;
+
       const rawBMK = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
       const rawBMKMax = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
-      bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * 20).toFixed(2)) : rawBMK;
+      bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * targetBMK).toFixed(2)) : rawBMK;
 
       const rawBMS = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
       const rawBMSMax = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
-      bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * 10).toFixed(2)) : rawBMS;
+      bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * targetBMS).toFixed(2)) : rawBMS;
 
       const rawAMK = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
       const rawAMKMax = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
-      amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * 20).toFixed(2)) : rawAMK;
+      amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * targetAMK).toFixed(2)) : rawAMK;
 
       const rawAMS = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
       const rawAMSMax = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
-      ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * 10).toFixed(2)) : rawAMS;
+      ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * targetAMS).toFixed(2)) : rawAMS;
     }
 
     const totalScore = Math.round(bmk + bms + (midterm || 0) + amk + ams + (finalVal || 0));
@@ -920,6 +935,9 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         }
 
         // Check midterm & final
+        const allowedMidMax = effectiveSettings?.targetMidterm ?? 20;
+        const allowedFinMax = effectiveSettings?.targetFinal ?? 20;
+
         if (score?.midtermScore === undefined || score?.midtermScore === null || score?.midtermScore === '') {
           missing.push({
             studentId: student.id,
@@ -928,7 +946,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             fieldId: 'midtermScore',
             fieldName: 'สอบกลางภาค (Midterm)',
             categoryName: 'การสอบวัดผล',
-            maxScore: 20,
+            maxScore: allowedMidMax,
             targetTab: 'part2'
           });
         }
@@ -940,7 +958,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             fieldId: 'finalScore',
             fieldName: 'สอบปลายภาค (Final)',
             categoryName: 'การสอบวัดผล',
-            maxScore: 20,
+            maxScore: allowedFinMax,
             targetTab: 'part2'
           });
         }
@@ -1052,21 +1070,26 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       // Recalculate category totals
       let bmk = 0, bms = 0, amk = 0, ams = 0;
       if (effectiveSettings) {
+        const targetBMK = effectiveSettings.targetBeforeMidKnowledge ?? 20;
+        const targetBMS = effectiveSettings.targetBeforeMidSoftSkill ?? 10;
+        const targetAMK = effectiveSettings.targetAfterMidKnowledge ?? 20;
+        const targetAMS = effectiveSettings.targetAfterMidSoftSkill ?? 10;
+
         const rawBMK = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
         const rawBMKMax = effectiveSettings.beforeMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
-        bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * 20).toFixed(2)) : rawBMK;
+        bmk = rawBMKMax > 0 ? Number(((rawBMK / rawBMKMax) * targetBMK).toFixed(2)) : rawBMK;
 
         const rawBMS = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
         const rawBMSMax = effectiveSettings.beforeMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
-        bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * 10).toFixed(2)) : rawBMS;
+        bms = rawBMSMax > 0 ? Number(((rawBMS / rawBMSMax) * targetBMS).toFixed(2)) : rawBMS;
 
         const rawAMK = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
         const rawAMKMax = effectiveSettings.afterMidKnowledge.reduce((sum, act) => sum + Number(act.maxScore), 0);
-        amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * 20).toFixed(2)) : rawAMK;
+        amk = rawAMKMax > 0 ? Number(((rawAMK / rawAMKMax) * targetAMK).toFixed(2)) : rawAMK;
 
         const rawAMS = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + (newActivities[act.id] || 0), 0);
         const rawAMSMax = effectiveSettings.afterMidSoftSkill.reduce((sum, act) => sum + Number(act.maxScore), 0);
-        ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * 10).toFixed(2)) : rawAMS;
+        ams = rawAMSMax > 0 ? Number(((rawAMS / rawAMSMax) * targetAMS).toFixed(2)) : rawAMS;
       }
 
       const totalScore = Math.round(bmk + bms + Number(midterm) + amk + ams + Number(finalVal));
@@ -1206,10 +1229,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     }
 
     // 2. Prepare score updates
-    const targetBeforeMidKMax = 20;
-    const targetBeforeMidSMax = 10;
-    const targetAfterMidKMax = 20;
-    const targetAfterMidSMax = 10;
+    const targetBeforeMidKMax = activeSettings?.targetBeforeMidKnowledge ?? 20;
+    const targetBeforeMidSMax = activeSettings?.targetBeforeMidSoftSkill ?? 10;
+    const targetAfterMidKMax = activeSettings?.targetAfterMidKnowledge ?? 20;
+    const targetAfterMidSMax = activeSettings?.targetAfterMidSoftSkill ?? 10;
 
     const rawBeforeMidKMax = activeSettings?.beforeMidKnowledge?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
     const rawBeforeMidSMax = activeSettings?.beforeMidSoftSkill?.reduce((sum, act) => sum + Number(act.maxScore), 0) || 0;
@@ -1951,11 +1974,11 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       <tr>
                         <th rowSpan={2} className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
                         <th rowSpan={2} className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
-                        <th colSpan={effectiveSettings.beforeMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้ก่อนกลางภาค (20)</th>
-                        <th colSpan={effectiveSettings.beforeMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยก่อนกลางภาค (10)</th>
-                        <th colSpan={effectiveSettings.afterMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้หลังกลางภาค (20)</th>
-                        <th colSpan={effectiveSettings.afterMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยหลังกลางภาค (10)</th>
-                        <th rowSpan={2} className="px-3 py-3 text-center border-l border-slate-200 bg-indigo-50 font-bold">รวมเก็บคะแนน<br/><span className="text-xs text-indigo-500 font-normal">(60)</span></th>
+                        <th colSpan={effectiveSettings.beforeMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้ก่อนกลางภาค ({effectiveSettings.targetBeforeMidKnowledge ?? 20})</th>
+                        <th colSpan={effectiveSettings.beforeMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยก่อนกลางภาค ({effectiveSettings.targetBeforeMidSoftSkill ?? 10})</th>
+                        <th colSpan={effectiveSettings.afterMidKnowledge.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">ความรู้หลังกลางภาค ({effectiveSettings.targetAfterMidKnowledge ?? 20})</th>
+                        <th colSpan={effectiveSettings.afterMidSoftSkill.length} className="px-3 py-2 text-center border-b border-r border-slate-200 bg-emerald-50/50">จิตพิสัยหลังกลางภาค ({effectiveSettings.targetAfterMidSoftSkill ?? 10})</th>
+                        <th rowSpan={2} className="px-3 py-3 text-center border-l border-slate-200 bg-indigo-50 font-bold">รวมเก็บคะแนน<br/><span className="text-xs text-indigo-500 font-normal">({(effectiveSettings.targetBeforeMidKnowledge ?? 20) + (effectiveSettings.targetBeforeMidSoftSkill ?? 10) + (effectiveSettings.targetAfterMidKnowledge ?? 20) + (effectiveSettings.targetAfterMidSoftSkill ?? 10)})</span></th>
                       </tr>
                       <tr>
                         {effectiveSettings.beforeMidKnowledge.map(act => (
@@ -2498,10 +2521,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                           <th className="px-2 py-3 text-center w-12 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">เลขที่</th>
                           <th className="px-4 py-3 w-40 whitespace-nowrap sticky left-[48px] bg-slate-50 z-10 border-r border-slate-200 shadow-[1px_0_0_#e2e8f0]">ชื่อ-นามสกุล</th>
                           <th className="px-3 py-3 text-center border-r border-slate-200 bg-sky-50">Pre-Test<br/><span className="text-xs font-normal text-slate-400">ก่อนเรียน</span></th>
-                          <th className="px-3 py-3 text-center border-r border-slate-200 bg-amber-50">สอบกลางภาค<br/><span className="text-xs font-normal text-amber-500">(20)</span></th>
-                          <th className="px-3 py-3 text-center border-r border-slate-200 bg-rose-50">สอบปลายภาค<br/><span className="text-xs font-normal text-rose-500">(20)</span></th>
+                          <th className="px-3 py-3 text-center border-r border-slate-200 bg-amber-50">สอบกลางภาค<br/><span className="text-xs font-normal text-amber-500">({effectiveSettings?.targetMidterm ?? 20})</span></th>
+                          <th className="px-3 py-3 text-center border-r border-slate-200 bg-rose-50">สอบปลายภาค<br/><span className="text-xs font-normal text-rose-500">({effectiveSettings?.targetFinal ?? 20})</span></th>
                           <th className="px-3 py-3 text-center border-r border-slate-200 bg-sky-50">Post-Test<br/><span className="text-xs font-normal text-slate-400">หลังเรียน</span></th>
-                          <th className="px-4 py-3 text-center border-r border-slate-200 bg-indigo-50">รวมทั้งหมด<br/><span className="text-xs font-normal text-indigo-500">(100)</span></th>
+                          <th className="px-4 py-3 text-center border-r border-slate-200 bg-indigo-50">รวมทั้งหมด<br/><span className="text-xs font-normal text-indigo-500">({((effectiveSettings?.targetBeforeMidKnowledge ?? 20) + (effectiveSettings?.targetBeforeMidSoftSkill ?? 10) + (effectiveSettings?.targetAfterMidKnowledge ?? 20) + (effectiveSettings?.targetAfterMidSoftSkill ?? 10) + (effectiveSettings?.targetMidterm ?? 20) + (effectiveSettings?.targetFinal ?? 20))})</span></th>
                           <th className="px-4 py-3 text-center bg-indigo-50">เกรด</th>
                         </tr>
                       </thead>
@@ -2515,9 +2538,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                               totalScore: '-', grade: '-' 
                             };
                             
+                            const allowedMidMax = effectiveSettings?.targetMidterm ?? 20;
+                            const allowedFinMax = effectiveSettings?.targetFinal ?? 20;
+
                             const isPreTestInvalid = score.preTestScore !== undefined && score.preTestScore !== null && score.preTestScore !== '' && score.preTestScore !== 0 && (Number(score.preTestScore) < 0 || Number(score.preTestScore) > 100);
-                            const isMidtermInvalid = score.midtermScore !== undefined && score.midtermScore !== null && score.midtermScore !== '' && score.midtermScore !== 0 && (Number(score.midtermScore) < 0 || Number(score.midtermScore) > 20);
-                            const isFinalInvalid = score.finalScore !== undefined && score.finalScore !== null && score.finalScore !== '' && score.finalScore !== 0 && (Number(score.finalScore) < 0 || Number(score.finalScore) > 20);
+                            const isMidtermInvalid = score.midtermScore !== undefined && score.midtermScore !== null && score.midtermScore !== '' && score.midtermScore !== 0 && (Number(score.midtermScore) < 0 || Number(score.midtermScore) > allowedMidMax);
+                            const isFinalInvalid = score.finalScore !== undefined && score.finalScore !== null && score.finalScore !== '' && score.finalScore !== 0 && (Number(score.finalScore) < 0 || Number(score.finalScore) > allowedFinMax);
                             const isPostTestInvalid = score.postTestScore !== undefined && score.postTestScore !== null && score.postTestScore !== '' && score.postTestScore !== 0 && (Number(score.postTestScore) < 0 || Number(score.postTestScore) > 100);
                             
                             const isMidtermMissing = score.midtermScore === undefined || score.midtermScore === null || score.midtermScore === '';
@@ -2595,7 +2621,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                     disabled={student.status !== "active" || isReadOnly} 
                                     type="number" 
                                     min={0} 
-                                    max={20}
+                                    max={allowedMidMax}
                                     data-s-idx={sIdx}
                                     data-c-idx={1}
                                     data-student-id={student.id}
@@ -2611,10 +2637,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                     value={score.midtermScore === 0 ? '' : score.midtermScore}
                                     title={
                                       isMidtermInvalid 
-                                        ? `คะแนนสอบกลางภาคต้องอยู่ระหว่าง 0 - 20 (ระบุ: ${score.midtermScore})` 
+                                        ? `คะแนนสอบกลางภาคต้องอยู่ระหว่าง 0 - ${allowedMidMax} (ระบุ: ${score.midtermScore})` 
                                         : isMidtermMissing 
-                                          ? 'ยังไม่ได้กรอกคะแนนสอบกลางภาค (เต็ม 20)' 
-                                          : 'คะแนนเต็ม 20'
+                                          ? `ยังไม่ได้กรอกคะแนนสอบกลางภาค (เต็ม ${allowedMidMax})` 
+                                          : `คะแนนเต็ม ${allowedMidMax}`
                                     }
                                     onFocus={(e) => {
                                       setActiveStudentId(student.id);
@@ -2627,7 +2653,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                   {isMidtermInvalid ? (
                                     <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
-                                      {Number(score.midtermScore) > 20 ? '>20' : '<0'}
+                                      {Number(score.midtermScore) > allowedMidMax ? `>${allowedMidMax}` : '<0'}
                                     </span>
                                   ) : isMidtermMissing ? (
                                     <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">
@@ -2644,7 +2670,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                     disabled={student.status !== "active" || isReadOnly} 
                                     type="number" 
                                     min={0} 
-                                    max={20}
+                                    max={allowedFinMax}
                                     data-s-idx={sIdx}
                                     data-c-idx={2}
                                     data-student-id={student.id}
@@ -2660,10 +2686,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                     value={score.finalScore === 0 ? '' : score.finalScore}
                                     title={
                                       isFinalInvalid 
-                                        ? `คะแนนสอบปลายภาคต้องอยู่ระหว่าง 0 - 20 (ระบุ: ${score.finalScore})` 
+                                        ? `คะแนนสอบปลายภาคต้องอยู่ระหว่าง 0 - ${allowedFinMax} (ระบุ: ${score.finalScore})` 
                                         : isFinalMissing 
-                                          ? 'ยังไม่ได้กรอกคะแนนสอบปลายภาค (เต็ม 20)' 
-                                          : 'คะแนนเต็ม 20'
+                                          ? `ยังไม่ได้กรอกคะแนนสอบปลายภาค (เต็ม ${allowedFinMax})` 
+                                          : `คะแนนเต็ม ${allowedFinMax}`
                                     }
                                     onFocus={(e) => {
                                       setActiveStudentId(student.id);
@@ -2676,7 +2702,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                                   />
                                   {isFinalInvalid ? (
                                     <span className="text-[9px] text-rose-600 font-bold leading-tight mt-0.5 whitespace-nowrap">
-                                      {Number(score.finalScore) > 20 ? '>20' : '<0'}
+                                      {Number(score.finalScore) > allowedFinMax ? `>${allowedFinMax}` : '<0'}
                                     </span>
                                   ) : isFinalMissing ? (
                                     <span className="text-[9px] text-amber-600 font-semibold leading-tight mt-0.5 whitespace-nowrap">

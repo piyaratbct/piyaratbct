@@ -251,6 +251,13 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
   const amk = settings?.afterMidKnowledge || [];
   const ams = settings?.afterMidSoftSkill || [];
 
+  const bmkTarget = settings?.targetBeforeMidKnowledge ?? 20;
+  const bmsTarget = settings?.targetBeforeMidSoftSkill ?? 10;
+  const amkTarget = settings?.targetAfterMidKnowledge ?? 20;
+  const amsTarget = settings?.targetAfterMidSoftSkill ?? 10;
+  const midTarget = settings?.targetMidterm ?? 20;
+  const finTarget = settings?.targetFinal ?? 20;
+
   const bmkTotal = bmk.reduce((sum, act) => sum + act.maxScore, 0);
   const bmsTotal = bms.reduce((sum, act) => sum + act.maxScore, 0);
   const amkTotal = amk.reduce((sum, act) => sum + act.maxScore, 0);
@@ -620,12 +627,12 @@ export const SubjectScorePrintTemplate: React.FC<SubjectScorePrintTemplateProps>
                       <th rowSpan={2} className="border border-slate-900 px-2 py-2 text-center w-16">เกรด</th>
                     </tr>
                     <tr className="bg-slate-100">
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ความรู้<br/>ก่อนกลางภาค<br/>({bmkTotal || 20})</th>
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จิตพิสัย<br/>ก่อนกลางภาค<br/>({bmsTotal || 10})</th>
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ความรู้<br/>หลังกลางภาค<br/>({amkTotal || 20})</th>
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จิตพิสัย<br/>หลังกลางภาค<br/>({amsTotal || 10})</th>
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">กลางภาค<br/>(20)</th>
-                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ปลายภาค<br/>(20)</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ความรู้<br/>ก่อนกลางภาค<br/>({bmkTarget})</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จิตพิสัย<br/>ก่อนกลางภาค<br/>({bmsTarget})</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ความรู้<br/>หลังกลางภาค<br/>({amkTarget})</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">จิตพิสัย<br/>หลังกลางภาค<br/>({amsTarget})</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">กลางภาค<br/>({midTarget})</th>
+                      <th className="border border-slate-900 px-1 py-1 text-center font-normal text-xs w-16">ปลายภาค<br/>({finTarget})</th>
                     </tr>
                   </thead>
                   <tbody>
