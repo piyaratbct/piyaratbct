@@ -81,22 +81,31 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
     ethnicity: 'ไทย',
     nationality: 'ไทย',
     religion: 'พุทธ',
-    familyStatus: 'อยู่ด้วยกัน',
+    familyStatus: '',
+    birthHospital: '',
     livingWith: 'บิดาและมารดา',
     fatherFirstName: 'นาย ',
     fatherLastName: '',
     fatherEthnicity: 'ไทย',
     fatherNationality: 'ไทย',
     fatherReligion: 'พุทธ',
+    fatherOccupation: '',
+    fatherIncome: '',
     motherPrefix: 'นาง',
     motherFirstName: '',
     motherLastName: '',
     motherEthnicity: 'ไทย',
     motherNationality: 'ไทย',
     motherReligion: 'พุทธ',
+    motherOccupation: '',
+    motherIncome: '',
+    guardianFirstName: '',
+    guardianLastName: '',
     guardianEthnicity: 'ไทย',
     guardianNationality: 'ไทย',
     guardianReligion: 'พุทธ',
+    guardianOccupation: '',
+    guardianIncome: '',
     addressObj: { ...emptyAddress },
     fatherAddressObj: { ...emptyAddress },
     motherAddressObj: { ...emptyAddress },
@@ -136,6 +145,7 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
 
   // Helper options
   const familyStatusOptions = [
+    { value: '', label: 'เลือกสถานภาพสมรสของบิดามารดา' },
     { value: 'อยู่ด้วยกัน', label: 'อยู่ด้วยกัน' },
     { value: 'แยกกันอยู่', label: 'แยกกันอยู่' },
     { value: 'หย่าร้าง', label: 'หย่าร้าง' },
@@ -543,6 +553,78 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
       return;
     }
 
+    if (!formData.birthHospital?.trim()) {
+      setErrorMessage('กรุณาระบุโรงพยาบาลที่เกิดของนักเรียน');
+      return;
+    }
+
+    if (!formData.familyStatus?.trim()) {
+      setErrorMessage('กรุณาเลือกสถานภาพสมรสของบิดามารดา');
+      return;
+    }
+
+    // Always require Father's name and Mother's name (รูปแบบที่ 2)
+    const cleanFatherFirstName = (formData.fatherFirstName || '').replace(/^นาย\s*/, '').trim();
+    if (!cleanFatherFirstName || !formData.fatherLastName?.trim()) {
+      setErrorMessage('กรุณากรอกชื่อและนามสกุลของบิดาให้ครบถ้วน');
+      return;
+    }
+
+    const cleanMotherFirstName = (formData.motherFirstName || '').replace(/^(นางสาว|นาง)\s*/, '').trim();
+    if (!cleanMotherFirstName || !formData.motherLastName?.trim()) {
+      setErrorMessage('กรุณากรอกชื่อและนามสกุลของมารดาให้ครบถ้วน');
+      return;
+    }
+
+    // Validation for Parents / Guardian Occupation and Income
+    const isFatherDeceased = formData.familyStatus === 'บิดาถึงแก่กรรม' || formData.familyStatus === 'บิดาและมารดาถึงแก่กรรม';
+    const isMotherDeceased = formData.familyStatus === 'มารดาถึงแก่กรรม' || formData.familyStatus === 'บิดาและมารดาถึงแก่กรรม';
+    const isLivingWithGuardian = ['ผู้ปกครอง', 'ปู่ ย่า ตา ยาย', 'ญาติ', 'other'].includes(formData.livingWith || '');
+
+    // Check Father occupation & income
+    if (!isFatherDeceased && (formData.livingWith === 'บิดาและมารดา' || formData.livingWith === 'บิดา' || !formData.livingWith || formData.fatherFirstName?.replace('นาย', '').trim())) {
+      if (!formData.fatherOccupation?.trim()) {
+        setErrorMessage('กรุณาระบุอาชีพของบิดา');
+        return;
+      }
+      if (!formData.fatherIncome?.trim()) {
+        setErrorMessage('กรุณาระบุช่วงรายได้ต่อปีของบิดา');
+        return;
+      }
+    }
+
+    // Check Mother occupation & income
+    if (!isMotherDeceased && (formData.livingWith === 'บิดาและมารดา' || formData.livingWith === 'มารดา' || !formData.livingWith || formData.motherFirstName?.trim())) {
+      if (!formData.motherOccupation?.trim()) {
+        setErrorMessage('กรุณาระบุอาชีพของมารดา');
+        return;
+      }
+      if (!formData.motherIncome?.trim()) {
+        setErrorMessage('กรุณาระบุช่วงรายได้ต่อปีของมารดา');
+        return;
+      }
+    }
+
+    // Check Guardian occupation & income if living with guardian or guardian info entered
+    if (isLivingWithGuardian || formData.guardianFirstName?.trim()) {
+      if (!formData.guardianOccupation?.trim()) {
+        setErrorMessage('กรุณาระบุอาชีพของผู้ปกครอง');
+        return;
+      }
+      if (!formData.guardianIncome?.trim()) {
+        setErrorMessage('กรุณาระบุช่วงรายได้ต่อปีของผู้ปกครอง');
+        return;
+      }
+    }
+
+    // Safety fallback: at least one parent/guardian must have occupation and income specified
+    const hasAnyOccupation = (formData.fatherOccupation?.trim()) || (formData.motherOccupation?.trim()) || (formData.guardianOccupation?.trim());
+    const hasAnyIncome = (formData.fatherIncome?.trim()) || (formData.motherIncome?.trim()) || (formData.guardianIncome?.trim());
+    if (!hasAnyOccupation || !hasAnyIncome) {
+      setErrorMessage('กรุณาระบุข้อมูลอาชีพและช่วงรายได้ของบิดา มารดา หรือผู้ปกครองให้ครบถ้วน');
+      return;
+    }
+
     const hasContact = formData.fatherPhone || formData.motherPhone || formData.guardianPhone || formData.emergencyContactPhone;
     if (!hasContact) {
       setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่ออย่างน้อย 1 หมายเลข (บิดา, มารดา, หรือผู้ปกครอง) เพื่อให้ทางโรงเรียนติดต่อกลับ');
@@ -914,6 +996,33 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      โรงพยาบาลที่เกิด <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.birthHospital || ''}
+                      onChange={e => setFormData({ ...formData, birthHospital: e.target.value })}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                      placeholder="เช่น โรงพยาบาลบางบัวทอง / โรงพยาบาลศิริราช"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      สถานภาพสมรสของบิดามารดา <span className="text-rose-500">*</span>
+                    </label>
+                    <InputOrSelect
+                      options={familyStatusOptions}
+                      value={formData.familyStatus}
+                      onChange={(v: string) => setFormData({ ...formData, familyStatus: v })}
+                      placeholder="เลือกหรือระบุสถานภาพสมรส"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">โรคประจำตัว</label>
                     <InputOrSelect
                       options={underlyingDiseaseOptions}
@@ -934,15 +1043,6 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">สถานภาพครอบครัว</label>
-                    <InputOrSelect
-                      options={familyStatusOptions}
-                      value={formData.familyStatus}
-                      onChange={(v: string) => setFormData({ ...formData, familyStatus: v })}
-                      placeholder="ระบุสถานภาพ"
-                    />
-                  </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">การอยู่อาศัยของนักเรียน</label>
                     <InputOrSelect
@@ -969,9 +1069,12 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อบิดา</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        ชื่อบิดา <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         value={formData.fatherFirstName || ''}
                         onChange={e => setFormData({ ...formData, fatherFirstName: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"
@@ -979,9 +1082,12 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">นามสกุลบิดา</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        นามสกุลบิดา <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         value={formData.fatherLastName || ''}
                         onChange={e => setFormData({ ...formData, fatherLastName: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"
@@ -1011,7 +1117,9 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">อาชีพ</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        อาชีพ <span className="text-rose-500">*</span>
+                      </label>
                       <InputOrSelect
                         options={occupationOptions}
                         value={formData.fatherOccupation}
@@ -1020,7 +1128,9 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">รายได้ต่อปี</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        ช่วงรายได้ต่อปี <span className="text-rose-500">*</span>
+                      </label>
                       <select
                         value={formData.fatherIncome || ''}
                         onChange={e => setFormData({ ...formData, fatherIncome: e.target.value })}
@@ -1054,18 +1164,24 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                       </select>
                     </div>
                     <div className="col-span-4">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อมารดา</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        ชื่อมารดา <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         value={formData.motherFirstName || ''}
                         onChange={e => setFormData({ ...formData, motherFirstName: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"
                       />
                     </div>
                     <div className="col-span-4">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">นามสกุล</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        นามสกุลมารดา <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
+                        required
                         value={formData.motherLastName || ''}
                         onChange={e => setFormData({ ...formData, motherLastName: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"
@@ -1095,7 +1211,9 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">อาชีพ</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        อาชีพ <span className="text-rose-500">*</span>
+                      </label>
                       <InputOrSelect
                         options={occupationOptions}
                         value={formData.motherOccupation}
@@ -1104,7 +1222,9 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">รายได้ต่อปี</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        ช่วงรายได้ต่อปี <span className="text-rose-500">*</span>
+                      </label>
                       <select
                         value={formData.motherIncome || ''}
                         onChange={e => setFormData({ ...formData, motherIncome: e.target.value })}
@@ -1176,6 +1296,33 @@ export const ParentAdmissionModal: React.FC<ParentAdmissionModalProps> = ({
                         onChange={e => setFormData({ ...formData, guardianLineId: e.target.value })}
                         className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs bg-white"
                       />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        อาชีพผู้ปกครอง <span className="text-rose-500">*</span>
+                      </label>
+                      <InputOrSelect
+                        options={occupationOptions}
+                        value={formData.guardianOccupation}
+                        onChange={(v: string) => setFormData({ ...formData, guardianOccupation: v })}
+                        placeholder="ระบุอาชีพ"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        ช่วงรายได้ต่อปี <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={formData.guardianIncome || ''}
+                        onChange={e => setFormData({ ...formData, guardianIncome: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white"
+                      >
+                        {incomeOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   {renderAddressFields('guardianAddressObj', 'ที่อยู่ผู้ปกครอง')}

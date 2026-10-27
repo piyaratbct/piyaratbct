@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText, Trash2 } from 'lucide-react';
+import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText, Trash2, Edit } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { AdmissionPrintTemplate } from './AdmissionPrintTemplate';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
@@ -20,6 +20,7 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'admission' | 'promotion'>('admission');
   const [showForm, setShowForm] = useState(false);
+  const [editingApplicant, setEditingApplicant] = useState<AdmissionRecord | null>(null);
   const [applicants, setApplicants] = useState<AdmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -75,7 +76,14 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
                 alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
                 return;
               }
-              setShowForm(!showForm);
+              if (showForm && editingApplicant) {
+                // Switch from edit mode to fresh registration form
+                setEditingApplicant(null);
+                setShowForm(true);
+              } else {
+                setEditingApplicant(null);
+                setShowForm(!showForm);
+              }
             }}
             className={`flex-1 lg:flex-none flex items-center justify-center gap-2 py-2 px-6 rounded-lg text-sm font-bold transition-all bg-white text-indigo-600 shadow-sm hover:bg-indigo-50 hover:shadow-md`}
           >
@@ -91,6 +99,8 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
           refreshApplicants={fetchApplicants}
           showForm={showForm}
           setShowForm={setShowForm}
+          editingApplicant={editingApplicant}
+          setEditingApplicant={setEditingApplicant}
           currentTeacher={currentTeacher}
           students={students}
         />
@@ -221,9 +231,11 @@ const AdmissionManager: React.FC<{
   refreshApplicants: () => void;
   showForm: boolean;
   setShowForm: (val: boolean) => void;
+  editingApplicant: AdmissionRecord | null;
+  setEditingApplicant: (app: AdmissionRecord | null) => void;
   currentTeacher: Teacher;
   students: Student[];
-}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, currentTeacher, students }) => {
+}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, editingApplicant, setEditingApplicant, currentTeacher, students }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [appToDelete, setAppToDelete] = useState<AdmissionRecord | null>(null);
   const [showStats, setShowStats] = useState(false);
@@ -328,7 +340,7 @@ const AdmissionManager: React.FC<{
     houseNumber: '', moo: '', village: '', soi: '', road: '', subDistrict: '', district: '', province: '', zipCode: ''
   };
 
-  const [formData, setFormData] = useState<Partial<AdmissionRecord>>({
+  const getInitialFormData = (): Partial<AdmissionRecord> => ({
     academicYear: targetAcademicYear,
     applyForGrade: 'ประถมศึกษาปีที่ 1',
     gender: 'male',
@@ -351,9 +363,38 @@ const AdmissionManager: React.FC<{
     guardianAddressObj: { ...emptyAddress }
   });
 
+  const [formData, setFormData] = useState<Partial<AdmissionRecord>>(getInitialFormData());
+
   useEffect(() => {
-    setFormData(prev => ({ ...prev, academicYear: targetAcademicYear }));
-  }, [targetAcademicYear]);
+    if (editingApplicant) {
+      setFormData({
+        ...getInitialFormData(),
+        ...editingApplicant,
+        addressObj: editingApplicant.addressObj ? { ...emptyAddress, ...editingApplicant.addressObj } : { ...emptyAddress },
+        fatherAddressObj: editingApplicant.fatherAddressObj ? { ...emptyAddress, ...editingApplicant.fatherAddressObj } : { ...emptyAddress },
+        motherAddressObj: editingApplicant.motherAddressObj ? { ...emptyAddress, ...editingApplicant.motherAddressObj } : { ...emptyAddress },
+        guardianAddressObj: editingApplicant.guardianAddressObj ? { ...emptyAddress, ...editingApplicant.guardianAddressObj } : { ...emptyAddress },
+        surveySource: Array.isArray(editingApplicant.surveySource) ? editingApplicant.surveySource : [],
+        surveyReasons: Array.isArray(editingApplicant.surveyReasons) ? editingApplicant.surveyReasons : [],
+        surveyExpectations: Array.isArray(editingApplicant.surveyExpectations) ? editingApplicant.surveyExpectations : []
+      });
+    } else {
+      setFormData(prev => ({ ...getInitialFormData(), academicYear: targetAcademicYear }));
+    }
+  }, [editingApplicant, targetAcademicYear]);
+
+  const handleEditApplicant = (app: AdmissionRecord) => {
+    if (currentTeacher.role === 'teacher') {
+      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
+      return;
+    }
+    setEditingApplicant(app);
+    setShowForm(true);
+    if (viewingApplicant) {
+      setViewingApplicant(null);
+    }
+    window.scrollTo({ top: 120, behavior: 'smooth' });
+  };
 
   const handleGenderChange = (newGender: 'male' | 'female') => {
     let currentName = formData.firstName || '';
@@ -421,29 +462,86 @@ const AdmissionManager: React.FC<{
       alert('กรุณากรอกข้อมูลให้ครบถ้วน รวมถึงเลขประจำตัวประชาชน 13 หลัก');
       return;
     }
+
+    if (!formData.birthHospital?.trim()) {
+      alert('กรุณาระบุโรงพยาบาลที่เกิดของนักเรียน');
+      return;
+    }
+
+    if (!formData.familyStatus?.trim()) {
+      alert('กรุณาระบุสถานภาพครอบครัว (สถานภาพสมรสของบิดามารดา)');
+      return;
+    }
+
+    // Always require Father's name and Mother's name (รูปแบบที่ 2)
+    const cleanFatherFirstName = (formData.fatherFirstName || '').replace(/^นาย\s*/, '').trim();
+    if (!cleanFatherFirstName || !formData.fatherLastName?.trim()) {
+      alert('กรุณากรอกชื่อและนามสกุลของบิดาให้ครบถ้วน');
+      return;
+    }
+
+    const cleanMotherFirstName = (formData.motherFirstName || '').replace(/^(นางสาว|นาง)\s*/, '').trim();
+    if (!cleanMotherFirstName || !formData.motherLastName?.trim()) {
+      alert('กรุณากรอกชื่อและนามสกุลของมารดาให้ครบถ้วน');
+      return;
+    }
+
+    const isFatherDeceased = formData.familyStatus === 'บิดาถึงแก่กรรม' || formData.familyStatus === 'บิดาและมารดาถึงแก่กรรม';
+    const isMotherDeceased = formData.familyStatus === 'มารดาถึงแก่กรรม' || formData.familyStatus === 'บิดาและมารดาถึงแก่กรรม';
+    const isLivingWithGuardian = ['ผู้ปกครอง', 'ปู่ ย่า ตา ยาย', 'ญาติ', 'other'].includes(formData.livingWith || '');
+
+    if (!isFatherDeceased && (formData.livingWith === 'บิดาและมารดา' || formData.livingWith === 'บิดา' || !formData.livingWith || formData.fatherFirstName?.replace('นาย', '').trim())) {
+      if (!formData.fatherOccupation?.trim() || !formData.fatherIncome?.trim()) {
+        alert('กรุณาระบุอาชีพและช่วงรายได้ต่อปีของบิดาให้ครบถ้วน');
+        return;
+      }
+    }
+
+    if (!isMotherDeceased && (formData.livingWith === 'บิดาและมารดา' || formData.livingWith === 'มารดา' || !formData.livingWith || formData.motherFirstName?.trim())) {
+      if (!formData.motherOccupation?.trim() || !formData.motherIncome?.trim()) {
+        alert('กรุณาระบุอาชีพและช่วงรายได้ต่อปีของมารดาให้ครบถ้วน');
+        return;
+      }
+    }
+
+    if (isLivingWithGuardian || formData.guardianFirstName?.trim()) {
+      if (!formData.guardianOccupation?.trim() || !formData.guardianIncome?.trim()) {
+        alert('กรุณาระบุอาชีพและช่วงรายได้ต่อปีของผู้ปกครองให้ครบถ้วน');
+        return;
+      }
+    }
     
     try {
       setIsSubmitting(true);
-      const payload: Omit<AdmissionRecord, 'id'> = {
-        ...(formData as Omit<AdmissionRecord, 'id'>),
-        appliedAt: new Date().toISOString()
-      };
+      if (editingApplicant) {
+        const payload: Partial<AdmissionRecord> = {
+          ...formData,
+          updatedAt: new Date().toISOString()
+        };
+        const cleanedPayload: Record<string, any> = {};
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined) {
+            cleanedPayload[k] = v;
+          }
+        });
+        await updateDoc(doc(db, 'admissions', editingApplicant.id), cleanedPayload);
+        alert('อัปเดตข้อมูลใบสมัครเรียบร้อยแล้ว');
+      } else {
+        const payload: Omit<AdmissionRecord, 'id'> = {
+          ...(formData as Omit<AdmissionRecord, 'id'>),
+          appliedAt: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'admissions'), payload);
+        alert('บันทึกข้อมูลใบสมัครเรียบร้อยแล้ว');
+      }
       
-      await addDoc(collection(db, 'admissions'), payload);
       setShowForm(false);
-      setFormData({
-        academicYear: targetAcademicYear,
-        applyForGrade: 'อนุบาล 1',
-        gender: 'male',
-        status: 'pending',
-        addressObj: { ...emptyAddress },
-        fatherAddressObj: { ...emptyAddress },
-        motherAddressObj: { ...emptyAddress },
-        guardianAddressObj: { ...emptyAddress }
-      });
+      setEditingApplicant(null);
+      setFormData(getInitialFormData());
       refreshApplicants();
     } catch (err) {
       console.error(err);
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     } finally {
       setIsSubmitting(false);
     }
@@ -898,6 +996,40 @@ const AdmissionManager: React.FC<{
 
       {showForm && (
         <form onSubmit={handleSave} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+          {editingApplicant ? (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                  <Edit className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-800 text-base">แก้ไขข้อมูลใบสมัคร</h4>
+                    <span className="bg-amber-500 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">โหมดแก้ไข</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    กำลังแก้ไขข้อมูลของ: <span className="font-bold text-indigo-700">{editingApplicant.firstName} {editingApplicant.lastName}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingApplicant(null);
+                  setShowForm(false);
+                }}
+                className="self-end sm:self-center text-xs font-bold px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-colors"
+              >
+                ยกเลิกการแก้ไข
+              </button>
+            </div>
+          ) : (
+            <div className="border-b border-slate-100 pb-3 mb-2">
+              <h4 className="font-bold text-slate-800 text-lg text-indigo-600 flex items-center gap-2">
+                <UserPlus className="h-5 w-5" /> กรอกข้อมูลใบสมัครใหม่
+              </h4>
+            </div>
+          )}
           <div>
             <h4 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 text-lg text-indigo-600">ข้อมูลการสมัคร</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -982,7 +1114,7 @@ const AdmissionManager: React.FC<{
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">โรงพยาบาลที่เกิด</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">โรงพยาบาลที่เกิด <span className="text-rose-500">*</span></label>
                 <input type="text" value={formData.birthHospital || ''} onChange={(e) => setFormData({...formData, birthHospital: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
@@ -1033,7 +1165,7 @@ const AdmissionManager: React.FC<{
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">สถานภาพครอบครัว</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">สถานภาพครอบครัว (สถานภาพสมรสของบิดามารดา) <span className="text-rose-500">*</span></label>
                 <InputOrSelect options={familyStatusOptions} value={formData.familyStatus} onChange={(v:string) => setFormData({...formData, familyStatus: v})} placeholder="ระบุสถานภาพ" />
               </div>
               <div>
@@ -1085,11 +1217,11 @@ const AdmissionManager: React.FC<{
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อบิดา</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อบิดา <span className="text-rose-500">*</span></label>
                     <input type="text" value={formData.fatherFirstName || ''} onChange={(e) => setFormData({...formData, fatherFirstName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="เช่น นาย สมชาย" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">นามสกุลบิดา</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">นามสกุลบิดา <span className="text-rose-500">*</span></label>
                     <input type="text" value={formData.fatherLastName || ''} onChange={(e) => setFormData({...formData, fatherLastName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
@@ -1126,11 +1258,11 @@ const AdmissionManager: React.FC<{
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ <span className="text-rose-500">*</span></label>
                     <InputOrSelect options={occupationOptions} value={formData.fatherOccupation} onChange={(v: string) => setFormData({...formData, fatherOccupation: v})} placeholder="ระบุอาชีพ" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ช่วงรายได้ต่อปี <span className="text-rose-500">*</span></label>
                     <select value={formData.fatherIncome || ''} onChange={(e) => setFormData({...formData, fatherIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                       {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
@@ -1175,11 +1307,11 @@ const AdmissionManager: React.FC<{
                     </select>
                   </div>
                   <div className="col-span-12 md:col-span-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อมารดา</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อมารดา <span className="text-rose-500">*</span></label>
                     <input type="text" value={formData.motherFirstName || ''} onChange={(e) => setFormData({...formData, motherFirstName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div className="col-span-12 md:col-span-5">
-                    <label className="block text-xs font-bold text-slate-600 mb-1">นามสกุลมารดา</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">นามสกุลมารดา <span className="text-rose-500">*</span></label>
                     <input type="text" value={formData.motherLastName || ''} onChange={(e) => setFormData({...formData, motherLastName: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
@@ -1216,11 +1348,11 @@ const AdmissionManager: React.FC<{
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ <span className="text-rose-500">*</span></label>
                     <InputOrSelect options={occupationOptions} value={formData.motherOccupation} onChange={(v: string) => setFormData({...formData, motherOccupation: v})} placeholder="ระบุอาชีพ" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">ช่วงรายได้ต่อปี <span className="text-rose-500">*</span></label>
                     <select value={formData.motherIncome || ''} onChange={(e) => setFormData({...formData, motherIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                       {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
@@ -1311,11 +1443,11 @@ const AdmissionManager: React.FC<{
                 <InputOrSelect options={relationOptions} value={formData.guardianRelation} onChange={(v: string) => setFormData({...formData, guardianRelation: v})} placeholder="ระบุความเกี่ยวข้อง" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">อาชีพ <span className="text-rose-500">*</span></label>
                 <InputOrSelect options={occupationOptions} value={formData.guardianOccupation} onChange={(v: string) => setFormData({...formData, guardianOccupation: v})} placeholder="ระบุอาชีพ" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">รายได้ต่อปี</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ช่วงรายได้ต่อปี <span className="text-rose-500">*</span></label>
                 <select value={formData.guardianIncome || ''} onChange={(e) => setFormData({...formData, guardianIncome: e.target.value})} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   {incomeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
@@ -1525,11 +1657,21 @@ const AdmissionManager: React.FC<{
           </div>
 
           <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
-            <button type="button" onClick={() => setShowForm(false)} className="px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowForm(false);
+                setEditingApplicant(null);
+              }} 
+              className="px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
               ยกเลิก
             </button>
-            <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm disabled:opacity-50 transition-colors">
-              {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'บันทึกข้อมูลใบสมัคร'}
+            <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-sm disabled:opacity-50 transition-colors flex items-center gap-2">
+              {editingApplicant ? <Edit className="h-4 w-4" /> : null}
+              {isSubmitting 
+                ? (editingApplicant ? 'กำลังบันทึกการแก้ไข...' : 'กำลังบันทึกข้อมูล...') 
+                : (editingApplicant ? 'บันทึกการแก้ไขข้อมูล' : 'บันทึกข้อมูลใบสมัคร')}
             </button>
           </div>
         </form>
@@ -1797,6 +1939,15 @@ const AdmissionManager: React.FC<{
                     >
                       <Search className="h-3.5 w-3.5" /> <span className="md:hidden">ดูข้อมูล</span>
                     </button>
+                    {currentTeacher.role !== 'teacher' && (
+                      <button 
+                        onClick={() => handleEditApplicant(app)}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-md transition-colors text-xs font-semibold"
+                        title="แก้ไขข้อมูลใบสมัคร"
+                      >
+                        <Edit className="h-3.5 w-3.5" /> <span className="md:hidden">แก้ไข</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setPrintingApplicant(app)}
                       className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-transparent hover:border-indigo-200 rounded-md transition-colors text-xs font-semibold"
@@ -1836,9 +1987,19 @@ const AdmissionManager: React.FC<{
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="font-bold text-slate-800 text-lg">ข้อมูลใบสมัคร: {viewingApplicant.firstName} {viewingApplicant.lastName}</h3>
-              <button onClick={() => setViewingApplicant(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {currentTeacher.role !== 'teacher' && (
+                  <button 
+                    onClick={() => handleEditApplicant(viewingApplicant)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัคร
+                  </button>
+                )}
+                <button onClick={() => setViewingApplicant(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
               
@@ -2040,8 +2201,18 @@ const AdmissionManager: React.FC<{
                   </div>
                 </div>
               )}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
-              <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+              <div>
+                {currentTeacher.role !== 'teacher' && (
+                  <button 
+                    onClick={() => handleEditApplicant(viewingApplicant)}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold transition-colors flex items-center gap-2 text-sm shadow-sm"
+                  >
+                    <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัครนี้
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors text-sm">
                 ปิดหน้าต่าง
               </button>
             </div>

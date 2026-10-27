@@ -16,7 +16,7 @@ import { Printer } from 'lucide-react';
 import { LessonAchieve } from './LessonAchieve';
 import { collection, query, onSnapshot, setDoc, doc, where } from 'firebase/firestore';
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
 import { CharacterAssessmentView } from './CharacterAssessmentView';
 import { KindergartenEvaluationDashboard } from './KindergartenEvaluationDashboard';
@@ -247,7 +247,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, [uniqueGrades, selectedGrade]);
 
   useEffect(() => {
-    if (!viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
+    if (!auth?.currentUser || !viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
 
     // Fetch ALL schedules for the term to allow smart filtering
     const sq = query(
@@ -290,6 +290,8 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, [viewYear, viewSemester, selectedGrade, selectedSubject]);
 
   useEffect(() => {
+    if (!auth?.currentUser || !db) return;
+
     const q = query(collection(db, "subject_scores"));
     const unsubscribe = onSnapshot(
       q,
@@ -317,6 +319,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, [scores, activeTab, selectedGrade, selectedSubject]);
 
   useEffect(() => {
+    if (!auth?.currentUser || !viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
     const settingsId = `${viewYear}_${viewSemester}_${selectedGrade}_${selectedSubject}`.replace(/[\/]/g, '-');
     
     // Fetch lesson plans for this subject to dynamically inject columns

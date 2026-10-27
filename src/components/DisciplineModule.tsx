@@ -3,7 +3,7 @@ import { Teacher, Student, DisciplineIncident, GRADE_LEVELS } from '../types';
 import { Edit, ShieldAlert, PlusCircle, Search, FileText, UserX, AlertTriangle, User, Calendar, Save, Trash2, X, Clock, Printer } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { formatThaiMonthYear, formatThaiDate } from '../lib/dateUtils';
 import { DisciplineSemesterReportPrintTemplate } from './DisciplineSemesterReportPrintTemplate';
 
@@ -58,6 +58,11 @@ export function DisciplineModule({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!auth?.currentUser || !db) {
+      setLoading(false);
+      return;
+    }
+
     const q = query(
       collection(db, 'disciplineIncidents'),
       orderBy('createdAt', 'desc')

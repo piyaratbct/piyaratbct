@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, GRADE_LEVELS, CharacterAssessment, StudentBadge, AttendanceSession, DisciplineIncident, SubjectScore } from '../types';
 import { Award, CheckCircle, Search, Medal, Sparkles, Filter, ChevronDown, User, ShieldCheck, AlertCircle, BookOpen, Flag, Clock, GraduationCap, ShieldAlert } from 'lucide-react';
 import { collection, doc, setDoc, onSnapshot, query, where } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 
 interface CharacterAssessmentViewProps {
   students: Student[];
@@ -51,7 +51,7 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
 
   // Load from Firestore
   useEffect(() => {
-    if (!systemAcademicYear || !systemSemester) return;
+    if (!auth?.currentUser || !systemAcademicYear || !systemSemester) return;
     
     const q = query(collection(db, 'characterAssessments'), 
       where('academicYear', '==', systemAcademicYear),
@@ -76,7 +76,7 @@ export const CharacterAssessmentView: React.FC<CharacterAssessmentViewProps> = (
 
   // Load extra auto-gen data
   useEffect(() => {
-    if (!systemAcademicYear || !systemSemester) return;
+    if (!auth?.currentUser || !systemAcademicYear || !systemSemester) return;
     
     // Attendance
     const unsubAttendance = onSnapshot(

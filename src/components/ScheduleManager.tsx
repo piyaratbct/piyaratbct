@@ -1,7 +1,7 @@
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, PERIODS, BASE_GRADE_LEVELS, sortSubjects } from '../types';
 import { Calendar, Trash2, Plus, User, BookOpen, AlertCircle } from 'lucide-react';
 
@@ -55,6 +55,7 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     );
 
     const fetchData = async () => {
+      if (!auth?.currentUser) return;
       try {
         const tSnap = await getDocs(collection(db, 'teachers'));
         const activeTeachers = tSnap.docs

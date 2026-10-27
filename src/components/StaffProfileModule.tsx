@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, PDRecord, PDRecordType } from '../types';
 import { Award, BookOpen, GraduationCap, LayoutDashboard, Plus, Trash2, X, FileText, Pencil, ExternalLink, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 
@@ -25,7 +25,7 @@ export function StaffProfileModule({ currentTeacher, teachers, systemAcademicYea
   const displayTeacher = teachers.find(t => t.id === selectedTeacherId) || currentTeacher;
 
   useEffect(() => {
-    if (!selectedTeacherId) return;
+    if (!selectedTeacherId || !auth?.currentUser || !db) return;
     const q = query(collection(db, 'pd_records'), where('teacherId', '==', selectedTeacherId));
     const unsub = onSnapshot(
       q,

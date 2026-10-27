@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Student, StudentAssessment, KindergartenAssessment, SubjectScore, DisciplineIncident } from "../types";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 import { 
   Search, User, GraduationCap, HeartPulse, TrendingUp, TrendingDown, Minus, 
   BrainCircuit, Home, Activity, FileText,
@@ -189,7 +189,7 @@ export function Student360({ initialStudent }: { initialStudent?: Student | null
 
   React.useEffect(() => {
     const student = extendedStudents.find(s => s.id === selectedStudentId);
-    if (!student || !student.id) return;
+    if (!student || !student.id || !auth?.currentUser) return;
 
     const fetchAssessments = async () => {
       try {

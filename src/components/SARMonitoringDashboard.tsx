@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, getDocs, where, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, PDRecord, Student, KindergartenAssessment } from '../types';
 import { ShieldCheck, GraduationCap, BookOpen, FileText, Bell, Search, AlertCircle, CheckCircle2, TrendingUp, Target, Award, Users, Activity, Layers, ClipboardList, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -32,8 +32,24 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
   const TARGET_RESEARCH = 1; // papers per teacher
 
   useEffect(() => {
-    // Fetch all related collections for the dashboard
-    const fetchData = async () => {
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
+    let unsubs: (() => void)[] = [];
+
+    const startSubscriptions = () => {
+      unsubs.forEach(u => u());
+      unsubs = [];
+
+      // Guard: do not query protected collections if user is not signed in or in offline mode
+      if (!auth?.currentUser || (currentTeacher?.id && currentTeacher.id.startsWith('offline-'))) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch all related collections for the dashboard
       // 1. PD Records
       const pdUnsub = onSnapshot(
         query(collection(db, 'pd_records')),
@@ -42,6 +58,7 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "pd_records")
       );
+      unsubs.push(pdUnsub);
 
       // 2. Lesson Plans
       const plansUnsub = onSnapshot(
@@ -51,6 +68,7 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "lessonPlans")
       );
+      unsubs.push(plansUnsub);
 
       // 3. Discipline Incidents
       const discUnsub = onSnapshot(
@@ -60,6 +78,7 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "disciplineIncidents")
       );
+      unsubs.push(discUnsub);
 
       // 4. Subject Scores
       const scoresUnsub = onSnapshot(
@@ -69,6 +88,7 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "subject_scores")
       );
+      unsubs.push(scoresUnsub);
 
       // 5. Lesson Records
       const recordsUnsub = onSnapshot(
@@ -78,8 +98,9 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "records")
       );
+      unsubs.push(recordsUnsub);
 
-      // 6. Kindergarten Assessments
+      // 6. Student Assessments
       const saUnsub = onSnapshot(
         query(collection(db, 'studentAssessments')),
         (snap) => {
@@ -87,7 +108,9 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "studentAssessments")
       );
+      unsubs.push(saUnsub);
 
+      // 7. Kindergarten Assessments
       const kgUnsub = onSnapshot(
         query(collection(db, 'kindergartenAssessments')),
         (snap) => {
@@ -95,22 +118,31 @@ export function SARMonitoringDashboard({ teachers, students: allStudents, system
         },
         (err) => handleFirestoreError(err, OperationType.GET, "kindergartenAssessments")
       );
+      unsubs.push(kgUnsub);
 
       setLoading(false);
-
-      return () => {
-        pdUnsub();
-        plansUnsub();
-        discUnsub();
-        scoresUnsub();
-        recordsUnsub();
-        kgUnsub();
-        saUnsub();
-      };
     };
 
-    fetchData();
-  }, []);
+    let unsubAuth = () => {};
+    if (auth && auth.onAuthStateChanged) {
+      unsubAuth = auth.onAuthStateChanged((user: any) => {
+        if (user) {
+          startSubscriptions();
+        } else {
+          setLoading(false);
+        }
+      });
+    } else if (auth?.currentUser) {
+      startSubscriptions();
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      unsubAuth();
+      unsubs.forEach(u => u());
+    };
+  }, [currentTeacher]);
 
   // --- FILTERING LOGIC ---
   

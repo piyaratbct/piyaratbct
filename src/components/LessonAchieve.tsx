@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, TrendingUp, Users, Target, Activity, Award, AlertCircle, CheckCircle2, BarChart2, Printer, Loader2, User } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Student, SubjectScore, AttendanceSession } from '../types';
 
 interface LessonAchieveProps {
@@ -39,6 +39,11 @@ export function LessonAchieve({ students, academicYear = '2567', semester = '1' 
 
   // 1. Fetch Subject Scores
   useEffect(() => {
+    if (!auth?.currentUser || !db) {
+      setLoading(false);
+      return;
+    }
+
     const qScores = query(
       collection(db, 'subject_scores'),
       where('academicYear', '==', academicYear)

@@ -395,6 +395,13 @@ export default function App() {
   useEffect(() => {
     if (!currentTeacher || !db) return;
 
+    if (!auth?.currentUser) {
+      // In offline or fallback demo mode without active Firebase Auth session, populate baseline data
+      setRecords(MOCK_RECORDS);
+      setTeachers([DEFAULT_TEACHER, currentTeacher]);
+      return;
+    }
+
     // Clean active states when profile switches
     setRecords([]);
 

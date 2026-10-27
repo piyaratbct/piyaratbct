@@ -11,6 +11,7 @@ interface PDFPrintHelperProps {
   hideControls?: boolean;
   isCompact?: boolean;
   onToggleCompact?: () => void;
+  extraControls?: ReactNode;
 }
 
 export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
@@ -20,6 +21,7 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
   hideControls = false,
   isCompact = false,
   onToggleCompact,
+  extraControls,
   layout = 'portrait',
 }) => {
   useEffect(() => {
@@ -139,6 +141,7 @@ export const PDFPrintHelper: React.FC<PDFPrintHelperProps> = ({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {extraControls}
               {onToggleCompact && (
                 <button
                   onClick={onToggleCompact}

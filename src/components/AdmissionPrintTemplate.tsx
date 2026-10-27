@@ -23,6 +23,52 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
     window.print();
   };
 
+  // Mathematical conversion of OKLCH to sRGB (CSS Color Module Level 4 standard)
+  const oklchToRgb = (l: number, c: number, h: number, a: number = 1): string => {
+    const hRad = (h * Math.PI) / 180;
+    const a_ = c * Math.cos(hRad);
+    const b_ = c * Math.sin(hRad);
+
+    const l_ = l + 0.3963377774 * a_ + 0.2158037573 * b_;
+    const m_ = l - 0.1055613458 * a_ - 0.0638541728 * b_;
+    const s_ = l - 0.0894841775 * a_ - 1.2914855480 * b_;
+
+    const l_cubed = l_ * l_ * l_;
+    const m_cubed = m_ * m_ * m_;
+    const s_cubed = s_ * s_ * s_;
+
+    const r = +4.0767416621 * l_cubed - 3.3077115913 * m_cubed + 0.2309699292 * s_cubed;
+    const g = -1.2684380046 * l_cubed + 2.6097574011 * m_cubed - 0.3413193965 * s_cubed;
+    const b = -0.0041960863 * l_cubed - 0.7034186147 * m_cubed + 1.7076147010 * s_cubed;
+
+    const gamma = (x: number) => {
+      const clamped = Math.max(0, Math.min(1, x));
+      return clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
+    };
+
+    const R = Math.round(gamma(r) * 255);
+    const G = Math.round(gamma(g) * 255);
+    const B = Math.round(gamma(b) * 255);
+
+    return a < 1 ? `rgba(${R}, ${G}, ${B}, ${a})` : `rgb(${R}, ${G}, ${B})`;
+  };
+
+  const convertOklchText = (text: string): string => {
+    if (!text || typeof text !== 'string' || !text.includes('oklch')) return text;
+    return text.replace(/oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/gi, (_match, lStr, cStr, hStr, aStr) => {
+      let l = parseFloat(lStr);
+      if (lStr.endsWith('%')) l = l / 100;
+      const c = parseFloat(cStr);
+      const h = parseFloat(hStr);
+      let a = 1;
+      if (aStr) {
+        a = parseFloat(aStr);
+        if (aStr.endsWith('%')) a = a / 100;
+      }
+      return oklchToRgb(l, c, h, a);
+    });
+  };
+
   const handleDownloadPDF = async () => {
     if (!contentRef.current || isDownloading) return;
     try {
@@ -32,9 +78,70 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc: Document) => {
+          // 1. Inject override style to disable all shadows and ensure clean print rendering
+          const printStyle = clonedDoc.createElement('style');
+          printStyle.textContent = `
+            *, *::before, *::after {
+              box-shadow: none !important;
+              text-shadow: none !important;
+            }
+          `;
+          if (clonedDoc.head) {
+            clonedDoc.head.appendChild(printStyle);
+          }
+
+          // 2. Sanitize all <style> blocks from Tailwind v4 containing oklch
+          clonedDoc.querySelectorAll('style').forEach((styleEl) => {
+            if (styleEl.textContent && styleEl.textContent.includes('oklch')) {
+              styleEl.textContent = convertOklchText(styleEl.textContent);
+            }
+          });
+
+          // 3. Sanitize crossOrigin on images to prevent canvas taint
+          clonedDoc.querySelectorAll('img').forEach((img) => {
+            img.crossOrigin = 'anonymous';
+          });
+
+          // 4. Convert all elements with computed or inline oklch values to explicit rgb, and remove shadows
+          const COLOR_PROPS = [
+            'color',
+            'background-color',
+            'border-color',
+            'border-top-color',
+            'border-right-color',
+            'border-bottom-color',
+            'border-left-color',
+            'outline-color',
+            'text-decoration-color',
+            'fill',
+            'stroke',
+            'caret-color',
+            'accent-color'
+          ];
+
+          const win = clonedDoc.defaultView || window;
+          clonedDoc.querySelectorAll('*').forEach((el) => {
+            if (el instanceof HTMLElement || el instanceof SVGElement) {
+              try {
+                el.style.setProperty('box-shadow', 'none', 'important');
+                el.style.setProperty('text-shadow', 'none', 'important');
+                const computed = win.getComputedStyle(el);
+                for (const prop of COLOR_PROPS) {
+                  const val = computed.getPropertyValue(prop);
+                  if (val && val.includes('oklch')) {
+                    el.style.setProperty(prop, convertOklchText(val), 'important');
+                  }
+                }
+              } catch (e) {
+                // Ignore DOM access issues on specific nodes
+              }
+            }
+          });
+        }
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -167,7 +274,7 @@ export const AdmissionPrintTemplate: React.FC<{ record: AdmissionRecord, onClose
       <div className="flex-1 overflow-auto p-8 custom-scrollbar print:p-0 print:block print:h-auto print:overflow-visible print:w-full print:m-0">
         <div className="max-w-[210mm] mx-auto space-y-8 print:w-full print:max-w-none print:m-0 print:p-0 print:space-y-0">
           
-          <div ref={contentRef} className="bg-white print:shadow-none shadow-xl origin-top mx-auto relative print:w-full print:h-auto print:min-h-0 print:m-0 print:p-0" style={{ maxWidth: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
+          <div ref={contentRef} className="bg-white shadow-sm border border-slate-200 print:border-none print:shadow-none origin-top mx-auto relative print:w-full print:h-auto print:min-h-0 print:m-0 print:p-0" style={{ maxWidth: '210mm', minHeight: '297mm', padding: '12mm 15mm' }}>
             {/* Header */}
             <div className="flex justify-between items-start mb-2 border-b-2 border-slate-800 pb-4">
               <SchoolLogo className="h-16 w-16" />
