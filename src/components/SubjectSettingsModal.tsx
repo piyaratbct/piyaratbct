@@ -8,6 +8,7 @@ interface Props {
   settings: SubjectSettings;
   onSave: (newSettings: SubjectSettings) => void;
   onOpenStandardScoreStructure?: () => void;
+  canManageStandardScore?: boolean;
 }
 
 export const SubjectSettingsModal: React.FC<Props> = ({ 
@@ -15,7 +16,8 @@ export const SubjectSettingsModal: React.FC<Props> = ({
   onClose, 
   settings, 
   onSave,
-  onOpenStandardScoreStructure
+  onOpenStandardScoreStructure,
+  canManageStandardScore = true
 }) => {
   const [localSettings, setLocalSettings] = useState<SubjectSettings>(settings);
   const [error, setError] = useState<string | null>(null);
@@ -251,8 +253,10 @@ export const SubjectSettingsModal: React.FC<Props> = ({
                   type="button"
                   onClick={onOpenStandardScoreStructure}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors"
+                  title={canManageStandardScore ? "ตั้งค่าหรือปรับสัดส่วนคะแนนมาตรฐานกลางของโรงเรียน" : "ดูสัดส่วนคะแนนมาตรฐานกลางของโรงเรียน (สงวนสิทธิ์แก้ไขเฉพาะฝ่ายวิชาการ)"}
                 >
-                  <Sliders className="h-3.5 w-3.5" /> ปรับสัดส่วนมาตรฐาน
+                  <Sliders className="h-3.5 w-3.5" /> 
+                  <span>{canManageStandardScore ? 'ปรับสัดส่วนมาตรฐาน' : 'ดูสัดส่วนมาตรฐาน'}</span>
                 </button>
               )}
             </div>

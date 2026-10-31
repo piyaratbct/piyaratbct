@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StandardScoreStructure } from '../types';
-import { X, Save, AlertCircle, Sliders, CheckCircle2, Sparkles, RefreshCw, Info } from 'lucide-react';
+import { X, Save, AlertCircle, Sliders, CheckCircle2, Sparkles, RefreshCw, Info, Lock, ShieldAlert } from 'lucide-react';
 
 interface StandardScoreStructureModalProps {
   isOpen: boolean;
@@ -131,11 +131,16 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
               <Sliders className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-black text-slate-800">ตั้งค่าโครงสร้างและสัดส่วนคะแนน</h2>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
                   มาตรฐานรวมทุกรายวิชา
                 </span>
+                {isReadOnly && (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 shadow-xs">
+                    <Lock className="h-3 w-3 text-amber-700" /> ดูอย่างเดียว (ฝ่ายวิชาการเท่านั้นที่แก้ไขได้)
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 กำหนดสัดส่วนคะแนนเต็มมาตรฐานกลางของโรงเรียนสำหรับใช้ในการวัดผลและตัดเกรดทุกวิชา
@@ -154,6 +159,25 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
             <div className="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-sm font-medium flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
+            </div>
+          )}
+
+          {/* Read Only Permission Notice */}
+          {isReadOnly && (
+            <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-4 flex items-start gap-3 shadow-xs">
+              <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs leading-relaxed space-y-1">
+                <div className="font-bold text-amber-950 flex items-center gap-1.5 text-sm">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                  จำกัดสิทธิ์การแก้ไข (ครูผู้สอนทั่วไปดูได้อย่างเดียว)
+                </div>
+                <p className="text-amber-900">
+                  สัดส่วนคะแนนมาตรฐานกลางของโรงเรียนถูกกำหนดโดย <strong>ฝ่ายวิชาการและผู้บริหาร</strong> เพื่อให้เป็นเกณฑ์การตัดเกรดเดียวกันทั้งโรงเรียน ครูผู้สอนสามารถดูเพื่อใช้อ้างอิงได้
+                </p>
+                <p className="text-amber-800 text-[11px] pt-0.5">
+                  💡 หากต้องการกำหนดชิ้นงาน ใบงาน แบบฝึกหัด และคะแนนดิบของแต่ละวิชา สามารถเข้าไปกำหนดได้อิสระที่ปุ่ม <strong>"ตั้งค่ากิจกรรมเก็บคะแนน"</strong>
+                </p>
+              </div>
             </div>
           )}
 
@@ -178,11 +202,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                   <button
                     key={idx}
                     type="button"
+                    disabled={isReadOnly}
                     onClick={() => applyPreset(p)}
                     className={`text-left p-3 rounded-xl border text-xs transition-all ${
-                      isActive 
-                        ? 'bg-indigo-50/80 border-indigo-300 text-indigo-900 ring-1 ring-indigo-400 font-semibold' 
-                        : 'bg-white border-slate-200 hover:border-indigo-200 text-slate-700 hover:bg-slate-50'
+                      isReadOnly
+                        ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-500'
+                        : isActive 
+                          ? 'bg-indigo-50/80 border-indigo-300 text-indigo-900 ring-1 ring-indigo-400 font-semibold' 
+                          : 'bg-white border-slate-200 hover:border-indigo-200 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     <div className="font-bold text-slate-800 flex items-center justify-between">
@@ -265,9 +292,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetBMK}
                     onChange={(e) => setTargetBMK(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-emerald-300 rounded-lg text-center text-sm font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-emerald-300 text-emerald-800 focus:ring-2 focus:ring-emerald-500'
+                    }`}
                   />
                   <span className="text-xs text-slate-500">คะแนน</span>
                 </div>
@@ -284,9 +316,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetBMS}
                     onChange={(e) => setTargetBMS(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-emerald-300 rounded-lg text-center text-sm font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-emerald-300 text-emerald-800 focus:ring-2 focus:ring-emerald-500'
+                    }`}
                   />
                   <span className="text-xs text-slate-500">คะแนน</span>
                 </div>
@@ -303,9 +340,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetMid}
                     onChange={(e) => setTargetMid(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-amber-300 rounded-lg text-center text-sm font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-amber-300 text-amber-900 focus:ring-2 focus:ring-amber-500'
+                    }`}
                   />
                   <span className="text-xs text-amber-800">คะแนน</span>
                 </div>
@@ -333,9 +375,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetAMK}
                     onChange={(e) => setTargetAMK(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-indigo-300 rounded-lg text-center text-sm font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-indigo-300 text-indigo-800 focus:ring-2 focus:ring-indigo-500'
+                    }`}
                   />
                   <span className="text-xs text-slate-500">คะแนน</span>
                 </div>
@@ -352,9 +399,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetAMS}
                     onChange={(e) => setTargetAMS(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-indigo-300 rounded-lg text-center text-sm font-bold text-indigo-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-indigo-300 text-indigo-800 focus:ring-2 focus:ring-indigo-500'
+                    }`}
                   />
                   <span className="text-xs text-slate-500">คะแนน</span>
                 </div>
@@ -371,9 +423,14 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
                     type="number"
                     min={0}
                     max={100}
+                    disabled={isReadOnly}
                     value={targetFin}
                     onChange={(e) => setTargetFin(Math.max(0, Number(e.target.value)))}
-                    className="w-16 px-2 py-1.5 bg-white border border-rose-300 rounded-lg text-center text-sm font-bold text-rose-900 focus:ring-2 focus:ring-rose-500 outline-none"
+                    className={`w-16 px-2 py-1.5 rounded-lg text-center text-sm font-bold outline-none transition-colors ${
+                      isReadOnly 
+                        ? 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed' 
+                        : 'bg-white border border-rose-300 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                    }`}
                   />
                   <span className="text-xs text-rose-800">คะแนน</span>
                 </div>
@@ -383,20 +440,23 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
           </div>
 
           {/* Sync All Subjects Checkbox */}
-          <div className="p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-xl flex items-center justify-between gap-3">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div className={`p-3.5 border rounded-xl flex items-center justify-between gap-3 ${
+            isReadOnly ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-indigo-50/60 border-indigo-200'
+          }`}>
+            <label className={`flex items-center gap-3 select-none ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
               <input
                 type="checkbox"
+                disabled={isReadOnly}
                 checked={applyToAll}
                 onChange={(e) => setApplyToAll(e.target.checked)}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                className={`w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 ${isReadOnly ? 'cursor-not-allowed' : ''}`}
               />
               <div>
-                <div className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5 text-indigo-600" />
                   ปรับใช้สัดส่วนมาตรฐานนี้กับทุกรายวิชาในระบบทันที
                 </div>
-                <div className="text-[11px] text-indigo-800/80 mt-0.5">
+                <div className="text-[11px] text-slate-500 mt-0.5">
                   ระบบจะอัปเดตสัดส่วนคะแนนเต็มให้กับทุกรายวิชาที่มีอยู่แล้ว เพื่อให้โครงสร้างสัดส่วนตรงกันทั้งโรงเรียน
                 </div>
               </div>
@@ -408,26 +468,39 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
         {/* Footer */}
         <div className="p-4 sm:p-5 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-white">
           <div className="text-xs text-slate-500">
-            * สัดส่วนคะแนนรวมแนะนำคือ 100 คะแนน (ปัจจุบัน: <strong className={totalAll === 100 ? 'text-emerald-600' : 'text-amber-600'}>{totalAll}</strong>)
+            {isReadOnly ? (
+              <span className="text-amber-800 font-medium flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                โหมดดูอย่างเดียว: เฉพาะฝ่ายวิชาการและผู้บริหารโรงเรียนเท่านั้นที่สามารถกำหนดหรือแก้ไขสัดส่วนคะแนนมาตรฐานได้
+              </span>
+            ) : (
+              <span>* สัดส่วนคะแนนรวมแนะนำคือ 100 คะแนน (ปัจจุบัน: <strong className={totalAll === 100 ? 'text-emerald-600' : 'text-amber-600'}>{totalAll}</strong>)</span>
+            )}
           </div>
           <div className="flex gap-2.5 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                isReadOnly 
+                  ? 'bg-slate-800 text-white hover:bg-slate-900 shadow-sm' 
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
             >
-              ยกเลิก
+              {isReadOnly ? 'ปิดหน้าต่าง' : 'ยกเลิก'}
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving || isReadOnly}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              {isSaving ? 'กำลังบันทึกมาตรฐาน...' : 'บันทึกสัดส่วนคะแนนมาตรฐาน'}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow transition-all disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? 'กำลังบันทึกมาตรฐาน...' : 'บันทึกสัดส่วนคะแนนมาตรฐาน'}
+              </button>
+            )}
           </div>
         </div>
 

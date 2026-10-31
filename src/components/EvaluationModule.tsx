@@ -24,6 +24,39 @@ import { KindergartenEvaluationDashboard } from './KindergartenEvaluationDashboa
 import { KindergartenAssessmentSheet } from './KindergartenAssessmentSheet';
 import { ShieldCheck } from 'lucide-react';
 
+const getFirstSelectableSubject = (subjectsList: any[], teacher?: any, schedulesList?: TeacherSchedule[], grade?: string): string => {
+  if (!subjectsList || subjectsList.length === 0) return '';
+  
+  let finalSubjects = subjectsList;
+  if (teacher && !['admin', 'academic', 'deputy'].includes(teacher?.role) && schedulesList && grade) {
+    const teacherSubjectsForGrade = new Set<string>(
+      schedulesList
+        .filter(s => s.teacherId === teacher.id && s.gradeLevel === grade)
+        .map(s => s.subject === 'อื่นๆ' ? (s.customSubject || s.subject) : s.subject)
+    );
+    if (teacherSubjectsForGrade.size > 0) {
+      finalSubjects = finalSubjects.map(item => {
+        if (typeof item === 'string') return item;
+        if (item.type === 'single' && teacherSubjectsForGrade.has(item.name)) return item;
+        if (item.type === 'group') {
+          const validChildren = item.subjects.filter((sub: string) => teacherSubjectsForGrade.has(sub));
+          if (validChildren.length > 0) return { ...item, subjects: validChildren };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+  }
+
+  for (const item of finalSubjects) {
+    if (typeof item === 'string' && item) return item;
+    if (item && item.type === 'single' && item.name) return item.name;
+    if (item && item.type === 'group' && item.subjects && item.subjects.length > 0) {
+      return item.subjects[0];
+    }
+  }
+  return '';
+};
+
 interface EvaluationModuleProps {
   systemAcademicYear?: string;
   systemSemester?: string;
@@ -155,6 +188,10 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
   const isReadOnly = (isHistorical && currentTeacher?.role !== 'admin' && currentTeacher?.role !== 'academic') || (!isHistorical && selectedSubject !== '' && !isTeacherAssigned);
 
+  const canManageStandardScore = Boolean(
+    currentTeacher && ['admin', 'academic', 'deputy'].includes(currentTeacher?.role)
+  );
+
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showStandardModal, setShowStandardModal] = useState(false);
@@ -180,23 +217,47 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
     beforeMidKnowledge: [], beforeMidSoftSkill: [], afterMidKnowledge: [], afterMidSoftSkill: []
   });
 
+  const fallbackSettings: SubjectSettings = React.useMemo(() => {
+    const std = standardScoreStructure;
+    const curSubj = selectedSubject || 'รายวิชาทั่วไป';
+    const curGrade = selectedGrade || 'ประถมศึกษาปีที่ 1';
+    const sId = `${viewYear}_${viewSemester}_${curGrade}_${curSubj}`.replace(/[\/]/g, '-');
+    return {
+      id: sId,
+      academicYear: viewYear || '',
+      semester: viewSemester || '',
+      gradeLevel: curGrade,
+      subject: curSubj,
+      targetBeforeMidKnowledge: std.targetBeforeMidKnowledge ?? 20,
+      targetBeforeMidSoftSkill: std.targetBeforeMidSoftSkill ?? 10,
+      targetMidterm: std.targetMidterm ?? 20,
+      targetAfterMidKnowledge: std.targetAfterMidKnowledge ?? 20,
+      targetAfterMidSoftSkill: std.targetAfterMidSoftSkill ?? 10,
+      targetFinal: std.targetFinal ?? 20,
+      beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'ชิ้นงาน/ใบงานที่ 1', maxScore: 20 }],
+      beforeMidSoftSkill: [{ id: 'default_bms_1', name: 'การส่งงานและมีส่วนร่วม', maxScore: 10 }],
+      afterMidKnowledge: [{ id: 'default_amk_1', name: 'ชิ้นงาน/ใบงานที่ 2', maxScore: 20 }],
+      afterMidSoftSkill: [{ id: 'default_ams_1', name: 'พฤติกรรมและการทำงาน', maxScore: 10 }]
+    };
+  }, [viewYear, viewSemester, selectedGrade, selectedSubject, standardScoreStructure]);
+
   const effectiveSettings = React.useMemo(() => {
-    if (!subjectSettings) return null;
+    const base = subjectSettings || fallbackSettings;
     const std = standardScoreStructure;
     return {
-      ...subjectSettings,
-      targetBeforeMidKnowledge: subjectSettings.targetBeforeMidKnowledge ?? std.targetBeforeMidKnowledge ?? 20,
-      targetBeforeMidSoftSkill: subjectSettings.targetBeforeMidSoftSkill ?? std.targetBeforeMidSoftSkill ?? 10,
-      targetAfterMidKnowledge: subjectSettings.targetAfterMidKnowledge ?? std.targetAfterMidKnowledge ?? 20,
-      targetAfterMidSoftSkill: subjectSettings.targetAfterMidSoftSkill ?? std.targetAfterMidSoftSkill ?? 10,
-      targetMidterm: subjectSettings.targetMidterm ?? std.targetMidterm ?? 20,
-      targetFinal: subjectSettings.targetFinal ?? std.targetFinal ?? 20,
-      beforeMidKnowledge: [...subjectSettings.beforeMidKnowledge, ...lessonPlanEvals.beforeMidKnowledge],
-      beforeMidSoftSkill: [...subjectSettings.beforeMidSoftSkill, ...lessonPlanEvals.beforeMidSoftSkill],
-      afterMidKnowledge: [...subjectSettings.afterMidKnowledge, ...lessonPlanEvals.afterMidKnowledge],
-      afterMidSoftSkill: [...subjectSettings.afterMidSoftSkill, ...lessonPlanEvals.afterMidSoftSkill]
+      ...base,
+      targetBeforeMidKnowledge: base.targetBeforeMidKnowledge ?? std.targetBeforeMidKnowledge ?? 20,
+      targetBeforeMidSoftSkill: base.targetBeforeMidSoftSkill ?? std.targetBeforeMidSoftSkill ?? 10,
+      targetAfterMidKnowledge: base.targetAfterMidKnowledge ?? std.targetAfterMidKnowledge ?? 20,
+      targetAfterMidSoftSkill: base.targetAfterMidSoftSkill ?? std.targetAfterMidSoftSkill ?? 10,
+      targetMidterm: base.targetMidterm ?? std.targetMidterm ?? 20,
+      targetFinal: base.targetFinal ?? std.targetFinal ?? 20,
+      beforeMidKnowledge: [...(base.beforeMidKnowledge || []), ...lessonPlanEvals.beforeMidKnowledge],
+      beforeMidSoftSkill: [...(base.beforeMidSoftSkill || []), ...lessonPlanEvals.beforeMidSoftSkill],
+      afterMidKnowledge: [...(base.afterMidKnowledge || []), ...lessonPlanEvals.afterMidKnowledge],
+      afterMidSoftSkill: [...(base.afterMidSoftSkill || []), ...lessonPlanEvals.afterMidSoftSkill]
     };
-  }, [subjectSettings, standardScoreStructure, lessonPlanEvals]);
+  }, [subjectSettings, fallbackSettings, standardScoreStructure, lessonPlanEvals]);
 
 
   const uniqueGrades = React.useMemo(() => {
@@ -256,6 +317,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       setSelectedGrade(prathomGrades[0]);
     }
   }, [uniqueGrades, selectedGrade]);
+
+  useEffect(() => {
+    if (!selectedSubject && fetchedAvailableSubjects.length > 0) {
+      const firstSubj = getFirstSelectableSubject(fetchedAvailableSubjects, currentTeacher, schedules, selectedGrade);
+      if (firstSubj) {
+        setSelectedSubject(firstSubj);
+      }
+    }
+  }, [fetchedAvailableSubjects, selectedSubject, currentTeacher, schedules, selectedGrade]);
 
   useEffect(() => {
     if (!auth?.currentUser || !viewYear || !viewSemester || !selectedGrade || !selectedSubject) return;
@@ -436,6 +506,14 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   }, []);
 
   const handleSaveStandardScoreStructure = async (newStructure: StandardScoreStructure, applyToAllSubjects: boolean) => {
+    if (!canManageStandardScore) {
+      alert('ขออภัย คุณไม่มีสิทธิ์แก้ไขสัดส่วนคะแนนมาตรฐาน (สงวนสิทธิ์เฉพาะฝ่ายวิชาการและผู้บริหารโรงเรียน)');
+      return;
+    }
+    if (isHistorical) {
+      alert('ระบบอยู่ในโหมดดูข้อมูลย้อนหลัง ไม่สามารถแก้ไขสัดส่วนคะแนนมาตรฐานได้');
+      return;
+    }
     try {
       await setDoc(doc(db, 'settings', 'standard_score_structure'), {
         ...newStructure,
@@ -470,12 +548,29 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   };
 
   const handleSaveSettings = async (newSettings: SubjectSettings) => {
-    if (isReadOnly) return;
+    if (isReadOnly) {
+      alert('คุณไม่มีสิทธิ์แก้ไขการตั้งค่ากิจกรรมของรายวิชานี้ หรือระบบอยู่ในโหมดดูย้อนหลัง');
+      return;
+    }
     try {
-      await setDoc(doc(db, "subject_settings", newSettings.id), newSettings);
+      const curSubj = newSettings.subject || selectedSubject;
+      const curGrade = newSettings.gradeLevel || selectedGrade;
+      const sId = newSettings.id || `${viewYear}_${viewSemester}_${curGrade}_${curSubj}`.replace(/[\/]/g, '-');
+      const settingsToSave: SubjectSettings = {
+        ...newSettings,
+        id: sId,
+        academicYear: newSettings.academicYear || viewYear || '',
+        semester: newSettings.semester || viewSemester || '',
+        gradeLevel: curGrade,
+        subject: curSubj,
+      };
+      await setDoc(doc(db, "subject_settings", settingsToSave.id), settingsToSave);
+      setSubjectSettings(settingsToSave);
       setShowSettingsModal(false);
+      alert('บันทึกการตั้งค่ากิจกรรมเก็บคะแนนเรียบร้อยแล้ว');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, "subject_settings");
+      alert('เกิดข้อผิดพลาดในการบันทึกกิจกรรมเก็บคะแนน');
     }
   };
 
@@ -1677,7 +1772,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onChange={(e) => setSelectedGrade(e.target.value)}
                     className="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                   >
-                    <option value="" disabled>-- กรุณาเลือกวิชา --</option>
+                    <option value="" disabled>-- กรุณาเลือกระดับชั้น --</option>
                     {(() => {
                        let availableGrades = uniqueGrades.filter(g => g.includes('ประถม'));
                        // Smart Filter: If not admin/academic, only show grades they teach for the selected subject
@@ -1709,15 +1804,42 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                   </select>
                   <button 
                     onClick={() => setShowStandardModal(true)}
-                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border border-indigo-200/80 shadow-xs whitespace-nowrap"
-                    title="ตั้งค่าโครงสร้างและสัดส่วนคะแนนมาตรฐานรวมทุกรายวิชา (100 คะแนน)"
+                    className={`w-full justify-center sm:w-auto flex items-center gap-2 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border shadow-xs whitespace-nowrap cursor-pointer active:scale-95 ${
+                      canManageStandardScore 
+                        ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200/80' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+                    }`}
+                    title={
+                      canManageStandardScore
+                        ? "ตั้งค่าโครงสร้างและสัดส่วนคะแนนมาตรฐานรวมทุกรายวิชา (100 คะแนน)"
+                        : "ดูโครงสร้างและสัดส่วนคะแนนมาตรฐานกลางของโรงเรียน (สงวนสิทธิ์การแก้ไขเฉพาะฝ่ายวิชาการและผู้บริหาร)"
+                    }
                   >
-                    <Sliders className="h-4 w-4 text-indigo-600" />
-                    <span>สัดส่วนคะแนนมาตรฐาน</span>
+                    <Sliders className={`h-4 w-4 ${canManageStandardScore ? 'text-indigo-600' : 'text-slate-500'}`} />
+                    <span>{canManageStandardScore ? 'สัดส่วนคะแนนมาตรฐาน' : 'ดูสัดส่วนมาตรฐาน'}</span>
+                    {!canManageStandardScore && (
+                      <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">
+                        ดูอย่างเดียว
+                      </span>
+                    )}
                   </button>
                   <button 
-                    onClick={() => setShowSettingsModal(true)}
-                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border border-slate-200 shadow-xs whitespace-nowrap"
+                    onClick={() => {
+                      let subjToUse = selectedSubject;
+                      if (!subjToUse) {
+                        const firstSubj = getFirstSelectableSubject(fetchedAvailableSubjects, currentTeacher, schedules, selectedGrade);
+                        if (firstSubj) {
+                          setSelectedSubject(firstSubj);
+                          subjToUse = firstSubj;
+                        }
+                      }
+                      if (!subjToUse) {
+                        alert('กรุณาเลือกรายวิชาจากเมนูด้านบนก่อนตั้งค่ากิจกรรมเก็บคะแนน (เนื่องจากกิจกรรมเก็บคะแนน ชิ้นงาน/ใบงาน จะเป็นของแต่ละรายวิชา)');
+                        return;
+                      }
+                      setShowSettingsModal(true);
+                    }}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border border-slate-200 shadow-xs whitespace-nowrap cursor-pointer active:scale-95"
                     title="ตั้งค่ากิจกรรม ชิ้นงาน ใบงาน และคะแนนดิบเฉพาะรายวิชาและระดับชั้นที่เลือก"
                   >
                     <ListChecks className="h-4 w-4 text-indigo-500" />
@@ -2054,7 +2176,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                       })}
                     </tbody>
                   </table>
-                ) : gradesSubTab === 'part1' && subjectSettings ? (
+                ) : gradesSubTab === 'part1' && (effectiveSettings || subjectSettings) ? (
                   <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
@@ -3035,12 +3157,13 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         </div>
       </div>
     
-      {showSettingsModal && subjectSettings && (
+      {showSettingsModal && (
         <SubjectSettingsModal
           isOpen={showSettingsModal}
           onClose={() => setShowSettingsModal(false)}
-          settings={effectiveSettings || subjectSettings}
+          settings={effectiveSettings || subjectSettings || fallbackSettings}
           onSave={handleSaveSettings}
+          canManageStandardScore={canManageStandardScore}
           onOpenStandardScoreStructure={() => {
             setShowSettingsModal(false);
             setShowStandardModal(true);
@@ -3054,7 +3177,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           onClose={() => setShowStandardModal(false)}
           currentStandard={standardScoreStructure}
           onSaveStandard={handleSaveStandardScoreStructure}
-          isReadOnly={isReadOnly}
+          isReadOnly={!canManageStandardScore || isHistorical}
           academicYear={viewYear}
           semester={viewSemester}
         />
