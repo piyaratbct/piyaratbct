@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star, FileSpreadsheet, AlertTriangle, ShieldAlert, Sparkles, CheckCircle2, ArrowDown, HelpCircle, Filter, FileQuestion } from 'lucide-react';
-import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, ActivityColumn, TeacherSchedule, AttendanceSession } from '../types';
+import { Settings, BarChart3, TrendingUp, Award, BookOpen, ChevronDown, CheckCircle, Search, FileText, Wrench, CalendarDays, AlertCircle, Star, FileSpreadsheet, AlertTriangle, ShieldAlert, Sparkles, CheckCircle2, ArrowDown, HelpCircle, Filter, FileQuestion, Sliders, ListChecks } from 'lucide-react';
+import { Student, GRADE_LEVELS, SUBJECTS, SubjectScore, SubjectSettings, ActivityColumn, TeacherSchedule, AttendanceSession, StandardScoreStructure } from '../types';
 import { AttendanceSummary } from './AttendanceSummary';
 import { LearningHoursReport } from './LearningHoursReport';
 import { SubjectSettingsModal } from './SubjectSettingsModal';
+import { StandardScoreStructureModal } from './StandardScoreStructureModal';
 import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
 import { AttendancePrintTemplate } from './AttendancePrintTemplate';
 import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
@@ -14,7 +15,7 @@ import { MissingScorePromptModal, MissingScoreItem } from './MissingScorePromptM
 import { Printer } from 'lucide-react';
 
 import { LessonAchieve } from './LessonAchieve';
-import { collection, query, onSnapshot, setDoc, doc, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, setDoc, doc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useEffect } from 'react';
@@ -156,6 +157,15 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showStandardModal, setShowStandardModal] = useState(false);
+  const [standardScoreStructure, setStandardScoreStructure] = useState<StandardScoreStructure>({
+    targetBeforeMidKnowledge: 20,
+    targetBeforeMidSoftSkill: 10,
+    targetMidterm: 20,
+    targetAfterMidKnowledge: 20,
+    targetAfterMidSoftSkill: 10,
+    targetFinal: 20
+  });
   const [showExcelImporter, setShowExcelImporter] = useState(false);
   const [showPrintAttendance, setShowPrintAttendance] = useState(false);
   const [showPrintScore, setShowPrintScore] = useState(false);
@@ -172,20 +182,21 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
 
   const effectiveSettings = React.useMemo(() => {
     if (!subjectSettings) return null;
+    const std = standardScoreStructure;
     return {
       ...subjectSettings,
-      targetBeforeMidKnowledge: subjectSettings.targetBeforeMidKnowledge ?? 20,
-      targetBeforeMidSoftSkill: subjectSettings.targetBeforeMidSoftSkill ?? 10,
-      targetAfterMidKnowledge: subjectSettings.targetAfterMidKnowledge ?? 20,
-      targetAfterMidSoftSkill: subjectSettings.targetAfterMidSoftSkill ?? 10,
-      targetMidterm: subjectSettings.targetMidterm ?? 20,
-      targetFinal: subjectSettings.targetFinal ?? 20,
+      targetBeforeMidKnowledge: subjectSettings.targetBeforeMidKnowledge ?? std.targetBeforeMidKnowledge ?? 20,
+      targetBeforeMidSoftSkill: subjectSettings.targetBeforeMidSoftSkill ?? std.targetBeforeMidSoftSkill ?? 10,
+      targetAfterMidKnowledge: subjectSettings.targetAfterMidKnowledge ?? std.targetAfterMidKnowledge ?? 20,
+      targetAfterMidSoftSkill: subjectSettings.targetAfterMidSoftSkill ?? std.targetAfterMidSoftSkill ?? 10,
+      targetMidterm: subjectSettings.targetMidterm ?? std.targetMidterm ?? 20,
+      targetFinal: subjectSettings.targetFinal ?? std.targetFinal ?? 20,
       beforeMidKnowledge: [...subjectSettings.beforeMidKnowledge, ...lessonPlanEvals.beforeMidKnowledge],
       beforeMidSoftSkill: [...subjectSettings.beforeMidSoftSkill, ...lessonPlanEvals.beforeMidSoftSkill],
       afterMidKnowledge: [...subjectSettings.afterMidKnowledge, ...lessonPlanEvals.afterMidKnowledge],
       afterMidSoftSkill: [...subjectSettings.afterMidSoftSkill, ...lessonPlanEvals.afterMidSoftSkill]
     };
-  }, [subjectSettings, lessonPlanEvals]);
+  }, [subjectSettings, standardScoreStructure, lessonPlanEvals]);
 
 
   const uniqueGrades = React.useMemo(() => {
@@ -382,6 +393,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
             semester: viewSemester || '',
             gradeLevel: selectedGrade,
             subject: selectedSubject,
+            targetBeforeMidKnowledge: standardScoreStructure.targetBeforeMidKnowledge,
+            targetBeforeMidSoftSkill: standardScoreStructure.targetBeforeMidSoftSkill,
+            targetMidterm: standardScoreStructure.targetMidterm,
+            targetAfterMidKnowledge: standardScoreStructure.targetAfterMidKnowledge,
+            targetAfterMidSoftSkill: standardScoreStructure.targetAfterMidSoftSkill,
+            targetFinal: standardScoreStructure.targetFinal,
             beforeMidKnowledge: [{ id: 'default_bmk_1', name: 'งานที่ 1', maxScore: 20 }],
             beforeMidSoftSkill: [{ id: 'default_bms_1', name: 'การส่งงาน', maxScore: 10 }],
             afterMidKnowledge: [{ id: 'default_amk_1', name: 'งานที่ 2', maxScore: 20 }],
@@ -394,7 +411,63 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
       }
     );
     return () => unsubscribe();
-  }, [viewYear, viewSemester, selectedGrade, selectedSubject]);
+  }, [viewYear, viewSemester, selectedGrade, selectedSubject, standardScoreStructure]);
+
+  useEffect(() => {
+    const docRef = doc(db, 'settings', 'standard_score_structure');
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setStandardScoreStructure({
+          targetBeforeMidKnowledge: Number(data.targetBeforeMidKnowledge ?? 20),
+          targetBeforeMidSoftSkill: Number(data.targetBeforeMidSoftSkill ?? 10),
+          targetMidterm: Number(data.targetMidterm ?? 20),
+          targetAfterMidKnowledge: Number(data.targetAfterMidKnowledge ?? 20),
+          targetAfterMidSoftSkill: Number(data.targetAfterMidSoftSkill ?? 10),
+          targetFinal: Number(data.targetFinal ?? 20),
+          updatedAt: data.updatedAt,
+          updatedBy: data.updatedBy
+        });
+      }
+    }, (error) => {
+      console.warn("Could not load standard_score_structure, using defaults:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveStandardScoreStructure = async (newStructure: StandardScoreStructure, applyToAllSubjects: boolean) => {
+    try {
+      await setDoc(doc(db, 'settings', 'standard_score_structure'), {
+        ...newStructure,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentTeacher?.thaiName || currentTeacher?.name || currentTeacher?.email || 'admin'
+      }, { merge: true });
+
+      if (applyToAllSubjects) {
+        const settingsSnap = await getDocs(collection(db, 'subject_settings'));
+        const batch = writeBatch(db);
+        settingsSnap.forEach((d) => {
+          batch.update(d.ref, {
+            targetBeforeMidKnowledge: newStructure.targetBeforeMidKnowledge,
+            targetBeforeMidSoftSkill: newStructure.targetBeforeMidSoftSkill,
+            targetMidterm: newStructure.targetMidterm,
+            targetAfterMidKnowledge: newStructure.targetAfterMidKnowledge,
+            targetAfterMidSoftSkill: newStructure.targetAfterMidSoftSkill,
+            targetFinal: newStructure.targetFinal
+          });
+        });
+        await batch.commit();
+      }
+
+      setStandardScoreStructure(newStructure);
+      alert(applyToAllSubjects 
+        ? 'บันทึกโครงสร้างสัดส่วนคะแนนมาตรฐาน และปรับใช้กับทุกรายวิชาในระบบเรียบร้อยแล้ว' 
+        : 'บันทึกโครงสร้างสัดส่วนคะแนนมาตรฐานกลางเรียบร้อยแล้ว');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "settings");
+      alert('เกิดข้อผิดพลาดในการบันทึกสัดส่วนคะแนนมาตรฐาน');
+    }
+  };
 
   const handleSaveSettings = async (newSettings: SubjectSettings) => {
     if (isReadOnly) return;
@@ -1635,10 +1708,20 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     })()}
                   </select>
                   <button 
-                    onClick={() => setShowSettingsModal(true)}
-                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+                    onClick={() => setShowStandardModal(true)}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border border-indigo-200/80 shadow-xs whitespace-nowrap"
+                    title="ตั้งค่าโครงสร้างและสัดส่วนคะแนนมาตรฐานรวมทุกรายวิชา (100 คะแนน)"
                   >
-                    <Settings className="h-4 w-4" /> ตั้งค่ากิจกรรม
+                    <Sliders className="h-4 w-4 text-indigo-600" />
+                    <span>สัดส่วนคะแนนมาตรฐาน</span>
+                  </button>
+                  <button 
+                    onClick={() => setShowSettingsModal(true)}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 px-3.5 py-2 rounded-lg font-bold text-sm transition-colors border border-slate-200 shadow-xs whitespace-nowrap"
+                    title="ตั้งค่ากิจกรรม ชิ้นงาน ใบงาน และคะแนนดิบเฉพาะรายวิชาและระดับชั้นที่เลือก"
+                  >
+                    <ListChecks className="h-4 w-4 text-indigo-500" />
+                    <span>ตั้งค่ากิจกรรมเก็บคะแนน</span>
                   </button>
                   <button 
                     onClick={() => setShowExcelImporter(true)}
@@ -2956,8 +3039,24 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         <SubjectSettingsModal
           isOpen={showSettingsModal}
           onClose={() => setShowSettingsModal(false)}
-          settings={effectiveSettings || subjectSettings || undefined}
+          settings={effectiveSettings || subjectSettings}
           onSave={handleSaveSettings}
+          onOpenStandardScoreStructure={() => {
+            setShowSettingsModal(false);
+            setShowStandardModal(true);
+          }}
+        />
+      )}
+
+      {showStandardModal && (
+        <StandardScoreStructureModal
+          isOpen={showStandardModal}
+          onClose={() => setShowStandardModal(false)}
+          currentStandard={standardScoreStructure}
+          onSaveStandard={handleSaveStandardScoreStructure}
+          isReadOnly={isReadOnly}
+          academicYear={viewYear}
+          semester={viewSemester}
         />
       )}
 

@@ -26,26 +26,42 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
   const availableSubjects = useAvailableSubjects();
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const canEdit = currentTeacher.role === "admin" || currentTeacher.role === "academic";
+  const canEdit = 
+    currentTeacher.role === "admin" || 
+    currentTeacher.role === "academic" || 
+    currentTeacher.role === "deputy" ||
+    currentTeacher.email === "piyarat.bct@gmail.com";
 
+  // Load config/school ONCE on initial mount so local state changes aren't overwritten
   useEffect(() => {
+    let isInitialLoad = true;
     const unsub = onSnapshot(
       doc(db, "config", "school"),
       (docSnap) => {
-        if (docSnap.exists()) {
+        if (docSnap.exists() && isInitialLoad) {
+          isInitialLoad = false;
           const data = docSnap.data();
+          if (data.schoolName !== undefined) setSchoolName(data.schoolName);
+          if (data.schoolSubDistrict !== undefined) setSchoolSubDistrict(data.schoolSubDistrict);
+          if (data.schoolDistrict !== undefined) setSchoolDistrict(data.schoolDistrict);
+          if (data.schoolProvince !== undefined) setSchoolProvince(data.schoolProvince);
           if (data.systemAcademicYear) setAcademicYear(data.systemAcademicYear);
           if (data.systemSemester) setSemester(data.systemSemester);
-          if (data.totalLearningDays) setTotalLearningDays(data.totalLearningDays);
-          if (data.termStartDate) setTermStartDate(data.termStartDate);
-          if (data.termEndDate) setTermEndDate(data.termEndDate);
-          if (data.passingGrade) setPassingGrade(data.passingGrade);
+          if (data.totalLearningDays !== undefined) setTotalLearningDays(data.totalLearningDays);
+          if (data.termStartDate !== undefined) setTermStartDate(data.termStartDate);
+          if (data.termEndDate !== undefined) setTermEndDate(data.termEndDate);
+          if (data.passingGrade !== undefined) setPassingGrade(data.passingGrade);
         }
       },
       (err) => handleFirestoreError(err, OperationType.GET, "config/school")
     );
 
-    // Separately load holidays from schoolCalendar
+    return () => unsub();
+  }, []);
+
+  // Separately load holidays from schoolCalendar when academicYear or semester changes
+  useEffect(() => {
+    if (!academicYear || !semester) return;
     const calendarDocId = `${academicYear}_${semester}`;
     const unsubCalendar = onSnapshot(
       doc(db, "schoolCalendar", calendarDocId),
@@ -64,10 +80,7 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
       (err) => handleFirestoreError(err, OperationType.GET, "schoolCalendar")
     );
 
-    return () => {
-      unsub();
-      unsubCalendar();
-    };
+    return () => unsubCalendar();
   }, [academicYear, semester]);
 
   
@@ -164,6 +177,15 @@ export const AcademicSettings: React.FC<AcademicSettingsProps> = ({ currentTeach
       </div>
 
       <div className="p-6 space-y-8">
+        {!canEdit && (
+          <div className="p-4 rounded-xl flex items-start sm:items-center gap-3 bg-amber-50 text-amber-900 border border-amber-200 text-sm">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5 sm:mt-0" />
+            <div>
+              <span className="font-bold">โหมดดูข้อมูลอย่างเดียว (Read-only):</span> สิทธิ์การใช้งานปัจจุบันของคุณคือ <strong>{currentTeacher.role || 'teacher'}</strong> ไม่สามารถแก้ไขการตั้งค่าหรือเปลี่ยนภาคเรียนของโรงเรียนได้ (สงวนสิทธิ์เฉพาะผู้ดูแลระบบ Admin หรือฝ่ายวิชาการ)
+            </div>
+          </div>
+        )}
+
         {message && (
           <div className={`p-4 rounded-xl flex items-center gap-3 ${
             message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'

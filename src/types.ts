@@ -392,6 +392,18 @@ export interface SubjectSettings {
   targetFinal?: number;
 }
 
+export interface StandardScoreStructure {
+  id?: string;
+  targetBeforeMidKnowledge: number;
+  targetBeforeMidSoftSkill: number;
+  targetMidterm: number;
+  targetAfterMidKnowledge: number;
+  targetAfterMidSoftSkill: number;
+  targetFinal: number;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface StudentAssessment {
   id: string;
   studentId: string;
