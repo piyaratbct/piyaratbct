@@ -31,7 +31,8 @@ service cloud.firestore {
             && (getTeacherProfile(request.auth.uid).role == 'academic' 
                 || getTeacherProfile(request.auth.uid).role == 'deputy'
                 || getTeacherProfile(request.auth.uid).role == 'admin'
-                || getTeacherProfile(request.auth.uid).role == 'discipline'))
+                || getTeacherProfile(request.auth.uid).role == 'discipline'
+                || getTeacherProfile(request.auth.uid).role == 'teacher'))
         );
     }
 
@@ -189,7 +190,7 @@ service cloud.firestore {
 
     match /settings/{settingId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow write: if isAcademic() || isAdmin();
     }
 
     match /admissions/{admissionId} {

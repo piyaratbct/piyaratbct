@@ -84,6 +84,7 @@ export const StandardScoreStructureModal: React.FC<StandardScoreStructureModalPr
   };
 
   const handleSave = async () => {
+    if (isReadOnly) return;
     if (targetBMK < 0 || targetBMS < 0 || targetAMK < 0 || targetAMS < 0 || targetMid < 0 || targetFin < 0) {
       setError('สัดส่วนคะแนนต้องไม่เป็นค่าติดลบ');
       return;

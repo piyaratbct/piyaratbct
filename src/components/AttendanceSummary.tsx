@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS, SUBJECTS } from '../types';
-import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2, BookOpen } from 'lucide-react';
+import { CalendarDays, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, FileText, Users, Loader2, Edit3, Trash2, BookOpen, Printer } from 'lucide-react';
 import { AttendanceStudentCumulative } from './AttendanceStudentCumulative';
 import { LearningHoursReport } from './LearningHoursReport';
 import { AttendanceTracking } from './AttendanceTracking';
+import { DailyAttendanceReportModal } from './DailyAttendanceReportModal';
 
 import { Student } from '../types';
 
@@ -26,6 +27,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [termStartDate, setTermStartDate] = useState<string>('');
   const [termEndDate, setTermEndDate] = useState<string>('');
+  const [showDailyReport, setShowDailyReport] = useState<boolean>(false);
 
   const uniqueGrades = React.useMemo(() => {
     const dbGrades = new Set(students.map(s => s.gradeLevel));
@@ -123,22 +125,32 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
           <p className="text-sm text-slate-500">รายงานสรุปการเข้าเรียนประจำวันและรายคาบเรียน รวมถึงสถิติสะสม</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-1 rounded-xl border border-slate-100">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+                viewMode === 'daily' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4" /> สรุปรายวัน
+            </button>
+            <button
+              onClick={() => setViewMode('cumulative')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
+                viewMode === 'cumulative' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Users className="h-4 w-4" /> สรุปสะสมรายบุคคล
+            </button>
+          </div>
+
           <button
-            onClick={() => setViewMode('daily')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
-              viewMode === 'daily' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'
-            }`}
+            onClick={() => setShowDailyReport(true)}
+            className="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all hover:shadow active:scale-95"
+            title="พิมพ์สถิตินักเรียนประจำวัน (PDF)"
           >
-            <CalendarDays className="h-4 w-4" /> สรุปรายวัน
-          </button>
-          <button
-            onClick={() => setViewMode('cumulative')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${
-              viewMode === 'cumulative' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Users className="h-4 w-4" /> สรุปสะสมรายบุคคล
+            <Printer className="h-4 w-4" /> พิมพ์สถิติประจำวัน (PDF)
           </button>
         </div>
       </div>
@@ -395,6 +407,16 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
             />
           </div>
         </div>
+      )}
+
+      {showDailyReport && (
+        <DailyAttendanceReportModal
+          initialDate={selectedDate}
+          semester={systemSemester}
+          academicYear={systemAcademicYear}
+          students={students}
+          onClose={() => setShowDailyReport(false)}
+        />
       )}
     </div>
   );

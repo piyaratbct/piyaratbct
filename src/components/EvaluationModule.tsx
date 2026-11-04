@@ -7,6 +7,7 @@ import { SubjectSettingsModal } from './SubjectSettingsModal';
 import { StandardScoreStructureModal } from './StandardScoreStructureModal';
 import { SubjectScorePrintTemplate } from './SubjectScorePrintTemplate';
 import { AttendancePrintTemplate } from './AttendancePrintTemplate';
+import { DailyAttendanceReportModal } from './DailyAttendanceReportModal';
 import { StudentReportPrintTemplate } from './StudentReportPrintTemplate';
 import { ExcelScoreImporterModal } from './ExcelScoreImporterModal';
 import { ScoreValidationErrorModal, ScoreValidationError } from './ScoreValidationErrorModal';
@@ -205,6 +206,7 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
   });
   const [showExcelImporter, setShowExcelImporter] = useState(false);
   const [showPrintAttendance, setShowPrintAttendance] = useState(false);
+  const [showDailyAttendanceReport, setShowDailyAttendanceReport] = useState(false);
   const [showPrintScore, setShowPrintScore] = useState(false);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [subjectSettings, setSubjectSettings] = useState<SubjectSettings | null>(null);
@@ -563,6 +565,12 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
         semester: newSettings.semester || viewSemester || '',
         gradeLevel: curGrade,
         subject: curSubj,
+        targetBeforeMidKnowledge: standardScoreStructure.targetBeforeMidKnowledge,
+        targetBeforeMidSoftSkill: standardScoreStructure.targetBeforeMidSoftSkill,
+        targetMidterm: standardScoreStructure.targetMidterm,
+        targetAfterMidKnowledge: standardScoreStructure.targetAfterMidKnowledge,
+        targetAfterMidSoftSkill: standardScoreStructure.targetAfterMidSoftSkill,
+        targetFinal: standardScoreStructure.targetFinal
       };
       await setDoc(doc(db, "subject_settings", settingsToSave.id), settingsToSave);
       setSubjectSettings(settingsToSave);
@@ -1855,7 +1863,14 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
                     onClick={() => setShowPrintAttendance(true)}
                     className="w-full justify-center sm:w-auto flex items-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
                   >
-                    <Printer className="h-4 w-4" /> พิมพ์เวลาเรียน
+                    <Printer className="h-4 w-4" /> พิมพ์เวลาเรียน (ปพ.5)
+                  </button>
+                  <button
+                    onClick={() => setShowDailyAttendanceReport(true)}
+                    className="w-full justify-center sm:w-auto flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap"
+                    title="พิมพ์แบบฟอร์มสถิตินักเรียนประจำวัน (PDF)"
+                  >
+                    <Printer className="h-4 w-4" /> สถิตินักเรียนประจำวัน (PDF)
                   </button>
                   <button
                     onClick={() => setShowPrintScore(true)}
@@ -3207,6 +3222,16 @@ export const EvaluationModule: React.FC<EvaluationModuleProps> = ({ systemAcadem
           semester={systemSemester || "1"}
           teacherName={subjectTeacherName}
           onClose={() => setShowPrintAttendance(false)}
+        />
+      )}
+
+      {showDailyAttendanceReport && (
+        <DailyAttendanceReportModal
+          semester={systemSemester || "1"}
+          academicYear={viewYear || "2567"}
+          students={students}
+          currentTeacher={currentTeacher}
+          onClose={() => setShowDailyAttendanceReport(false)}
         />
       )}
 

@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, Clock } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, Printer } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Student, AttendanceSession } from '../types';
+import { Student, AttendanceSession, Teacher } from '../types';
+import { DailyAttendanceReportModal } from './DailyAttendanceReportModal';
 
 interface TodayAttendanceWidgetProps {
   students: Student[];
+  teachers?: Teacher[];
+  currentTeacher?: Teacher;
+  semester?: string;
+  academicYear?: string;
 }
 
-export function TodayAttendanceWidget({ students }: TodayAttendanceWidgetProps) {
+export function TodayAttendanceWidget({
+  students,
+  teachers = [],
+  currentTeacher,
+  semester = '1',
+  academicYear = '2567',
+}: TodayAttendanceWidgetProps) {
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -132,7 +144,7 @@ export function TodayAttendanceWidget({ students }: TodayAttendanceWidgetProps) 
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
             <Users className="h-5 w-5 text-indigo-500" />
@@ -140,9 +152,19 @@ export function TodayAttendanceWidget({ students }: TodayAttendanceWidgetProps) 
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">{thaiDateStr} (อัปเดตเรียลไทม์)</p>
         </div>
-        <div className="bg-indigo-50 px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-indigo-100">
-          <Clock className="h-3.5 w-3.5 text-indigo-500" />
-          <span className="text-xs font-bold text-indigo-700">เช็คแล้ว {checkedTotal} / {totalStudents} คน</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-indigo-50 px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-indigo-100">
+            <Clock className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="text-xs font-bold text-indigo-700">เช็คแล้ว {checkedTotal} / {totalStudents} คน</span>
+          </div>
+          <button
+            onClick={() => setShowDailyReportModal(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow active:scale-95"
+            title="พิมพ์สถิตินักเรียนประจำวัน (PDF)"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span>พิมพ์สถิติประจำวัน (PDF)</span>
+          </button>
         </div>
       </div>
 
@@ -207,6 +229,18 @@ export function TodayAttendanceWidget({ students }: TodayAttendanceWidgetProps) 
           </div>
         </div>
       </div>
+
+      {showDailyReportModal && (
+        <DailyAttendanceReportModal
+          initialDate={today}
+          semester={semester}
+          academicYear={academicYear}
+          students={students}
+          teachers={teachers}
+          currentTeacher={currentTeacher}
+          onClose={() => setShowDailyReportModal(false)}
+        />
+      )}
     </div>
   );
 }

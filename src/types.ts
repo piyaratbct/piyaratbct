@@ -494,7 +494,6 @@ export const SEMESTERS = [
 ];
 
 export const SUBJECTS: string[] = [
-  'การศึกษาปฐมวัย',
   'ภาษาไทย',
   'คณิตศาสตร์',
   'วิทยาศาสตร์และเทคโนโลยี',
@@ -514,6 +513,7 @@ export const SUBJECTS: string[] = [
   'ดนตรีสากล',
   'กิจกรรมลูกเสือ',
   'กิจกรรมอ่าน-เขียน',
+  'การศึกษาปฐมวัย',
   'อื่นๆ'
 ];
 
@@ -599,6 +599,8 @@ export interface Address {
 export interface AdmissionRecord {
   id: string;
   academicYear: string;
+  entrySemester?: string; // '1' | '2'
+  admissionType?: 'regular' | 'transfer_in' | 'midterm'; // 'regular' (นักเรียนใหม่) | 'transfer_in' (ย้ายเข้าระหว่างปี) | 'midterm' (ระหว่างเทอม)
   applyForGrade: string;
   firstName: string;
   lastName: string;

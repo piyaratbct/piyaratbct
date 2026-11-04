@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MilkReportPrintTemplate } from './MilkReportPrintTemplate';
+import { DailyAttendanceReportModal } from './DailyAttendanceReportModal';
 import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Student, AttendanceSession, TeacherSchedule, PERIODS } from '../types';
-import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { Loader2, Save, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, HelpCircle, Printer } from 'lucide-react';
 
 interface AttendanceTrackingProps {
   students: Student[];
@@ -31,6 +32,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [termStartDate, setTermStartDate] = useState<string>('');
   const [termEndDate, setTermEndDate] = useState<string>('');
   const [showMilkReport, setShowMilkReport] = useState(false);
+  const [showDailyReport, setShowDailyReport] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState({ name: '', subDistrict: '', district: '', province: '' });
   const [holidays, setHolidays] = useState<string[]>([]);
 
@@ -371,6 +373,15 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           currentDate={date}
         />
       )}
+      {showDailyReport && (
+        <DailyAttendanceReportModal
+          initialDate={date}
+          semester={semester}
+          academicYear={academicYear}
+          students={students}
+          onClose={() => setShowDailyReport(false)}
+        />
+      )}
       {/* Header Controls */}
       {onClose && (
         <div className="bg-slate-100 px-4 py-2 flex justify-between items-center border-b border-slate-200">
@@ -443,6 +454,13 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             </span>
           )}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
+            <button
+              onClick={() => setShowDailyReport(true)}
+              className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-bold transition-colors"
+              title="พิมพ์แบบฟอร์มสถิตินักเรียนประจำวัน (PDF)"
+            >
+              <Printer className="h-4 w-4" /> สถิติประจำวัน
+            </button>
             <button
               onClick={() => setShowMilkReport(true)}
               className="w-full justify-center sm:w-auto flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold transition-colors "

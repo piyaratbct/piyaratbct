@@ -1,9 +1,9 @@
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, getDocs, doc, setDoc, deleteDoc, addDoc, where, onSnapshot, writeBatch } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Teacher, TeacherSchedule, GRADE_LEVELS, SUBJECTS, PERIODS, BASE_GRADE_LEVELS, sortSubjects } from '../types';
-import { Calendar, Trash2, Plus, User, BookOpen, AlertCircle } from 'lucide-react';
+import { Calendar, Trash2, Plus, User, BookOpen, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ScheduleManagerProps {
   systemSemester: string;
@@ -135,6 +135,43 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   console.log("selectedTeacherId:", selectedTeacherId);
   console.log("schedules:", schedules);
 
+  const getSubjectFromAffiliation = (affiliation?: string): string => {
+    if (!affiliation) return '';
+    const clean = affiliation
+      .replace(/^กลุ่มสาระการเรียนรู้\s*/, '')
+      .replace(/^กลุ่มสาระฯ\s*/, '')
+      .replace(/^กลุ่มสาระ\s*/, '')
+      .trim();
+    
+    if (!clean) return '';
+
+    // Direct match with SUBJECTS
+    const exact = SUBJECTS.find(s => s === clean);
+    if (exact) return exact;
+
+    // Common mapping for learning areas to standard subject
+    if (clean.includes('คณิต')) return 'คณิตศาสตร์';
+    if (clean.includes('วิทยาศาสตร์')) return 'วิทยาศาสตร์และเทคโนโลยี';
+    if (clean.includes('ภาษาไทย')) return 'ภาษาไทย';
+    if (clean.includes('ภาษาต่างประเทศ') || clean.includes('อังกฤษ')) return 'ภาษาอังกฤษ';
+    if (clean.includes('สังคม')) return 'สังคมศึกษา ศาสนา และวัฒนธรรม';
+    if (clean.includes('ประวัติศาสตร์')) return 'ประวัติศาสตร์';
+    if (clean.includes('สุขศึกษา') || clean.includes('พลศึกษา') || clean.includes('พละ')) return 'สุขศึกษาและพลศึกษา';
+    if (clean.includes('ศิลปะ') || clean.includes('ทัศนศิลป์')) return 'ศิลปะ';
+    if (clean.includes('ดนตรี')) return 'ดนตรีสากล';
+    if (clean.includes('นาฏศิลป์')) return 'นาฏศิลป์';
+    if (clean.includes('การงาน')) return 'การงานอาชีพ';
+    if (clean.includes('คอมพิวเตอร์') || clean.includes('เทคโนโลยี')) return 'คอมพิวเตอร์';
+    if (clean.includes('จีน')) return 'ภาษาจีน';
+    if (clean.includes('ปฐมวัย') || clean.includes('อนุบาล')) return 'การศึกษาปฐมวัย';
+
+    // Substring match
+    const partial = SUBJECTS.find(s => clean.includes(s) || s.includes(clean));
+    if (partial) return partial;
+
+    return clean;
+  };
+
   const handleAddSchedule = async (dayOfWeek: number, period: string) => {
     if (!selectedTeacherId) return;
     const teacher = teachers.find(t => t.id === selectedTeacherId);
@@ -146,13 +183,41 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
     }
 
     try {
+      // 1. Detect subject from teacher's affiliation (กลุ่มสาระการเรียนรู้ที่ครูสังกัด)
+      const affiliationSubject = getSubjectFromAffiliation(teacher?.affiliation);
+
+      // 2. Intelligently infer initial grade and subject
+      const teacherHomeroom = teacher?.homeroomClass || '';
+      const lastSchedule = schedules[schedules.length - 1];
+
+      let initialSubject = affiliationSubject;
+      let initialGrade = lastSchedule?.gradeLevel || (teacherHomeroom && GRADE_LEVELS.includes(teacherHomeroom) ? teacherHomeroom : '');
+
+      if (initialSubject === 'การศึกษาปฐมวัย') {
+        if (!initialGrade || !initialGrade.startsWith('อนุบาล')) {
+          initialGrade = teacherHomeroom?.startsWith('อนุบาล') ? teacherHomeroom : 'อนุบาล 1';
+        }
+      } else if (initialSubject) {
+        // Teacher belongs to an academic/primary subject
+        if (!initialGrade || initialGrade.startsWith('อนุบาล')) {
+          initialGrade = teacherHomeroom?.startsWith('ประถม') ? teacherHomeroom : 'ประถมศึกษาปีที่ 1/1';
+        }
+      } else {
+        // Fallback if teacher has no affiliation set in profile
+        const isKg = (initialGrade || teacherHomeroom).startsWith('อนุบาล');
+        initialSubject = isKg ? 'การศึกษาปฐมวัย' : 'ภาษาไทย';
+        if (!initialGrade) {
+          initialGrade = isKg ? 'อนุบาล 1' : 'ประถมศึกษาปีที่ 1/1';
+        }
+      }
+
       const newSchedule = {
         teacherId: selectedTeacherId,
         teacherName,
         dayOfWeek,
         period,
-        subject: SUBJECTS[0],
-        gradeLevel: GRADE_LEVELS[0],
+        subject: initialSubject,
+        gradeLevel: initialGrade,
         semester: systemSemester,
         academicYear: systemAcademicYear,
         createdAt: new Date().toISOString()
@@ -174,6 +239,9 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
   };
 
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
   const confirmDelete = async () => {
     if (!scheduleToDelete) return;
@@ -184,6 +252,40 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
       console.error(error);
     } finally {
       setScheduleToDelete(null);
+    }
+  };
+
+  const handleDeleteAllTeacherSchedules = async () => {
+    if (!selectedTeacherId || schedules.length === 0) return;
+    try {
+      setIsDeletingAll(true);
+      const batch = writeBatch(db);
+      schedules.forEach(s => {
+        batch.delete(doc(db, 'schedules', s.id));
+      });
+      await batch.commit();
+
+      const deletedCount = schedules.length;
+      const teacherName = selectedTeacher?.thaiName || selectedTeacher?.displayName || 'คุณครู';
+
+      // Update local state
+      const deletedIds = new Set(schedules.map(s => s.id));
+      setAllSchedules(prev => prev.filter(s => !deletedIds.has(s.id)));
+
+      setShowDeleteAllModal(false);
+
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'ลบตารางสอนสำเร็จ',
+          message: `ลบตารางสอนทั้งหมดของ ${teacherName} (${deletedCount} คาบ) เรียบร้อยแล้ว`,
+          type: 'success'
+        }
+      }));
+    } catch (error) {
+      console.error('Error deleting all teacher schedules:', error);
+      alert('เกิดข้อผิดพลาดในการลบตารางสอน');
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -207,17 +309,93 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
         {viewMode === 'manage' && (
           <>
             {!isReadOnly && (
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">เลือกคุณครู</label>
-                <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className="w-full md:w-1/2 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">-- เลือกคุณครู --</option>
-                  {teachers.map(t => <option key={t.id} value={t.id}>{t.displayName || t.thaiName} ({t.email})</option>)}
-                </select>
+              <div className="mb-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex-1 max-w-md">
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-indigo-600" /> เลือกคุณครูเพื่อจัดตารางสอน
+                    </label>
+                    <select
+                      value={selectedTeacherId}
+                      onChange={(e) => setSelectedTeacherId(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    >
+                      <option value="">-- เลือกคุณครู --</option>
+                      {teachers.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.thaiName || t.displayName} ({t.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedTeacher && (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {selectedTeacher.affiliation && (
+                        <div className="bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm text-sm">
+                          <span className="text-slate-500 text-xs block font-medium">สังกัดกลุ่มสาระ:</span>
+                          <span className="font-bold text-indigo-950 text-xs sm:text-sm">
+                            {selectedTeacher.affiliation}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm">
+                        <span className="text-slate-500 text-xs block font-medium">ตารางสอนปัจจุบัน:</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-extrabold text-indigo-700 text-lg">{schedules.length}</span>
+                          <span className="text-slate-600 text-xs font-medium">คาบ/สัปดาห์</span>
+                        </div>
+                      </div>
+
+                      {schedules.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteAllModal(true)}
+                          className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 group cursor-pointer"
+                          title={`ลบตารางสอนทั้งหมดของ ${selectedTeacher.thaiName || selectedTeacher.displayName}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-rose-500 group-hover:scale-110 transition-transform" />
+                          <span>ลบตารางสอนทั้งหมด ({schedules.length} คาบ)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {selectedTeacherId && (
               <>
+                {/* Misconfigured schedule alert banner (Primary class with Kindergarten subject) */}
+                {schedules.some(s => (s.gradeLevel || '').startsWith('ประถม') && s.subject === 'การศึกษาปฐมวัย') && !isReadOnly && (
+                  <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-start gap-3 text-amber-900 text-sm">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">
+                          ตรวจพบวิชา "การศึกษาปฐมวัย" ในคาบเรียนระดับประถมศึกษา ({schedules.filter(s => (s.gradeLevel || '').startsWith('ประถม') && s.subject === 'การศึกษาปฐมวัย').length} คาบ)
+                        </div>
+                        <div className="text-xs text-amber-700 mt-0.5">
+                          เกิดจากคาบที่เพิ่มใหม่ซึ่งบันทึกชั้นประถมไว้แต่ไม่ได้เปลี่ยนวิชา สามารถคลิกปุ่มด้านขวาเพื่อปรับเป็นวิชา "ภาษาไทย" ทั้งหมดได้ทันที
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const targetList = schedules.filter(s => (s.gradeLevel || '').startsWith('ประถม') && s.subject === 'การศึกษาปฐมวัย');
+                        for (const s of targetList) {
+                          await handleUpdateSchedule(s.id, 'subject', 'ภาษาไทย');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-xl text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-sm"
+                    >
+                      ปรับเป็นวิชาภาษาไทยทั้งหมด
+                    </button>
+                  </div>
+                )}
+
                 {isReadOnly ? (
                   <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl">
                     <table className="min-w-full text-sm text-center">
@@ -282,49 +460,76 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                         </div>
                         
                         <div className="divide-y divide-slate-100">
-                          {schedules.filter(s => s.dayOfWeek === day).sort((a, b) => PERIODS.indexOf(a.period) - PERIODS.indexOf(b.period)).map(schedule => (
-                            <div key={schedule.id} className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center bg-white hover:bg-slate-50 transition-colors">
-                              <div className="w-full md:w-1/6 font-bold text-slate-700">{schedule.period}</div>
-                              
-                              <div className="w-full md:w-2/6">
-                                <select value={schedule.subject} onChange={(e) => handleUpdateSchedule(schedule.id, 'subject', e.target.value)} disabled={isReadOnly} className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100">
-                                  
-                                  {availableSubjects.map((s: any, idx: number) => {
-                                    if (typeof s === 'string') {
-                                      return <option key={`s-${idx}`} value={s}>{s}</option>;
-                                    } else if (s.type === 'header') { return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; } else if (s.type === 'single') {
-                                      return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
-                                    } else if (s.type === 'group') {
-                                      return (
-                                        <optgroup key={`g-${idx}`} label={s.groupName}>
-                                          {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
-                                        </optgroup>
-                                      );
-                                    }
-                                    return null;
-                                  })}
-
-                                </select>
-                                {schedule.subject === 'อื่นๆ' && (
-                                  <input type="text" value={schedule.customSubject || ''} onChange={(e) => handleUpdateSchedule(schedule.id, 'customSubject', e.target.value)} disabled={isReadOnly} placeholder="ระบุวิชาอื่นๆ..." className="w-full mt-2 p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100" />
-                                )}
+                          {schedules.filter(s => s.dayOfWeek === day).sort((a, b) => PERIODS.indexOf(a.period) - PERIODS.indexOf(b.period)).map(schedule => {
+                            const isPrimary = (schedule.gradeLevel || '').startsWith('ประถม');
+                            return (
+                              <div key={schedule.id} className="p-4 flex flex-col md:flex-row gap-4 items-start md:items-center bg-white hover:bg-slate-50 transition-colors">
+                                <div className="w-full md:w-1/6 font-bold text-slate-700">{schedule.period}</div>
+                                
+                                <div className="w-full md:w-2/6">
+                                  <select 
+                                    value={schedule.subject} 
+                                    onChange={(e) => handleUpdateSchedule(schedule.id, 'subject', e.target.value)} 
+                                    disabled={isReadOnly} 
+                                    className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100"
+                                  >
+                                    {availableSubjects
+                                      .filter((s: any) => {
+                                        // For primary classes, exclude Kindergarten subjects
+                                        if (isPrimary && (s.name === 'การศึกษาปฐมวัย' || s.groupName === 'การศึกษาปฐมวัย')) {
+                                          return false;
+                                        }
+                                        return true;
+                                      })
+                                      .map((s: any, idx: number) => {
+                                        if (typeof s === 'string') {
+                                          return <option key={`s-${idx}`} value={s}>{s}</option>;
+                                        } else if (s.type === 'header') { 
+                                          return <option key={`h-${idx}`} disabled className="font-bold text-slate-500 bg-slate-50">{s.label}</option>; 
+                                        } else if (s.type === 'single') {
+                                          return <option key={`s-${idx}`} value={s.name}>{s.label || s.name}</option>;
+                                        } else if (s.type === 'group') {
+                                          return (
+                                            <optgroup key={`g-${idx}`} label={s.groupName}>
+                                              {s.subjects.map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                                            </optgroup>
+                                          );
+                                        }
+                                        return null;
+                                      })}
+                                  </select>
+                                  {schedule.subject === 'อื่นๆ' && (
+                                    <input type="text" value={schedule.customSubject || ''} onChange={(e) => handleUpdateSchedule(schedule.id, 'customSubject', e.target.value)} disabled={isReadOnly} placeholder="ระบุวิชาอื่นๆ..." className="w-full mt-2 p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100" />
+                                  )}
+                                </div>
+                                
+                                <div className="w-full md:w-2/6">
+                                  <select 
+                                    value={schedule.gradeLevel} 
+                                    onChange={(e) => {
+                                      const newGrade = e.target.value;
+                                      handleUpdateSchedule(schedule.id, 'gradeLevel', newGrade);
+                                      if (newGrade.startsWith('ประถม') && schedule.subject === 'การศึกษาปฐมวัย') {
+                                        handleUpdateSchedule(schedule.id, 'subject', 'ภาษาไทย');
+                                      }
+                                    }} 
+                                    disabled={isReadOnly} 
+                                    className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100"
+                                  >
+                                    {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
+                                  </select>
+                                </div>
+                                
+                                <div className="w-full md:w-1/6 flex justify-end">
+                                  {!isReadOnly && (
+                                    <button onClick={() => setScheduleToDelete(schedule.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              
-                              <div className="w-full md:w-2/6">
-                                <select value={schedule.gradeLevel} onChange={(e) => handleUpdateSchedule(schedule.id, 'gradeLevel', e.target.value)} disabled={isReadOnly} className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100">
-                                  {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
-                                </select>
-                              </div>
-                              
-                              <div className="w-full md:w-1/6 flex justify-end">
-                                {!isReadOnly && (
-                                  <button onClick={() => setScheduleToDelete(schedule.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           
                           {schedules.filter(s => s.dayOfWeek === day).length === 0 && (
                             <div className="p-6 text-center text-slate-400 text-sm">ไม่มีการสอนในวันนี้</div>
@@ -745,6 +950,81 @@ export function ScheduleManager({ systemSemester, systemAcademicYear, currentTea
                   className="flex-1 py-3 px-4 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-colors"
                 >
                   ลบข้อมูล
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete ALL Teacher Schedules Confirmation Modal */}
+      {showDeleteAllModal && selectedTeacher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="p-6">
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-rose-200">
+                <AlertTriangle className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 text-center mb-1">
+                ยืนยันลบตารางสอนทั้งหมด?
+              </h3>
+              <p className="text-sm text-slate-600 text-center mb-4">
+                คุณกำลังจะลบตารางสอนทั้งหมดของ <span className="font-bold text-slate-900">"{selectedTeacher.thaiName || selectedTeacher.displayName}"</span>
+              </p>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-4 text-xs space-y-2">
+                <div className="flex justify-between items-center text-slate-700 font-bold border-b border-slate-200 pb-1.5">
+                  <span>จำนวนคาบที่จะถูกลบ:</span>
+                  <span className="text-rose-600 font-black text-sm">{schedules.length} คาบ</span>
+                </div>
+                <div className="space-y-1 pt-1">
+                  <div className="text-slate-500 font-medium">รายการตามวันในสัปดาห์:</div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[1, 2, 3, 4, 5].map(day => {
+                      const count = schedules.filter(s => s.dayOfWeek === day).length;
+                      if (count === 0) return null;
+                      return (
+                        <div key={day} className="bg-white px-2 py-1 rounded border border-slate-200 text-slate-600 flex justify-between">
+                          <span>วัน{daysOfWeek[day]}:</span>
+                          <span className="font-bold text-indigo-700">{count} คาบ</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 mb-6 text-xs text-amber-800">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>คำเตือน: การลบนี้จะมีผลต่อฐานข้อมูลทันที และไม่สามารถกู้คืนข้อมูลตารางสอนเดิมได้</span>
+              </div>
+              
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={() => setShowDeleteAllModal(false)}
+                  className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm disabled:opacity-50 cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  type="button"
+                  disabled={isDeletingAll}
+                  onClick={handleDeleteAllTeacherSchedules}
+                  className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {isDeletingAll ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>กำลังลบ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      <span>ยืนยันลบ {schedules.length} คาบ</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

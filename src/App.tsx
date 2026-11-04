@@ -177,6 +177,23 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Global listener for app-custom-toast events
+  useEffect(() => {
+    const handleCustomToast = (e: any) => {
+      const detail = e.detail;
+      if (detail) {
+        const msg = detail.message || detail.description || '';
+        const toastType = detail.type || 'success';
+        const toastTitle = detail.title;
+        addToast(msg, toastType, toastTitle);
+      }
+    };
+    window.addEventListener('app-custom-toast', handleCustomToast);
+    return () => {
+      window.removeEventListener('app-custom-toast', handleCustomToast);
+    };
+  }, []);
+
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [records, setRecords] = useState<LessonRecord[]>([]);
@@ -1866,7 +1883,13 @@ export default function App() {
               }}
             />
 
-            <TodayAttendanceWidget students={students} />
+            <TodayAttendanceWidget
+              students={students}
+              teachers={teachers}
+              currentTeacher={currentTeacher}
+              semester={systemSemester}
+              academicYear={systemAcademicYear}
+            />
             <DashboardStats records={records} currentTeacher={currentTeacher} teachers={teachers} systemSemester={systemSemester} systemAcademicYear={systemAcademicYear} />
             
             {/* School Event Calendar in Overview */}
@@ -1967,6 +1990,9 @@ export default function App() {
                 <p className="text-sm text-slate-500">
                   บันทึกแผนการสอนรายวันและดูข้อมูลประวัติการสอน
                 </p>
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+                  เปิดใช้งาน
+                </div>
               </button>
 
               <button
@@ -2004,8 +2030,8 @@ export default function App() {
                 <p className="text-sm text-slate-500">
                   รายงานผลสัมฤทธิ์ทางการเรียนและวิเคราะห์สถิติภาพรวม
                 </p>
-                <div className="mt-4 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 text-xs font-bold rounded-full flex items-center gap-1">
-                  <Wrench className="h-3 w-3" /> ปิดปรับปรุงฟังก์ชัน
+                <div className="mt-4 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
+                  เปิดใช้งาน
                 </div>
               </button>
 
@@ -2214,27 +2240,6 @@ export default function App() {
           </div>
         ) : activeModule === "teaching" ? (
           <div className="space-y-6 animate-in fade-in duration-300 relative">
-            {(currentTeacher.role !== 'admin' && currentTeacher.role !== 'academic' && currentTeacher.role !== 'deputy') && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center rounded-2xl min-h-[60vh] -mx-4 px-4 sm:mx-0 sm:px-0">
-                <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center text-center max-w-sm border border-slate-100 animate-in zoom-in-95 duration-300">
-                  <div className="h-16 w-16 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center mb-4">
-                    <Wrench className="h-8 w-8" />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800">
-                    ปิดปรับปรุงชั่วคราว
-                  </h3>
-                  <p className="text-slate-500 mt-2 text-sm font-medium">
-                    โมดูล "1. จัดการผู้สอน" กำลังอยู่ระหว่างการพัฒนาและปรับปรุงระบบ ขออภัยในความไม่สะดวก
-                  </p>
-                  <button
-                    onClick={() => setActiveModule("home")}
-                    className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 font-bold shadow-sm transition-colors"
-                  >
-                    กลับสู่หน้าหลัก
-                  </button>
-                </div>
-              </div>
-            )}
             <div className="space-y-6">
               {/* Module Header with attractive display */}
               <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 text-white relative overflow-hidden print:hidden">

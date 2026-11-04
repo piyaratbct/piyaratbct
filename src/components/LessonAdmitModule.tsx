@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText, Trash2, Edit } from 'lucide-react';
+import { UserPlus, Settings, Printer, CheckCircle, Search, ArrowRight, UserCheck, GraduationCap, X, ChevronRight, UserMinus, BarChart3, PieChart as PieChartIcon, FileText, Trash2, Edit, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { AdmissionPrintTemplate } from './AdmissionPrintTemplate';
 import { Student, AdmissionRecord, GRADE_LEVELS, Teacher } from '../types';
@@ -15,38 +15,56 @@ interface LessonAdmitModuleProps {
 
 export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({ 
   systemAcademicYear, 
+  systemSemester,
   students,
   currentTeacher
 }) => {
   const [activeTab, setActiveTab] = useState<'admission' | 'promotion'>('admission');
   const [showForm, setShowForm] = useState(false);
   const [editingApplicant, setEditingApplicant] = useState<AdmissionRecord | null>(null);
-  const [applicants, setApplicants] = useState<AdmissionRecord[]>([]);
+  const [allApplicants, setAllApplicants] = useState<AdmissionRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const targetAcademicYear = String(Number(systemAcademicYear) + 1);
+  const defaultNextYear = String(Number(systemAcademicYear) + 1);
+  const [selectedYearFilter, setSelectedYearFilter] = useState<string>(defaultNextYear);
 
   useEffect(() => {
-    fetchApplicants();
-  }, [targetAcademicYear]);
+    setLoading(true);
+    const q = query(collection(db, 'admissions'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetched: AdmissionRecord[] = [];
+      snapshot.forEach(doc => {
+        fetched.push({ id: doc.id, ...doc.data() } as AdmissionRecord);
+      });
+      setAllApplicants(fetched);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error listening to admissions:', err);
+      handleFirestoreError(err, OperationType.GET, 'admissions');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const fetchApplicants = async () => {
     try {
-      setLoading(true);
       const q = query(collection(db, 'admissions'));
       const snapshot = await getDocs(q);
       const fetched: AdmissionRecord[] = [];
       snapshot.forEach(doc => {
         fetched.push({ id: doc.id, ...doc.data() } as AdmissionRecord);
       });
-      // Filter for target year
-      setApplicants(fetched.filter(a => a.academicYear === targetAcademicYear));
+      setAllApplicants(fetched);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
+
+  const displayedApplicants = React.useMemo(() => {
+    if (selectedYearFilter === 'all') return allApplicants;
+    return allApplicants.filter(a => a.academicYear === selectedYearFilter);
+  }, [allApplicants, selectedYearFilter]);
 
   return (
     <div className="w-full">
@@ -72,10 +90,6 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
         <div className="relative z-10 flex bg-white/20 backdrop-blur-md rounded-xl p-1 shadow-inner border border-white/20 w-full lg:w-auto">
           <button
             onClick={() => {
-              if (currentTeacher.role === 'teacher') {
-                alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
-                return;
-              }
               if (showForm && editingApplicant) {
                 // Switch from edit mode to fresh registration form
                 setEditingApplicant(null);
@@ -94,8 +108,14 @@ export const LessonAdmitModule: React.FC<LessonAdmitModuleProps> = ({
 
       {activeTab === 'admission' && (
         <AdmissionManager 
-          targetAcademicYear={targetAcademicYear} 
-          applicants={applicants}
+          targetAcademicYear={defaultNextYear} 
+          systemAcademicYear={systemAcademicYear}
+          systemSemester={systemSemester}
+          defaultNextYear={defaultNextYear}
+          selectedYearFilter={selectedYearFilter}
+          setSelectedYearFilter={setSelectedYearFilter}
+          applicants={displayedApplicants}
+          allApplicants={allApplicants}
           refreshApplicants={fetchApplicants}
           showForm={showForm}
           setShowForm={setShowForm}
@@ -225,9 +245,291 @@ const InputOrSelect = ({ options, value, onChange, placeholder }: any) => {
   );
 };
 
+const EnrollStudentModal: React.FC<{
+  isOpen: boolean;
+  applicant: AdmissionRecord;
+  students: Student[];
+  systemAcademicYear: string;
+  onClose: () => void;
+  onConfirm: (finalGrade: string, studentNumber: number, studentId: string) => Promise<void>;
+  isSubmitting: boolean;
+}> = ({ isOpen, applicant, students, systemAcademicYear, onClose, onConfirm, isSubmitting }) => {
+  const baseGrade = (applicant.applyForGrade || '').split('/')[0].trim();
+  
+  // All existing rooms matching base grade
+  const allExistingRooms: string[] = Array.from(new Set(students.map(s => s.gradeLevel).filter((g): g is string => Boolean(g))));
+  const matchingRooms = allExistingRooms.filter(r => r.startsWith(baseGrade) || r === baseGrade);
+  const fallbackRooms = GRADE_LEVELS.filter(g => g.startsWith(baseGrade));
+  const availableRooms: string[] = Array.from(new Set([...matchingRooms, ...fallbackRooms, applicant.applyForGrade]));
+  availableRooms.sort();
+
+  const [selectedRoom, setSelectedRoom] = useState<string>(
+    matchingRooms.length > 0 ? matchingRooms[0] : (availableRooms[0] || applicant.applyForGrade)
+  );
+  const [customRoom, setCustomRoom] = useState<string>('');
+  const [isCustomRoom, setIsCustomRoom] = useState<boolean>(false);
+  const [studentNumber, setStudentNumber] = useState<number>(1);
+  const [studentId, setStudentId] = useState<string>(applicant.assignedStudentId || '');
+
+  // Update suggested number whenever selected room changes
+  useEffect(() => {
+    const targetRoom = isCustomRoom ? customRoom : selectedRoom;
+    if (targetRoom) {
+      const inRoom = students.filter(s => s.gradeLevel === targetRoom && s.status === 'active');
+      const maxNum = inRoom.reduce((max, s) => Math.max(max, Number(s.number) || 0), 0);
+      setStudentNumber(maxNum > 0 ? maxNum + 1 : 1);
+    }
+  }, [selectedRoom, customRoom, isCustomRoom, students]);
+
+  // Check duplicate applicant
+  const isDuplicate = students.some(s => {
+    if (applicant.nationalId && applicant.nationalId.length >= 13 && s.nationalId === applicant.nationalId) return true;
+    if (s.firstName === applicant.firstName && s.lastName === applicant.lastName) return true;
+    return false;
+  });
+
+  // Check duplicate studentId in existing school students
+  const isStudentIdDuplicate = Boolean(
+    studentId.trim() && students.some(s => (s.studentId || '').trim().toLowerCase() === studentId.trim().toLowerCase())
+  );
+
+  if (!isOpen) return null;
+
+  const targetFinalGrade = isCustomRoom ? customRoom.trim() : selectedRoom;
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Header */}
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-white/20 rounded-xl flex items-center justify-center font-black text-lg shadow-inner">
+              2
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-emerald-700/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/40">
+                  ขั้นตอนที่ 2
+                </span>
+                <h3 className="font-black text-lg">รับเข้าศึกษาและกำหนดรหัสนักเรียน</h3>
+              </div>
+              <p className="text-xs text-emerald-100">กำหนดรหัสนักเรียนทางการ เลขที่ และห้องเรียนเพื่อขึ้นทะเบียน</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full text-white transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          
+          {/* Applicant Info Card */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-black text-slate-800">
+                {applicant.firstName} {applicant.lastName}
+                {applicant.nickname && <span className="text-sm font-normal text-slate-500 ml-1">({applicant.nickname})</span>}
+              </span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {applicant.gender === 'male' ? 'เพศชาย' : 'เพศหญิง'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 font-medium">
+              <span>ระดับชั้นที่สมัคร: <strong className="text-indigo-600">{applicant.applyForGrade}</strong></span>
+              <span>ปีการศึกษา: <strong>{applicant.academicYear || systemAcademicYear}</strong></span>
+              {applicant.admissionType === 'transfer_in' ? (
+                <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">
+                  ย้ายเข้าระหว่างเทอม (เทอม {applicant.entrySemester || '1'})
+                </span>
+              ) : (
+                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">
+                  นักเรียนใหม่
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Duplicate warning */}
+          {isDuplicate && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-800">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">คำเตือน: ข้อมูลอาจซ้ำซ้อน</strong>
+                พบชื่อ-นามสกุล หรือเลขบัตรประชาชนนี้ในฐานข้อมูลนักเรียนอยู่แล้ว กรุณาตรวจสอบก่อนยืนยัน
+              </div>
+            </div>
+          )}
+
+          {/* Select Classroom */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700">
+              เลือกห้องเรียนที่จะย้ายเข้าทันที <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {availableRooms.map(room => {
+                const count = students.filter(s => s.gradeLevel === room && s.status === 'active').length;
+                const isSelected = !isCustomRoom && selectedRoom === room;
+                return (
+                  <button
+                    key={room}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoom(room);
+                      setIsCustomRoom(false);
+                    }}
+                    className={`p-3 rounded-xl border text-left flex justify-between items-center transition-all ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-1 ring-emerald-500'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div>
+                      <span className="font-bold text-sm text-slate-800">{room}</span>
+                      <p className="text-[11px] text-slate-500">
+                        {count > 0 ? `ปัจจุบันมีนักเรียนในห้องนี้ ${count} คน` : 'ยังไม่มีนักเรียนในห้องนี้'}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        เลือกห้องนี้
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Custom Room Option */}
+              <button
+                type="button"
+                onClick={() => setIsCustomRoom(true)}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  isCustomRoom
+                    ? 'border-indigo-500 bg-indigo-50/40 shadow-sm ring-1 ring-indigo-500'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <span className="font-bold text-xs text-slate-700">ระบุห้องเรียนเอง / ห้องอื่นๆ</span>
+                {isCustomRoom && (
+                  <input
+                    type="text"
+                    value={customRoom}
+                    onChange={(e) => setCustomRoom(e.target.value)}
+                    placeholder="เช่น ประถมศึกษาปีที่ 1/3"
+                    className="mt-2 w-full border border-indigo-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-bold text-slate-800"
+                    autoFocus
+                  />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Student Number & ID */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                เลขที่ในห้องเรียน <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={studentNumber}
+                onChange={(e) => setStudentNumber(Number(e.target.value))}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <span className="text-[10px] text-slate-500 mt-0.5 block">คำนวณต่อจากคนล่าสุด</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <span>รหัสนักเรียน (Student ID) <span className="text-rose-500">*</span></span>
+                {studentId.trim() && !isStudentIdDuplicate && (
+                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                    <CheckCircle className="h-3 w-3" /> รหัสพร้อมใช้งาน
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                placeholder="กรอกรหัสนักเรียน เช่น 05421"
+                required
+                className={`w-full border rounded-lg px-3 py-2 text-sm font-bold font-mono outline-none transition-all ${
+                  isStudentIdDuplicate 
+                    ? 'border-rose-400 bg-rose-50/50 text-rose-800 focus:ring-1 focus:ring-rose-500' 
+                    : !studentId.trim() 
+                    ? 'border-amber-300 bg-amber-50/20 text-slate-800 focus:ring-1 focus:ring-amber-500' 
+                    : 'border-slate-300 bg-white text-slate-800 focus:ring-1 focus:ring-emerald-500'
+                }`}
+              />
+              <span className="text-[10px] text-slate-500 mt-0.5 block">
+                เจ้าหน้าที่เป็นผู้กำหนดรหัสประจำตัวทางการของโรงเรียน
+              </span>
+            </div>
+          </div>
+
+          {/* Duplicate student ID warning */}
+          {isStudentIdDuplicate && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-center gap-2 text-xs text-rose-700 font-bold">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>รหัสนักเรียน "{studentId}" ซ้ำกับนักเรียนคนอื่นในระบบ กรุณากำหนดรหัสใหม่</span>
+            </div>
+          )}
+
+          {/* Integration Notice */}
+          <div className="bg-sky-50 border border-sky-200 p-3 rounded-xl text-xs text-sky-800 flex items-start gap-2">
+            <CheckCircle className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+            <span>
+              เมื่อยืนยัน นักเรียนจะถูกบรรจุเข้าห้อง <strong>{targetFinalGrade}</strong> รหัส <strong>{studentId || '(ยังไม่ได้ระบุ)'}</strong> ทันที และมีชื่อในระบบเช็กชื่อประจำวันและสมุดคะแนน ปพ.5 ของภาคเรียนนี้ทันที
+            </span>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            disabled={isSubmitting || !targetFinalGrade || !studentId.trim() || isStudentIdDuplicate}
+            onClick={() => onConfirm(targetFinalGrade, studentNumber, studentId.trim())}
+            className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-all hover:shadow active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {isSubmitting ? (
+              <span>กำลังบันทึก...</span>
+            ) : (
+              <>
+                <UserCheck className="h-4 w-4" />
+                <span>ยืนยันย้ายเข้าห้อง {targetFinalGrade}</span>
+              </>
+            )}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 const AdmissionManager: React.FC<{
   targetAcademicYear: string;
+  systemAcademicYear: string;
+  systemSemester: string;
+  defaultNextYear: string;
+  selectedYearFilter: string;
+  setSelectedYearFilter: (year: string) => void;
   applicants: AdmissionRecord[];
+  allApplicants: AdmissionRecord[];
   refreshApplicants: () => void;
   showForm: boolean;
   setShowForm: (val: boolean) => void;
@@ -235,7 +537,23 @@ const AdmissionManager: React.FC<{
   setEditingApplicant: (app: AdmissionRecord | null) => void;
   currentTeacher: Teacher;
   students: Student[];
-}> = ({ targetAcademicYear, applicants, refreshApplicants, showForm, setShowForm, editingApplicant, setEditingApplicant, currentTeacher, students }) => {
+}> = ({
+  targetAcademicYear,
+  systemAcademicYear,
+  systemSemester,
+  defaultNextYear,
+  selectedYearFilter,
+  setSelectedYearFilter,
+  applicants,
+  allApplicants,
+  refreshApplicants,
+  showForm,
+  setShowForm,
+  editingApplicant,
+  setEditingApplicant,
+  currentTeacher,
+  students,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [appToDelete, setAppToDelete] = useState<AdmissionRecord | null>(null);
   const [showStats, setShowStats] = useState(false);
@@ -243,6 +561,8 @@ const AdmissionManager: React.FC<{
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [gradeCapacities, setGradeCapacities] = useState<Record<string, number>>({});
   const [isSavingCapacity, setIsSavingCapacity] = useState(false);
+  const [enrollingApplicant, setEnrollingApplicant] = useState<AdmissionRecord | null>(null);
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   useEffect(() => {
     const fetchCapacities = async () => {
@@ -341,7 +661,9 @@ const AdmissionManager: React.FC<{
   };
 
   const getInitialFormData = (): Partial<AdmissionRecord> => ({
-    academicYear: targetAcademicYear,
+    academicYear: selectedYearFilter !== 'all' ? selectedYearFilter : defaultNextYear,
+    admissionType: selectedYearFilter === systemAcademicYear ? 'transfer_in' : 'regular',
+    entrySemester: systemSemester || '1',
     applyForGrade: 'ประถมศึกษาปีที่ 1',
     gender: 'male',
     status: 'pending',
@@ -370,6 +692,9 @@ const AdmissionManager: React.FC<{
       setFormData({
         ...getInitialFormData(),
         ...editingApplicant,
+        academicYear: editingApplicant.academicYear || targetAcademicYear,
+        admissionType: editingApplicant.admissionType || 'regular',
+        entrySemester: editingApplicant.entrySemester || systemSemester || '1',
         addressObj: editingApplicant.addressObj ? { ...emptyAddress, ...editingApplicant.addressObj } : { ...emptyAddress },
         fatherAddressObj: editingApplicant.fatherAddressObj ? { ...emptyAddress, ...editingApplicant.fatherAddressObj } : { ...emptyAddress },
         motherAddressObj: editingApplicant.motherAddressObj ? { ...emptyAddress, ...editingApplicant.motherAddressObj } : { ...emptyAddress },
@@ -379,15 +704,16 @@ const AdmissionManager: React.FC<{
         surveyExpectations: Array.isArray(editingApplicant.surveyExpectations) ? editingApplicant.surveyExpectations : []
       });
     } else {
-      setFormData(prev => ({ ...getInitialFormData(), academicYear: targetAcademicYear }));
+      setFormData(prev => ({ 
+        ...getInitialFormData(), 
+        academicYear: selectedYearFilter !== 'all' ? selectedYearFilter : defaultNextYear,
+        admissionType: selectedYearFilter === systemAcademicYear ? 'transfer_in' : 'regular',
+        entrySemester: systemSemester || '1'
+      }));
     }
-  }, [editingApplicant, targetAcademicYear]);
+  }, [editingApplicant, targetAcademicYear, selectedYearFilter, defaultNextYear, systemAcademicYear, systemSemester]);
 
   const handleEditApplicant = (app: AdmissionRecord) => {
-    if (currentTeacher.role === 'teacher') {
-      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
-      return;
-    }
     setEditingApplicant(app);
     setShowForm(true);
     if (viewingApplicant) {
@@ -454,10 +780,6 @@ const AdmissionManager: React.FC<{
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentTeacher.role === 'teacher') {
-      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
-      return;
-    }
     if (!formData.firstName || !formData.lastName || !formData.nationalId || formData.nationalId.length !== 13) {
       alert('กรุณากรอกข้อมูลให้ครบถ้วน รวมถึงเลขประจำตัวประชาชน 13 หลัก');
       return;
@@ -548,10 +870,6 @@ const AdmissionManager: React.FC<{
   };
 
   const handleDeleteApplicant = (app: AdmissionRecord) => {
-    if (currentTeacher.role === 'teacher') {
-      alert('คุณไม่มีสิทธิ์ในการลบข้อมูลการรับสมัคร');
-      return;
-    }
     if (app.status === 'enrolled') {
       alert('ไม่สามารถลบผู้สมัครที่ขึ้นทะเบียนเป็นนักเรียนแล้วได้ หากต้องการลบ กรุณาไปลบที่ฐานข้อมูลนักเรียน');
       return;
@@ -565,6 +883,13 @@ const AdmissionManager: React.FC<{
       await deleteDoc(doc(db, 'admissions', appToDelete.id));
       setAppToDelete(null);
       refreshApplicants();
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'ลบข้อมูลสำเร็จ',
+          message: 'ลบข้อมูลใบสมัครเรียบร้อยแล้ว',
+          type: 'info'
+        }
+      }));
     } catch (err) {
       console.error(err);
       alert('เกิดข้อผิดพลาดในการลบข้อมูล');
@@ -572,115 +897,163 @@ const AdmissionManager: React.FC<{
   };
 
   const handleStatusChange = async (id: string, newStatus: AdmissionRecord['status'], applicant: AdmissionRecord) => {
-    if (currentTeacher.role === 'teacher') {
-      alert('คุณไม่มีสิทธิ์ในการบันทึกหรือแก้ไขข้อมูลการรับสมัคร');
+    // If user clicked 'enrolled' (มอบตัว/ขึ้นทะเบียน), launch the dedicated interactive modal
+    if (newStatus === 'enrolled') {
+      setEnrollingApplicant(applicant);
       return;
     }
-    
-    if ((newStatus === 'approved' || newStatus === 'enrolled') && !['approved', 'enrolled'].includes(applicant.status)) {
+
+    const statusLabels: Record<string, string> = {
+      pending: 'รอตรวจสอบ',
+      approved: 'ผ่านการคัดเลือก',
+      rejected: 'ไม่ผ่าน',
+      enrolled: 'รับเข้าศึกษา'
+    };
+
+    let capacityNotice = '';
+    if (newStatus === 'approved') {
       const grade = applicant.applyForGrade;
       const cap = gradeCapacities[grade] || 0;
       if (cap > 0) {
-        const currentStudentsInGrade = activeStudents.filter(s => {
-          const g = (s.gradeLevel || '').trim();
-          return g === grade || g.startsWith(grade + '/');
-        }).length;
-        const newlyApproved = applicants.filter(a => a.applyForGrade === grade && a.status === 'approved').length;
-        const totalOccupied = currentStudentsInGrade + newlyApproved;
-        
-        if (totalOccupied >= cap) {
-          const confirmExceed = window.confirm(`ระดับชั้น ${grade} เต็มความจุแล้ว (รวมนร.เดิมและใหม่ ${totalOccupied}/${cap} คน)\n\nคุณต้องการยืนยันรับนักเรียนใหม่เกินขนาดห้องหรือไม่?`);
-          if (!confirmExceed) {
-            return;
-          }
+        const newlyApproved = applicants.filter(a => a.applyForGrade === grade && a.status === 'approved' && a.id !== id).length + 1;
+        if (newlyApproved > cap) {
+          capacityNotice = ` (หมายเหตุ: เกินโควตารับ ${newlyApproved}/${cap} คน)`;
         }
       }
     }
     
-    let finalGrade = applicant.applyForGrade;
-    if (newStatus === 'enrolled') {
-      const isDuplicate = students.some(s => {
-        if (applicant.nationalId && applicant.nationalId.length >= 13 && s.nationalId === applicant.nationalId) return true;
-        if (s.firstName === applicant.firstName && s.lastName === applicant.lastName) return true;
-        return false;
-      });
-
-      if (isDuplicate) {
-        const confirmDup = window.confirm(`ตรวจพบข้อมูลนักเรียน ${applicant.firstName} ${applicant.lastName} (หรือเลขบัตรประชาชนนี้) ในระบบฐานข้อมูลอยู่แล้ว\n\nการดำเนินการต่อจะสร้างข้อมูลนักเรียนซ้ำซ้อน คุณแน่ใจหรือไม่ที่ต้องการดำเนินการต่อ?`);
-        if (!confirmDup) return;
-      }
-
-      const userChoice = window.prompt(
-        "กรุณาระบุห้องเรียนที่ต้องการให้เข้าศึกษา (เช่น ประถมศึกษาปีที่ 1/1, ประถมศึกษาปีที่ 1/2)\nหากมีเพียงห้องเดียว สามารถกดยืนยันได้เลย",
-        applicant.applyForGrade
-      );
-      if (userChoice === null) return; // cancelled
-      finalGrade = userChoice.trim() || applicant.applyForGrade;
-    }
-    
     try {
       await updateDoc(doc(db, 'admissions', id), { status: newStatus });
-      
-      if (newStatus === 'enrolled') {
-        const studentPayload: Omit<Student, 'id'> = {
-          studentId: `NEW${Date.now().toString().slice(-5)}`,
-          firstName: applicant.firstName,
-          lastName: applicant.lastName,
-          nickname: applicant.nickname,
-          gradeLevel: finalGrade,
-          gender: applicant.gender,
-          nationalId: applicant.nationalId,
-          number: 99,
-          status: 'active',
-          dob: applicant.birthDate || '',
-          fatherFirstName: applicant.fatherFirstName || '',
-          fatherLastName: applicant.fatherLastName || '',
-          fatherName: applicant.fatherName || `${applicant.fatherFirstName || ''} ${applicant.fatherLastName || ''}`.trim() || '',
-          fatherOccupation: applicant.fatherOccupation || '',
-          fatherIncome: applicant.fatherIncome || '',
-          fatherPhone: applicant.fatherPhone || '',
-          fatherWorkplace: applicant.fatherWorkplace || '',
-          fatherWorkplaceProvince: applicant.fatherWorkplaceProvince || '',
-          motherPrefix: applicant.motherPrefix || '',
-          motherFirstName: applicant.motherFirstName || '',
-          motherLastName: applicant.motherLastName || '',
-          motherName: applicant.motherName || `${applicant.motherPrefix || ''} ${applicant.motherFirstName || ''} ${applicant.motherLastName || ''}`.trim() || '',
-          motherOccupation: applicant.motherOccupation || '',
-          motherIncome: applicant.motherIncome || '',
-          motherPhone: applicant.motherPhone || '',
-          motherWorkplace: applicant.motherWorkplace || '',
-          motherWorkplaceProvince: applicant.motherWorkplaceProvince || '',
-          guardianFirstName: applicant.guardianFirstName || '',
-          guardianLastName: applicant.guardianLastName || '',
-          parentName: applicant.guardianName || `${applicant.guardianFirstName || ''} ${applicant.guardianLastName || ''}`.trim() || '',
-          guardianRelation: applicant.guardianRelation || '',
-          guardianOccupation: applicant.guardianOccupation || '',
-          guardianIncome: applicant.guardianIncome || '',
-          guardianWorkplace: applicant.guardianWorkplace || '',
-          guardianWorkplaceProvince: applicant.guardianWorkplaceProvince || '',
-          parentPhone: applicant.guardianPhone || '',
-          familyStatus: applicant.familyStatus || '',
-          address: applicant.addressObj ? `${applicant.addressObj.houseNumber || '-'} ม.${applicant.addressObj.moo || '-'} หมู่บ้าน${applicant.addressObj.village || '-'} ซ.${applicant.addressObj.soi || '-'} ถ.${applicant.addressObj.road || '-'} ต.${applicant.addressObj.subDistrict || '-'} อ.${applicant.addressObj.district || '-'} จ.${applicant.addressObj.province || '-'} ${applicant.addressObj.zipCode || '-'}` : (applicant.address || ''),
-          weight: applicant.weight || 0,
-          height: applicant.height || 0,
-          bloodGroup: applicant.bloodGroup || '',
-          ethnicity: applicant.ethnicity || '',
-          nationality: applicant.nationality || '',
-          religion: applicant.religion || '',
-          previousSchool: applicant.previousSchool || '',
-          previousSchoolProvince: applicant.previousSchoolProvince || '',
-          congenitalDisease: applicant.underlyingDisease || '',
-          allergicMedicine: applicant.drugAllergy || '',
-          allergicFood: applicant.foodAllergy || '',
-          additionalNotes: applicant.underlyingDisease ? `โรคประจำตัว: ${applicant.underlyingDisease}` : '',
-        };
-        await addDoc(collection(db, 'students'), studentPayload);
-        alert('เพิ่มข้อมูลลงในฐานข้อมูลนักเรียนเรียบร้อยแล้ว');
+      refreshApplicants();
+      if (viewingApplicant && viewingApplicant.id === id) {
+        setViewingApplicant(prev => prev ? { ...prev, status: newStatus } : null);
       }
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'อัปเดตสถานะสำเร็จ',
+          message: `เปลี่ยนสถานะของ ${applicant.firstName} ${applicant.lastName} เป็น "${statusLabels[newStatus] || newStatus}" เรียบร้อยแล้ว${capacityNotice}`,
+          type: capacityNotice ? 'warning' : 'success'
+        }
+      }));
+    } catch (err: any) {
+      console.error('Failed to update status:', err);
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล',
+          message: err?.message || 'ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง',
+          type: 'error'
+        }
+      }));
+    }
+  };
+
+  const handleConfirmEnroll = async (finalGrade: string, studentNumber: number, customStudentId: string) => {
+    if (!enrollingApplicant) return;
+    const cleanStudentId = (customStudentId || '').trim();
+    if (!cleanStudentId) {
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'กรุณาระบุรหัสนักเรียน',
+          message: 'เจ้าหน้าที่ต้องกำหนดรหัสนักเรียน (Student ID) ให้ครบถ้วนก่อนขึ้นทะเบียน',
+          type: 'warning'
+        }
+      }));
+      return;
+    }
+
+    const isDup = students.some(s => (s.studentId || '').trim().toLowerCase() === cleanStudentId.toLowerCase());
+    if (isDup) {
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'รหัสนักเรียนซ้ำในระบบ',
+          message: `รหัสนักเรียน "${cleanStudentId}" มีอยู่ในฐานข้อมูลแล้ว กรุณาระบุรหัสอื่น`,
+          type: 'error'
+        }
+      }));
+      return;
+    }
+
+    try {
+      setIsEnrolling(true);
+      const applicant = enrollingApplicant;
+      const studentPayload: Omit<Student, 'id'> = {
+        studentId: cleanStudentId,
+        firstName: applicant.firstName,
+        lastName: applicant.lastName,
+        nickname: applicant.nickname,
+        gradeLevel: finalGrade,
+        academicYear: applicant.academicYear || systemAcademicYear,
+        gender: applicant.gender,
+        nationalId: applicant.nationalId,
+        number: studentNumber,
+        status: 'active',
+        dob: applicant.birthDate || '',
+        fatherFirstName: applicant.fatherFirstName || '',
+        fatherLastName: applicant.fatherLastName || '',
+        fatherName: applicant.fatherName || `${applicant.fatherFirstName || ''} ${applicant.fatherLastName || ''}`.trim() || '',
+        fatherOccupation: applicant.fatherOccupation || '',
+        fatherIncome: applicant.fatherIncome || '',
+        fatherPhone: applicant.fatherPhone || '',
+        fatherWorkplace: applicant.fatherWorkplace || '',
+        fatherWorkplaceProvince: applicant.fatherWorkplaceProvince || '',
+        motherPrefix: applicant.motherPrefix || '',
+        motherFirstName: applicant.motherFirstName || '',
+        motherLastName: applicant.motherLastName || '',
+        motherName: applicant.motherName || `${applicant.motherPrefix || ''} ${applicant.motherFirstName || ''} ${applicant.motherLastName || ''}`.trim() || '',
+        motherOccupation: applicant.motherOccupation || '',
+        motherIncome: applicant.motherIncome || '',
+        motherPhone: applicant.motherPhone || '',
+        motherWorkplace: applicant.motherWorkplace || '',
+        motherWorkplaceProvince: applicant.motherWorkplaceProvince || '',
+        guardianFirstName: applicant.guardianFirstName || '',
+        guardianLastName: applicant.guardianLastName || '',
+        parentName: applicant.guardianName || `${applicant.guardianFirstName || ''} ${applicant.guardianLastName || ''}`.trim() || '',
+        guardianRelation: applicant.guardianRelation || '',
+        guardianOccupation: applicant.guardianOccupation || '',
+        guardianIncome: applicant.guardianIncome || '',
+        guardianWorkplace: applicant.guardianWorkplace || '',
+        guardianWorkplaceProvince: applicant.guardianWorkplaceProvince || '',
+        parentPhone: applicant.guardianPhone || '',
+        familyStatus: applicant.familyStatus || '',
+        address: applicant.addressObj ? `${applicant.addressObj.houseNumber || '-'} ม.${applicant.addressObj.moo || '-'} หมู่บ้าน${applicant.addressObj.village || '-'} ซ.${applicant.addressObj.soi || '-'} ถ.${applicant.addressObj.road || '-'} ต.${applicant.addressObj.subDistrict || '-'} อ.${applicant.addressObj.district || '-'} จ.${applicant.addressObj.province || '-'} ${applicant.addressObj.zipCode || '-'}` : (applicant.address || ''),
+        weight: applicant.weight || 0,
+        height: applicant.height || 0,
+        bloodGroup: applicant.bloodGroup || '',
+        ethnicity: applicant.ethnicity || '',
+        nationality: applicant.nationality || '',
+        religion: applicant.religion || '',
+        previousSchool: applicant.previousSchool || '',
+        previousSchoolProvince: applicant.previousSchoolProvince || '',
+        congenitalDisease: applicant.underlyingDisease || '',
+        allergicMedicine: applicant.drugAllergy || '',
+        allergicFood: applicant.foodAllergy || '',
+        additionalNotes: applicant.underlyingDisease ? `โรคประจำตัว: ${applicant.underlyingDisease}` : '',
+      };
+
+      await addDoc(collection(db, 'students'), studentPayload);
+      await updateDoc(doc(db, 'admissions', applicant.id), { 
+        status: 'enrolled',
+        targetGrade: finalGrade,
+        assignedNumber: studentNumber,
+        assignedStudentId: cleanStudentId
+      });
+
+      // Show friendly confirmation toast
+      window.dispatchEvent(new CustomEvent('app-custom-toast', {
+        detail: {
+          title: 'ขึ้นทะเบียนนักเรียนสำเร็จ',
+          description: `ย้าย ${applicant.firstName} ${applicant.lastName} เข้าห้อง ${finalGrade} (รหัสประจำตัว ${cleanStudentId}, เลขที่ ${studentNumber}) เรียบร้อยแล้ว พร้อมเช็คชื่อและบันทึกคะแนนได้ทันที`,
+          type: 'success'
+        }
+      }));
+
+      setEnrollingApplicant(null);
       refreshApplicants();
     } catch (err) {
-      console.error(err);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      console.error('Enroll error:', err);
+      alert('เกิดข้อผิดพลาดในการขึ้นทะเบียนนักเรียน');
+    } finally {
+      setIsEnrolling(false);
     }
   };
 
@@ -989,8 +1362,44 @@ const AdmissionManager: React.FC<{
       )}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h3 className="text-lg font-bold text-slate-800">ข้อมูลการรับสมัคร ปีการศึกษา {targetAcademicYear}</h3>
-          <p className="text-sm text-slate-500">จัดการข้อมูลผู้สมัครเข้าเรียนใหม่ และอนุมัติเข้าสู่ระบบ</p>
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+            <span>ข้อมูลการรับสมัคร</span>
+            {selectedYearFilter !== 'all' ? (
+              <span className="text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full text-xs font-bold border border-indigo-100">
+                ปีการศึกษา {selectedYearFilter}
+              </span>
+            ) : (
+              <span className="text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                ทุกปีการศึกษา
+              </span>
+            )}
+            <span className="text-xs text-slate-500 font-normal">({applicants.length} รายการ)</span>
+          </h3>
+          <p className="text-sm text-slate-500">จัดการข้อมูลผู้สมัครเข้าเรียนใหม่, รับนักเรียนย้ายเข้าระหว่างเทอม และอนุมัติขึ้นทะเบียนนักเรียน</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-slate-500">เลือกปีการศึกษา:</span>
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+            <button
+              onClick={() => setSelectedYearFilter(defaultNextYear)}
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedYearFilter === defaultNextYear ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              ปีหน้า ({defaultNextYear})
+            </button>
+            <button
+              onClick={() => setSelectedYearFilter(systemAcademicYear)}
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedYearFilter === systemAcademicYear ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              ปีปัจจุบัน / ระหว่างเทอม ({systemAcademicYear})
+            </button>
+            <button
+              onClick={() => setSelectedYearFilter('all')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${selectedYearFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              ทั้งหมด ({allApplicants.length})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1032,17 +1441,50 @@ const AdmissionManager: React.FC<{
           )}
           <div>
             <h4 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 text-lg text-indigo-600">ข้อมูลการสมัคร</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">ปีการศึกษาที่ต้องการสมัคร</label>
-                <input type="text" value={targetAcademicYear} disabled className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm" />
+                <select
+                  value={formData.academicYear || defaultNextYear}
+                  onChange={(e) => setFormData({...formData, academicYear: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value={defaultNextYear}>ปีการศึกษา {defaultNextYear} (นักเรียนใหม่ล่วงหน้า)</option>
+                  <option value={systemAcademicYear}>ปีการศึกษา {systemAcademicYear} (นักเรียนปัจจุบัน / ย้ายเข้าระหว่างเทอม)</option>
+                  <option value={String(Number(systemAcademicYear) - 1)}>ปีการศึกษา {Number(systemAcademicYear) - 1}</option>
+                </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ประเภทการรับสมัคร</label>
+                <select
+                  value={formData.admissionType || 'regular'}
+                  onChange={(e) => setFormData({...formData, admissionType: e.target.value as any})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="regular">นักเรียนใหม่ต้นปีการศึกษา</option>
+                  <option value="transfer_in">ย้ายเข้า / รับสมัครระหว่างปี (ระหว่างเทอม)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ภาคเรียนที่เข้าเรียน</label>
+                <select
+                  value={formData.entrySemester || systemSemester || '1'}
+                  onChange={(e) => setFormData({...formData, entrySemester: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="1">ภาคเรียนที่ 1</option>
+                  <option value="2">ภาคเรียนที่ 2 (ระหว่างเทอม)</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">ระดับชั้นที่ต้องการเข้าเรียน</label>
                 <select 
                   value={formData.applyForGrade} 
                   onChange={(e) => setFormData({...formData, applyForGrade: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {['อนุบาล 1', 'อนุบาล 2', 'อนุบาล 3', 'ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2', 'ประถมศึกษาปีที่ 3', 'ประถมศึกษาปีที่ 4', 'ประถมศึกษาปีที่ 5', 'ประถมศึกษาปีที่ 6'].map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
@@ -1926,6 +2368,14 @@ const AdmissionManager: React.FC<{
                     </div>
                     <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
                       <span>สมัครเข้าเรียนชั้น: <span className="font-semibold text-slate-600">{app.applyForGrade}</span></span>
+                      <span>•</span>
+                      <span>ปีการศึกษา: <span className="font-semibold text-slate-700">{app.academicYear}</span></span>
+                      {app.entrySemester && <span>(เทอม {app.entrySemester})</span>}
+                      {app.admissionType === 'transfer_in' && (
+                        <span className="bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold text-[9px]">
+                          ย้ายเข้าระหว่างเทอม
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1939,15 +2389,13 @@ const AdmissionManager: React.FC<{
                     >
                       <Search className="h-3.5 w-3.5" /> <span className="md:hidden">ดูข้อมูล</span>
                     </button>
-                    {currentTeacher.role !== 'teacher' && (
-                      <button 
-                        onClick={() => handleEditApplicant(app)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-md transition-colors text-xs font-semibold"
-                        title="แก้ไขข้อมูลใบสมัคร"
-                      >
-                        <Edit className="h-3.5 w-3.5" /> <span className="md:hidden">แก้ไข</span>
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => handleEditApplicant(app)}
+                      className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-md transition-colors text-xs font-semibold"
+                      title="แก้ไขข้อมูลใบสมัคร"
+                    >
+                      <Edit className="h-3.5 w-3.5" /> <span className="md:hidden">แก้ไข</span>
+                    </button>
                     <button 
                       onClick={() => setPrintingApplicant(app)}
                       className="flex-1 md:flex-none flex items-center justify-center gap-1 p-1.5 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-transparent hover:border-indigo-200 rounded-md transition-colors text-xs font-semibold"
@@ -1963,16 +2411,46 @@ const AdmissionManager: React.FC<{
                       <Trash2 className="h-3.5 w-3.5" /> <span className="md:hidden">ลบ</span>
                     </button>
                   </div>
+
+                  {/* Quick Action One-Click Button */}
+                  {app.status === 'pending' && (
+                    <button 
+                      type="button"
+                      onClick={() => handleStatusChange(app.id, 'approved', app)}
+                      className="flex items-center justify-center gap-1 px-2.5 py-1.5 md:py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all text-xs font-bold shadow-sm active:scale-95 shrink-0"
+                      title="กดผ่านการคัดเลือกทันที"
+                    >
+                      <CheckCircle className="h-3.5 w-3.5" /> ผ่านการคัดเลือก
+                    </button>
+                  )}
+                  {app.status === 'approved' && (
+                    <button 
+                      type="button"
+                      onClick={() => handleStatusChange(app.id, 'enrolled', app)}
+                      className="flex items-center justify-center gap-1 px-2.5 py-1.5 md:py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all text-xs font-bold shadow-sm active:scale-95 shrink-0"
+                      title="กดรับเข้าศึกษา (มอบตัว)"
+                    >
+                      <GraduationCap className="h-3.5 w-3.5" /> รับเข้าศึกษา
+                    </button>
+                  )}
+
                   <select 
                     value={app.status}
                     onChange={(e) => handleStatusChange(app.id, e.target.value as any, app)}
-                    disabled={app.status === 'enrolled' || currentTeacher.role === 'teacher'}
-                    className="flex-1 md:flex-none border border-slate-200 rounded text-xs px-2 py-1.5 md:py-1 bg-white outline-none focus:border-indigo-500 disabled:opacity-50 disabled:bg-slate-50 min-w-[140px]"
+                    className={`flex-1 md:flex-none border rounded-lg text-xs px-2.5 py-1.5 md:py-1 outline-none transition-all cursor-pointer font-bold min-w-[155px] shadow-sm ${
+                      app.status === 'approved' 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:border-emerald-500' 
+                        : app.status === 'enrolled' 
+                        ? 'bg-blue-50 text-blue-800 border-blue-300 hover:border-blue-500' 
+                        : app.status === 'rejected' 
+                        ? 'bg-rose-50 text-rose-800 border-rose-300 hover:border-rose-500' 
+                        : 'bg-amber-50 text-amber-800 border-amber-300 hover:border-amber-500'
+                    }`}
                   >
-                    <option value="pending">รอตรวจสอบ</option>
-                    <option value="approved">ผ่านการคัดเลือก</option>
-                    <option value="rejected">ไม่ผ่าน</option>
-                    <option value="enrolled">รับเข้าศึกษา (เพิ่มในฐานข้อมูล)</option>
+                    <option value="pending" className="bg-white text-slate-800">⏳ รอตรวจสอบ</option>
+                    <option value="approved" className="bg-white text-emerald-800">✅ ผ่านการคัดเลือก</option>
+                    <option value="rejected" className="bg-white text-rose-800">❌ ไม่ผ่าน</option>
+                    <option value="enrolled" className="bg-white text-blue-800">🎓 รับเข้าศึกษา (บรรจุเข้าห้อง)</option>
                   </select>
                 </div>
               </div>
@@ -1988,14 +2466,12 @@ const AdmissionManager: React.FC<{
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="font-bold text-slate-800 text-lg">ข้อมูลใบสมัคร: {viewingApplicant.firstName} {viewingApplicant.lastName}</h3>
               <div className="flex items-center gap-2">
-                {currentTeacher.role !== 'teacher' && (
-                  <button 
-                    onClick={() => handleEditApplicant(viewingApplicant)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัคร
-                  </button>
-                )}
+                <button 
+                  onClick={() => handleEditApplicant(viewingApplicant)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-colors"
+                >
+                  <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัคร
+                </button>
                 <button onClick={() => setViewingApplicant(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
                   <X className="h-5 w-5" />
                 </button>
@@ -2201,16 +2677,53 @@ const AdmissionManager: React.FC<{
                   </div>
                 </div>
               )}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-              <div>
-                {currentTeacher.role !== 'teacher' && (
-                  <button 
-                    onClick={() => handleEditApplicant(viewingApplicant)}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold transition-colors flex items-center gap-2 text-sm shadow-sm"
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-wrap justify-between items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <button 
+                  onClick={() => handleEditApplicant(viewingApplicant)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold transition-colors flex items-center gap-2 text-sm shadow-sm"
+                >
+                  <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัครนี้
+                </button>
+                {viewingApplicant.status !== 'approved' && viewingApplicant.status !== 'enrolled' && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange(viewingApplicant.id, 'approved', viewingApplicant)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all text-xs shadow-sm flex items-center gap-1.5 active:scale-95"
                   >
-                    <Edit className="h-4 w-4" /> แก้ไขข้อมูลใบสมัครนี้
+                    <CheckCircle className="h-4 w-4" /> อนุมัติผ่านการคัดเลือก
                   </button>
                 )}
+                {viewingApplicant.status !== 'enrolled' && (
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange(viewingApplicant.id, 'enrolled', viewingApplicant)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all text-xs shadow-sm flex items-center gap-1.5 active:scale-95"
+                  >
+                    <GraduationCap className="h-4 w-4" /> รับเข้าศึกษา
+                  </button>
+                )}
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                  <span className="text-xs font-bold text-slate-600">สถานะผู้สมัคร:</span>
+                  <select
+                    value={viewingApplicant.status}
+                    onChange={(e) => handleStatusChange(viewingApplicant.id, e.target.value as any, viewingApplicant)}
+                    className={`border rounded-md text-xs px-2.5 py-1 outline-none font-bold cursor-pointer transition-colors ${
+                      viewingApplicant.status === 'approved'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : viewingApplicant.status === 'enrolled'
+                        ? 'bg-blue-50 text-blue-800 border-blue-300'
+                        : viewingApplicant.status === 'rejected'
+                        ? 'bg-rose-50 text-rose-800 border-rose-300'
+                        : 'bg-amber-50 text-amber-800 border-amber-300'
+                    }`}
+                  >
+                    <option value="pending" className="bg-white text-slate-800">⏳ รอตรวจสอบ</option>
+                    <option value="approved" className="bg-white text-emerald-800">✅ ผ่านการคัดเลือก</option>
+                    <option value="rejected" className="bg-white text-rose-800">❌ ไม่ผ่าน</option>
+                    <option value="enrolled" className="bg-white text-blue-800">🎓 รับเข้าศึกษา (บรรจุเข้าห้อง)</option>
+                  </select>
+                </div>
               </div>
               <button onClick={() => setViewingApplicant(null)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors text-sm">
                 ปิดหน้าต่าง
@@ -2250,6 +2763,17 @@ const AdmissionManager: React.FC<{
             </div>
           </div>
         </div>
+      )}
+      {enrollingApplicant && (
+        <EnrollStudentModal
+          isOpen={!!enrollingApplicant}
+          applicant={enrollingApplicant}
+          students={students}
+          systemAcademicYear={systemAcademicYear}
+          onClose={() => setEnrollingApplicant(null)}
+          onConfirm={handleConfirmEnroll}
+          isSubmitting={isEnrolling}
+        />
       )}
       <CapacityModal 
         isOpen={showCapacityModal} 
