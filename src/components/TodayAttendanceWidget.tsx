@@ -41,7 +41,12 @@ export function TodayAttendanceWidget({
       setSessions(fetchedSessions);
       setLoading(false);
     }, (error) => {
-      console.error('Error fetching today attendance:', error);
+      const msg = error?.message || String(error);
+      if (msg.includes('Quota') || msg.includes('quota') || msg.includes('resource-exhausted') || msg.includes('Free daily read')) {
+        console.warn('Notice: Quota limit reached in TodayAttendanceWidget, serving available cached attendance sessions.');
+      } else {
+        console.error('Error fetching today attendance:', error);
+      }
       setLoading(false);
     });
     

@@ -52,7 +52,12 @@ export const TeacherSubjectsDashboard: React.FC<TeacherSubjectsDashboardProps> =
       setSchedules(fetched);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching schedules:", error);
+      const msg = error?.message || String(error);
+      if (msg.includes('Quota') || msg.includes('quota') || msg.includes('resource-exhausted') || msg.includes('Free daily read')) {
+        console.warn("Notice: Quota limit reached in TeacherSubjectsDashboard, serving available cached schedules.");
+      } else {
+        console.error("Error fetching schedules:", error);
+      }
       setLoading(false);
     });
 

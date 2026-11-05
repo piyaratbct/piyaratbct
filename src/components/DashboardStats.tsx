@@ -161,8 +161,13 @@ export function DashboardStats({ records, currentTeacher, teachers, systemSemest
       const scheduleList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeacherSchedule))
         .filter(s => yearOptions.includes(s.academicYear) || !s.academicYear);
       setSchedules(scheduleList);
-    } catch (error) {
-      console.error("Error fetching schedules:", error);
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      if (msg.includes('Quota') || msg.includes('quota') || msg.includes('resource-exhausted') || msg.includes('Free daily read')) {
+        console.warn("Notice: Quota limit reached in DashboardStats, keeping cached schedules.");
+      } else {
+        console.error("Error fetching schedules:", error);
+      }
     } finally {
       setIsLoadingSchedules(false);
     }

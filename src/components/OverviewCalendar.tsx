@@ -80,15 +80,20 @@ export function OverviewCalendar({ currentTeacher, systemSemester, systemAcademi
           .slice(0, 5); // Take up to 5 upcoming
         setUpcomingEvents(eventList);
 
-      } catch (err) {
-        console.error('Error fetching calendar data:', err);
+      } catch (err: any) {
+        const errorMsg = err?.message || String(err);
+        if (errorMsg.includes('Quota limit exceeded') || errorMsg.includes('resource-exhausted') || errorMsg.includes('Free daily read units')) {
+          console.warn('OverviewCalendar: Firebase free tier daily read quota reached. Using default/cached schedule.');
+        } else {
+          console.error('Error fetching calendar data:', err);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [currentTeacher, systemSemester, systemAcademicYear, currentDate]);
+  }, [currentTeacher?.id, systemSemester, systemAcademicYear, currentDate.toDateString()]);
 
   const getColorByType = (type: string) => {
     switch (type) {

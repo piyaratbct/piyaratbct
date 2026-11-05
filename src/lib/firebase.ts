@@ -1,6 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, inMemoryPersistence } from 'firebase/auth';
-import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  memoryLocalCache,
+  doc, 
+  getDocFromServer 
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -14,19 +21,35 @@ try {
   console.warn("Firebase Storage initialization failed:", e);
 }
 
-// Safe Firestore initialization
+// Build resilient local cache configuration for Firestore
+let localCacheSetting: any;
+try {
+  if (typeof window !== 'undefined') {
+    localCacheSetting = persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    });
+  }
+} catch (e) {
+  try {
+    localCacheSetting = memoryLocalCache();
+  } catch (err) {
+    localCacheSetting = undefined;
+  }
+}
+
+// Safe Firestore initialization with localCache
 export let db: any;
 try {
-  // Use initializeFirestore with experimentalAutoDetectLongPolling to avoid WebSocket connection drops inside sandboxed iframe
   db = initializeFirestore(
     app,
     {
+      localCache: localCacheSetting,
       experimentalAutoDetectLongPolling: true,
     },
     firebaseConfig.firestoreDatabaseId
   );
 } catch (e) {
-  console.warn("Firestore custom database-id setup failed, trying fallback initialization:", e);
+  console.warn("Firestore custom database-id setup with localCache failed, trying fallback initialization:", e);
   try {
     db = initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
@@ -137,9 +160,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     errorMessage.includes('permission-denied') || 
     errorMessage.includes('Missing or insufficient permissions');
 
+  const isQuotaError = 
+    errorMessage.includes('Quota limit exceeded') || 
+    errorMessage.includes('resource-exhausted') ||
+    errorMessage.includes('RESOURCE_EXHAUSTED') ||
+    errorMessage.includes('Free daily read units');
+
   if (isPermissionError) {
     console.error('Firestore Error (Permission): ', JSON.stringify(errInfo));
     throw new Error(JSON.stringify(errInfo));
+  } else if (isQuotaError) {
+    // Notify the UI once without throwing a fatal crash error
+    console.warn('Firestore Quota Notice: Free daily read limit reached. Falling back to local offline cache.', { operationType, path });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-quota-warning', {
+        detail: {
+          message: 'ฐานข้อมูล Firebase ถึงขีดจำกัดโควตาฟรีประจำวัน (Free Daily Read Units) ระบบกำลังดึงข้อมูลจากหน่วยความจำชั่วคราว (Offline Cache)',
+          type: 'warning'
+        }
+      }));
+    }
   } else {
     // For network issues, offline, or transient backend unavailable states, log warning and let Firestore offline cache operate
     console.warn('Firestore Operation Notice (Network/Status):', errorMessage, { operationType, path });

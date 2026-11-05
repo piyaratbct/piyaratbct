@@ -120,8 +120,13 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           }
         }
 
-      } catch (error) {
-        console.error("Error fetching schedules:", error);
+      } catch (error: any) {
+        const msg = error?.message || String(error);
+        if (msg.includes('Quota') || msg.includes('quota') || msg.includes('resource-exhausted') || msg.includes('Free daily read')) {
+          console.warn("Notice: Quota limit reached in AttendanceTracking, keeping cached schedules.");
+        } else {
+          console.error("Error fetching schedules:", error);
+        }
       }
     };
     fetchSchedules();

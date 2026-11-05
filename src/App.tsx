@@ -74,7 +74,8 @@ import {
   List,
   History,
   UserPlus,
-  Medal
+  Medal,
+  AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, storage, handleFirestoreError, OperationType } from "./lib/firebase";
@@ -270,6 +271,15 @@ export default function App() {
   const [pDisplayName, setPDisplayName] = useState("");
   const [pPassword, setPPassword] = useState("");
   const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+  const [quotaWarning, setQuotaWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleQuotaWarning = (e: any) => {
+      setQuotaWarning(e?.detail?.message || 'ฐานข้อมูล Firebase ถึงขีดจำกัดโควตาฟรีประจำวัน (กำลังใช้งานข้อมูลจากแคชออฟไลน์)');
+    };
+    window.addEventListener('app-quota-warning', handleQuotaWarning);
+    return () => window.removeEventListener('app-quota-warning', handleQuotaWarning);
+  }, []);
 
   // 1. Firebase Authentication state change listener
   useEffect(() => {
@@ -684,7 +694,7 @@ export default function App() {
       unsubStudents();
       unsubNotifications();
     };
-  }, [currentTeacher]);
+  }, [currentTeacher?.id, currentTeacher?.role]);
 
   const initProfileStates = (t: Teacher) => {
     setPThaiName(t.thaiName || "");
@@ -1531,7 +1541,7 @@ export default function App() {
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('click', handleActivity);
     };
-  }, [currentTeacher]);
+  }, [currentTeacher?.id]);
 
   if (authLoading) {
     return (
@@ -1652,6 +1662,24 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Quota limit notice banner if daily limit exceeded */}
+      {quotaWarning && (
+        <div className="bg-amber-50/95 border-b border-amber-200/80 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between print:hidden backdrop-blur-xs">
+          <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="font-medium">{quotaWarning}</span>
+            </div>
+            <button
+              onClick={() => setQuotaWarning(null)}
+              className="text-amber-800 hover:text-amber-950 font-bold px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 transition text-[11px] shrink-0"
+            >
+              รับทราบ
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Main Page Layout Grid */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-1 space-y-6 print:m-0 print:p-0 min-w-0">
