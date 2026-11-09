@@ -11,8 +11,8 @@ interface StudentStatsModalProps {
 
 export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsModalProps) {
   const stats = useMemo(() => {
-    // Only count active students for statistics
-    const activeStudents = students.filter(s => s.status === 'active' || !s.status);
+    // Only count active students for statistics (strictly exclude transferred or resigned students)
+    const activeStudents = students.filter(s => s.status !== 'inactive' && s.status !== 'graduated');
     
     const summary = activeStudents.reduce((acc, student) => {
       // Clean up legacy grade level format that might have "(ป.x/x)"
@@ -61,7 +61,7 @@ export function StudentStatsModal({ isOpen, onClose, students }: StudentStatsMod
     }));
   }, [stats]);
 
-  const activeStudentsList = students.filter(s => s.status === 'active' || !s.status);
+  const activeStudentsList = students.filter(s => s.status !== 'inactive' && s.status !== 'graduated');
   const totalMale = activeStudentsList.filter(s => s.gender === 'male').length;
   const totalFemale = activeStudentsList.filter(s => s.gender === 'female').length;
 

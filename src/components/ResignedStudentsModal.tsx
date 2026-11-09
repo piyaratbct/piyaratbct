@@ -15,7 +15,8 @@ import {
   Phone, 
   FileSpreadsheet,
   Eye,
-  Info
+  Info,
+  FileText
 } from 'lucide-react';
 import { Student } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -92,6 +93,7 @@ export function ResignedStudentsModal({
   const totalMale = inactiveStudents.filter(s => s.gender === 'male').length;
   const totalFemale = inactiveStudents.filter(s => s.gender === 'female').length;
   const withDestinationCount = inactiveStudents.filter(s => !!s.destinationSchool?.trim()).length;
+  const withReasonCount = inactiveStudents.filter(s => !!s.resignationReason?.trim()).length;
 
   // Destination schools frequency
   const destinationSchoolsList = useMemo(() => {
@@ -104,6 +106,18 @@ export function ResignedStudentsModal({
     });
     return Array.from(map.entries())
       .map(([school, count]) => ({ school, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [inactiveStudents]);
+
+  // Resignation reasons frequency
+  const resignationReasonsList = useMemo(() => {
+    const map = new Map<string, number>();
+    inactiveStudents.forEach(s => {
+      const reason = (s.resignationReason || '').trim() || 'ไม่ระบุสาเหตุ';
+      map.set(reason, (map.get(reason) || 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count);
   }, [inactiveStudents]);
 
@@ -130,7 +144,8 @@ export function ResignedStudentsModal({
         const studentId = (s.studentId || '').toLowerCase();
         const dest = (s.destinationSchool || '').toLowerCase();
         const parent = (s.parentName || s.fatherName || s.motherName || '').toLowerCase();
-        return fullName.includes(q) || nickname.includes(q) || studentId.includes(q) || dest.includes(q) || parent.includes(q);
+        const reason = (s.resignationReason || '').toLowerCase();
+        return fullName.includes(q) || nickname.includes(q) || studentId.includes(q) || dest.includes(q) || parent.includes(q) || reason.includes(q);
       }
       return true;
     });
@@ -153,6 +168,7 @@ export function ResignedStudentsModal({
       'ชื่อเล่น',
       'ระดับชั้นเดิม',
       'สถานะ',
+      'สาเหตุการย้าย/ลาออก',
       'สถานศึกษาที่ศึกษาต่อ/ย้ายไป',
       'ชื่อผู้ปกครอง',
       'เบอร์โทรศัพท์ผู้ปกครอง',
@@ -175,6 +191,7 @@ export function ResignedStudentsModal({
       escape(s.nickname || ''),
       escape(s.gradeLevel || ''),
       escape('ย้าย/ออก'),
+      escape(s.resignationReason || 'ไม่ระบุ'),
       escape(s.destinationSchool || 'ยังไม่ระบุ'),
       escape(s.parentName || s.fatherName || s.motherName || ''),
       escape(s.parentPhone || s.fatherPhone || s.motherPhone || ''),
@@ -269,50 +286,62 @@ export function ResignedStudentsModal({
         <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar bg-slate-50/70 flex-1 space-y-6">
 
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white p-4 rounded-2xl shadow-xs border border-rose-100 flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-rose-100 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                 <UserMinus className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-500">ย้าย/ลาออกทั้งหมด</p>
-                <p className="text-xl sm:text-2xl font-black text-rose-600 leading-tight">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500">ย้าย/ลาออก</p>
+                <p className="text-lg sm:text-2xl font-black text-rose-600 leading-tight">
                   {inactiveStudents.length} <span className="text-xs font-bold text-slate-400">คน</span>
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-xs border border-sky-100 flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+            <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-sky-100 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                 <User className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-500">นักเรียนชาย</p>
-                <p className="text-xl sm:text-2xl font-black text-sky-700 leading-tight">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500">นักเรียนชาย</p>
+                <p className="text-lg sm:text-2xl font-black text-sky-700 leading-tight">
                   {totalMale} <span className="text-xs font-bold text-slate-400">คน</span>
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-xs border border-pink-100 flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
+            <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-pink-100 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
                 <UserCheck className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-500">นักเรียนหญิง</p>
-                <p className="text-xl sm:text-2xl font-black text-pink-700 leading-tight">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500">นักเรียนหญิง</p>
+                <p className="text-lg sm:text-2xl font-black text-pink-700 leading-tight">
                   {totalFemale} <span className="text-xs font-bold text-slate-400">คน</span>
                 </p>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-xs border border-amber-100 flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-purple-100 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500">ระบุสาเหตุแล้ว</p>
+                <p className="text-lg sm:text-2xl font-black text-purple-700 leading-tight">
+                  {withReasonCount} <span className="text-xs font-bold text-slate-400">คน</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-amber-100 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                 <School className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-500">ระบุที่เรียนต่อ</p>
-                <p className="text-xl sm:text-2xl font-black text-amber-700 leading-tight">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500">ระบุที่เรียนต่อ</p>
+                <p className="text-lg sm:text-2xl font-black text-amber-700 leading-tight">
                   {withDestinationCount} <span className="text-xs font-bold text-slate-400">คน</span>
                 </p>
               </div>
@@ -405,37 +434,71 @@ export function ResignedStudentsModal({
                   </table>
                 </div>
 
-                {/* Top Destination Schools Card */}
-                <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-4 flex flex-col">
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                    <Building2 className="h-4 w-4 text-amber-600" />
-                    <h4 className="text-sm font-bold text-slate-800">สถานศึกษาปลายทาง</h4>
+                {/* Top Resignation Reasons & Destination Schools Cards */}
+                <div className="space-y-4 flex flex-col">
+                  {/* Resignation Reasons Card */}
+                  <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-4 flex flex-col">
+                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
+                      <FileText className="h-4 w-4 text-purple-600" />
+                      <h4 className="text-sm font-bold text-slate-800">สาเหตุการย้าย / ลาออก</h4>
+                    </div>
+
+                    {resignationReasonsList.length === 0 ? (
+                      <div className="py-4 text-center text-slate-400">
+                        <p className="text-xs font-semibold">ยังไม่มีการบันทึกสาเหตุ</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                        {resignationReasonsList.map(({ reason, count }, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-purple-50/50 transition-colors text-xs border border-slate-100">
+                            <span className="font-bold text-slate-700 truncate pr-2" title={reason}>
+                              {reason}
+                            </span>
+                            <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-black text-[11px] shrink-0">
+                              {count} คน
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+                      <span>ระบุสาเหตุแล้ว</span>
+                      <span className="font-bold text-slate-600">{withReasonCount} / {inactiveStudents.length} คน</span>
+                    </div>
                   </div>
 
-                  {destinationSchoolsList.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
-                      <School className="h-8 w-8 mb-2 opacity-50" />
-                      <p className="text-xs font-semibold">ยังไม่มีการบันทึกสถานศึกษาปลายทาง</p>
-                      <p className="text-[10px] mt-1 text-slate-400">สามารถระบุได้ในเมนูแก้ไขข้อมูลนักเรียน</p>
+                  {/* Destination Schools Card */}
+                  <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-4 flex flex-col">
+                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
+                      <Building2 className="h-4 w-4 text-amber-600" />
+                      <h4 className="text-sm font-bold text-slate-800">สถานศึกษาปลายทาง</h4>
                     </div>
-                  ) : (
-                    <div className="space-y-2 flex-1 overflow-y-auto max-h-56 pr-1 custom-scrollbar">
-                      {destinationSchoolsList.map(({ school, count }, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-amber-50/50 transition-colors text-xs border border-slate-100">
-                          <span className="font-bold text-slate-700 truncate pr-2" title={school}>
-                            {i + 1}. {school}
-                          </span>
-                          <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black text-[11px] shrink-0">
-                            {count} คน
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>ระบุที่เรียนแล้ว</span>
-                    <span className="font-bold text-slate-600">{withDestinationCount} / {inactiveStudents.length} คน</span>
+                    {destinationSchoolsList.length === 0 ? (
+                      <div className="py-4 text-center text-slate-400">
+                        <School className="h-6 w-6 mx-auto mb-1 opacity-50" />
+                        <p className="text-xs font-semibold">ยังไม่มีการบันทึกสถานศึกษาปลายทาง</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                        {destinationSchoolsList.map(({ school, count }, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-amber-50/50 transition-colors text-xs border border-slate-100">
+                            <span className="font-bold text-slate-700 truncate pr-2" title={school}>
+                              {i + 1}. {school}
+                            </span>
+                            <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black text-[11px] shrink-0">
+                              {count} คน
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+                      <span>ระบุที่เรียนแล้ว</span>
+                      <span className="font-bold text-slate-600">{withDestinationCount} / {inactiveStudents.length} คน</span>
+                    </div>
                   </div>
                 </div>
 
@@ -492,6 +555,7 @@ export function ResignedStudentsModal({
                         <th className="py-3 px-3">รหัสนักเรียน</th>
                         <th className="py-3 px-4">ชื่อ - สกุล</th>
                         <th className="py-3 px-3">ระดับชั้นเดิม</th>
+                        <th className="py-3 px-4">สาเหตุการย้าย / ลาออก</th>
                         <th className="py-3 px-4">สถานศึกษาที่ศึกษาต่อ / ย้ายไป</th>
                         <th className="py-3 px-3">ผู้ปกครอง / เบอร์ติดต่อ</th>
                         <th className="py-3 px-3 text-center">จัดการ</th>
@@ -526,10 +590,22 @@ export function ResignedStudentsModal({
                               {student.gradeLevel || '-'}
                             </td>
                             <td className="py-3 px-4">
+                              {student.resignationReason ? (
+                                <span className="font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60 inline-flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+                                  <span className="truncate max-w-[170px]" title={student.resignationReason}>
+                                    {student.resignationReason}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">- ไม่ระบุสาเหตุ -</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
                               {student.destinationSchool ? (
                                 <span className="font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60 inline-flex items-center gap-1.5">
                                   <School className="h-3 w-3 text-amber-600 shrink-0" />
-                                  <span className="truncate max-w-[200px]">{student.destinationSchool}</span>
+                                  <span className="truncate max-w-[170px]" title={student.destinationSchool}>{student.destinationSchool}</span>
                                 </span>
                               ) : (
                                 <span className="text-slate-400 italic text-[11px]">- ยังไม่ระบุ -</span>
@@ -561,7 +637,7 @@ export function ResignedStudentsModal({
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
+                          <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">
                             ไม่พบรายชื่อนักเรียนที่ตรงกับเงื่อนไขการค้นหา
                           </td>
                         </tr>

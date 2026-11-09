@@ -1,6 +1,6 @@
 import React from 'react';
 import { Student } from '../types';
-import { X, User, HeartPulse, MapPin, Phone, Calendar, AlertTriangle } from 'lucide-react';
+import { X, User, HeartPulse, MapPin, Phone, Calendar, AlertTriangle, UserMinus } from 'lucide-react';
 import { AvatarUpload } from './AvatarUpload';
 
 interface StudentDetailModalProps {
@@ -64,7 +64,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
               <h2 className="text-xl font-black text-slate-800">
                 {student.firstName} {student.lastName} {student.nickname && `(${student.nickname})`}
               </h2>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold font-mono">
                   รหัส: {student.studentId}
                 </span>
@@ -74,9 +74,42 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                 <span className="px-2 py-0.5 bg-pink-50 text-pink-600 rounded text-xs font-bold">
                   เลขที่: {student.number}
                 </span>
+                {student.status === 'inactive' && (
+                  <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">
+                    ย้าย / ลาออก
+                  </span>
+                )}
+                {student.status === 'graduated' && (
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">
+                    จบการศึกษา
+                  </span>
+                )}
               </div>
             </div>
           </div>
+
+          {student.status === 'inactive' && (
+            <div className="bg-rose-50/80 border border-rose-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <UserMinus className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold px-2 py-0.5 bg-rose-200/70 text-rose-900 rounded-md">
+                    ข้อมูลการย้าย / ลาออก
+                  </span>
+                  <p className="text-sm font-bold text-rose-950 mt-1">
+                    สาเหตุการย้าย/ลาออก: <span className="font-semibold text-rose-800">{student.resignationReason || 'ไม่ระบุสาเหตุ'}</span>
+                  </p>
+                </div>
+              </div>
+              {student.destinationSchool && (
+                <div className="text-xs text-rose-900 bg-white px-3 py-1.5 rounded-lg border border-rose-200 font-medium">
+                  <span className="font-bold text-rose-700">สถานศึกษาปลายทาง:</span> {student.destinationSchool}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 md:col-span-2 flex flex-col md:flex-row flex-wrap gap-4 justify-between">

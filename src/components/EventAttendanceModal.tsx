@@ -38,12 +38,13 @@ export function EventAttendanceModal({ attendanceEvent, setAttendanceEvent, stud
 
   if (!attendanceEvent) return null;
 
-  const availableGrades = Array.from(new Set(students.map(s => s.gradeLevel))).filter(Boolean).sort();
+  const activeStudents = (students || []).filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+  const availableGrades = Array.from(new Set(activeStudents.map(s => s.gradeLevel))).filter(Boolean).sort();
   const displayedGrades = attendanceEvent.targetGrades && attendanceEvent.targetGrades.length > 0
     ? attendanceEvent.targetGrades
     : availableGrades;
 
-  const modalFilteredStudents = (students?.filter(s => {
+  const modalFilteredStudents = (activeStudents.filter(s => {
     if (attendanceEvent.targetGrades && attendanceEvent.targetGrades.length > 0) {
       if (!attendanceEvent.targetGrades.includes(s.gradeLevel)) return false;
     }

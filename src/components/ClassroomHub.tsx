@@ -35,8 +35,10 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
   const [gradebookData, setGradebookData] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
-    // 1. Filter students
-    const filtered = students.filter(s => s.gradeLevel === gradeLevel).sort((a, b) => a.studentId.localeCompare(b.studentId));
+    // 1. Filter students (strictly exclude transferred or resigned students)
+    const filtered = students
+      .filter(s => s.gradeLevel === gradeLevel && s.status !== 'inactive' && s.status !== 'graduated')
+      .sort((a, b) => (a.number || 0) - (b.number || 0) || a.studentId.localeCompare(b.studentId));
     setClassStudents(filtered);
 
     // 2. Fetch lesson plans for this subject & grade

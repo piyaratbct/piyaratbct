@@ -284,12 +284,12 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
   });
   const countSource = searchQuery !== "" ? displayedStudents : studentsInGrade;
   
-  const totalCount = countSource.filter(s => s.status === 'active' || !s.status).length;
-  const maleCount = countSource.filter((s) => s.gender === "male" && (s.status === 'active' || !s.status)).length;
-  const femaleCount = countSource.filter((s) => s.gender === "female" && (s.status === 'active' || !s.status)).length;
+  const totalCount = countSource.filter(s => s.status !== 'inactive' && s.status !== 'graduated').length;
+  const maleCount = countSource.filter((s) => s.gender === "male" && s.status !== 'inactive' && s.status !== 'graduated').length;
+  const femaleCount = countSource.filter((s) => s.gender === "female" && s.status !== 'inactive' && s.status !== 'graduated').length;
   
-  const allergicFoodStudents = countSource.filter((s) => s.allergicFood);
-  const congenitalDiseaseStudents = countSource.filter((s) => s.congenitalDisease);
+  const allergicFoodStudents = countSource.filter((s) => s.allergicFood && s.status !== 'inactive' && s.status !== 'graduated');
+  const congenitalDiseaseStudents = countSource.filter((s) => s.congenitalDisease && s.status !== 'inactive' && s.status !== 'graduated');
 
   const homeroomTeachers = teachers.filter(
     (t) => t.homeroomClass === selectedGrade || t.coHomeroomClass === selectedGrade
@@ -577,7 +577,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
       "ชื่อผู้ปกครอง", "ความสัมพันธ์ผู้ปกครอง", "อาชีพผู้ปกครอง", "รายได้ผู้ปกครอง", "สถานที่ทำงานผู้ปกครอง",
       "น้ำหนัก", "ส่วนสูง",
       "แพ้อาหาร", "แพ้ยา", "โรคประจำตัว", "การมองเห็น", "สุขภาพฟัน", "ข้อมูลทางการแพทย์อื่นๆ", "รับนมโรงเรียน",
-      "โรงเรียนเดิม", "สถานะ", "โรงเรียนที่ย้ายไป"
+      "โรงเรียนเดิม", "สถานะ", "สาเหตุการย้าย/ลาออก", "โรงเรียนที่ย้ายไป"
     ];
     
     const escape = (val?: string | number | boolean) => {
@@ -632,6 +632,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           escape(student.noSchoolMilk ? "ไม่รับ (แพ้นมวัว)" : "รับปกติ"),
           escape(student.previousSchool ? `${student.previousSchool} ${student.previousSchoolProvince || ''}`.trim() : ""),
           escape(student.status === "active" ? "ปกติ" : student.status === "graduated" ? "จบการศึกษา" : "ย้าย/ออก"),
+          escape(student.resignationReason),
           escape(student.destinationSchool)
         ].join(",");
       })
@@ -1092,7 +1093,7 @@ export const ClassroomModule: React.FC<ClassroomModuleProps> = ({
           {activeTab === "attendance" && currentTeacher && (
             <div className="p-2 sm:p-6 relative animate-in fade-in duration-300">
               <AttendanceTracking 
-                students={displayedStudents}
+                students={displayedStudents.filter(s => s.status !== 'inactive' && s.status !== 'graduated')}
                 gradeLevel={selectedGrade}
                 teacherId={currentTeacher.id}
                 teacherName={currentTeacher.thaiName || currentTeacher.displayName || 'Unknown Teacher'}

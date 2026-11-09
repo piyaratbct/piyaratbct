@@ -655,7 +655,7 @@ export default function App() {
         });
         
         // Filter out graduated, inactive (ย้าย/ลาออก) students for the main App state
-        const activeStudents = fetchedStudents.filter(s => s.status === 'active' || !s.status);
+        const activeStudents = fetchedStudents.filter(s => s.status !== 'inactive' && s.status !== 'graduated');
         
         setStudentsCount(activeStudents.length);
         setStudents(fetchedStudents); // Pass ALL students to the app, but rely on activeStudents for count

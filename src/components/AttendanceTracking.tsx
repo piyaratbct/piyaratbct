@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MilkReportPrintTemplate } from './MilkReportPrintTemplate';
 import { DailyAttendanceReportModal } from './DailyAttendanceReportModal';
 import { collection, query, where, getDocs, setDoc, doc, addDoc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -35,6 +35,19 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
   const [showDailyReport, setShowDailyReport] = useState(false);
   const [schoolInfo, setSchoolInfo] = useState({ name: '', subDistrict: '', district: '', province: '' });
   const [holidays, setHolidays] = useState<string[]>([]);
+
+  // Strictly filter out inactive/transferred/graduated students from attendance checking and counts
+  const activeStudents = useMemo(() => {
+    return (students || []).filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+  }, [students]);
+
+  const activeStudentIds = useMemo(() => {
+    return new Set(activeStudents.map(s => s.id));
+  }, [activeStudents]);
+
+  const sortedStudents = useMemo(() => {
+    return [...activeStudents].sort((a, b) => (a.number || 0) - (b.number || 0));
+  }, [activeStudents]);
 
   useEffect(() => {
     const fetchSchoolInfo = async () => {
@@ -165,14 +178,19 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
       const match = allDocs.find(d => d.gradeLevel === gradeLevel && d.period === period);
       
       if (match) {
-        // Load existing
+        // Load existing - only keep records for active students
         setCurrentSessionId(match.id);
-        setAttendanceData(match.attendanceData || {});
+        const rawData = match.attendanceData || {};
+        const cleanData: Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'> = {};
+        activeStudents.forEach(s => {
+          cleanData[s.id] = rawData[s.id] || 'present';
+        });
+        setAttendanceData(cleanData);
       } else {
         // Initialize new
         setCurrentSessionId(null);
         const initialData: Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'> = {};
-        students.forEach(s => {
+        activeStudents.forEach(s => {
           initialData[s.id] = 'present';
         });
         setAttendanceData(initialData);
@@ -193,7 +211,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
 
   const handleMarkAllPresent = () => {
     const updatedData: Record<string, 'present' | 'leave' | 'sick' | 'absent' | 'late'> = {};
-    students.forEach(s => {
+    activeStudents.forEach(s => {
       updatedData[s.id] = 'present';
     });
     setAttendanceData(updatedData);
@@ -225,6 +243,12 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         
         const querySnapshot = await getDocs(sessionsQuery);
         const existingSessions = querySnapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+        // Only persist attendance for active students
+        const cleanAttendanceData: Record<string, string> = {};
+        activeStudents.forEach(s => {
+          cleanAttendanceData[s.id] = attendanceData[s.id] || 'present';
+        });
+
         const targetPeriods = PERIODS.filter(p => !p.includes('พักเบรก') && !p.includes('พักกลางวัน'));
 
         for (const p of targetPeriods) {
@@ -243,7 +267,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
             teacherId,
             semester,
             academicYear,
-            attendanceData,
+            attendanceData: cleanAttendanceData,
             updatedAt: now
           };
           
@@ -280,6 +304,12 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
         const subject = matchingSchedule ? matchingSchedule.subject : undefined;
         const classTeacherName = (matchingSchedule && matchingSchedule.teacherName) ? matchingSchedule.teacherName : teacherName;
 
+        // Only persist attendance for active students
+        const cleanAttendanceData: Record<string, string> = {};
+        activeStudents.forEach(s => {
+          cleanAttendanceData[s.id] = attendanceData[s.id] || 'present';
+        });
+
         const sessionData: any = {
           gradeLevel,
           date,
@@ -287,7 +317,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           teacherId,
           semester,
           academicYear,
-          attendanceData,
+          attendanceData: cleanAttendanceData,
           updatedAt: now
         };
         
@@ -326,18 +356,13 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
     }
   };
 
-
-
-  const activeStudents = students.filter(s => s.status === 'active' || !s.status);
-  const sortedStudents = [...activeStudents].sort((a, b) => a.number - b.number);
-
-  const stats = {
-    present: Object.values(attendanceData).filter(s => s === 'present').length,
-    leave: Object.values(attendanceData).filter(s => s === 'leave').length,
-    sick: Object.values(attendanceData).filter(s => s === 'sick').length,
-    absent: Object.values(attendanceData).filter(s => s === 'absent').length,
-    late: Object.values(attendanceData).filter(s => s === 'late').length,
-  };
+  const stats = useMemo(() => ({
+    present: Object.entries(attendanceData).filter(([id, s]) => activeStudentIds.has(id) && s === 'present').length,
+    leave: Object.entries(attendanceData).filter(([id, s]) => activeStudentIds.has(id) && s === 'leave').length,
+    sick: Object.entries(attendanceData).filter(([id, s]) => activeStudentIds.has(id) && s === 'sick').length,
+    absent: Object.entries(attendanceData).filter(([id, s]) => activeStudentIds.has(id) && s === 'absent').length,
+    late: Object.entries(attendanceData).filter(([id, s]) => activeStudentIds.has(id) && s === 'late').length,
+  }), [attendanceData, activeStudentIds]);
 
   const selectedDateObj = date ? new Date(Number(date.split('-')[0]), Number(date.split('-')[1]) - 1, Number(date.split('-')[2])) : new Date();
   const isWeekend = selectedDateObj.getDay() === 0 || selectedDateObj.getDay() === 6;
@@ -383,7 +408,7 @@ export function AttendanceTracking({ students, gradeLevel, teacherId, teacherNam
           initialDate={date}
           semester={semester}
           academicYear={academicYear}
-          students={students}
+          students={activeStudents}
           onClose={() => setShowDailyReport(false)}
         />
       )}

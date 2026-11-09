@@ -83,12 +83,13 @@ export function TodayAttendanceWidget({
 
   const validSessions = getLatestSessionPerGrade();
 
-  // Active students only
-  const activeStudents = students.filter(s => s.status === 'active');
+  // Active students only (strictly exclude transferred or resigned students)
+  const activeStudents = students.filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+  const activeStudentIds = new Set(activeStudents.map(s => s.id));
   
   // Categorize students by level
-  const kgStudents = activeStudents.filter(s => s.gradeLevel.includes('อนุบาล'));
-  const prStudents = activeStudents.filter(s => s.gradeLevel.includes('ประถม'));
+  const kgStudents = activeStudents.filter(s => (s.gradeLevel || '').includes('อนุบาล'));
+  const prStudents = activeStudents.filter(s => (s.gradeLevel || '').includes('ประถม'));
   
   const totalKg = kgStudents.length;
   const totalPr = prStudents.length;
@@ -103,23 +104,26 @@ export function TodayAttendanceWidget({
   let checkedKg = 0;
   let checkedPr = 0;
 
-  // Compute attendance from sessions
+  // Compute attendance from sessions strictly for active students
   validSessions.forEach(session => {
-    const isKg = session.gradeLevel.includes('อนุบาล');
-    const isPr = session.gradeLevel.includes('ประถม');
+    const isKg = (session.gradeLevel || '').includes('อนุบาล');
+    const isPr = (session.gradeLevel || '').includes('ประถม');
     
-    const records = Object.values(session.attendanceData);
-    const present = records.filter(s => s === 'present' || s === 'late').length;
-    const absent = records.filter(s => s === 'absent' || s === 'sick' || s === 'leave').length;
+    // Only count records belonging to currently active students
+    const activeEntries = Object.entries(session.attendanceData || {})
+      .filter(([studentId]) => activeStudentIds.has(studentId));
+    
+    const present = activeEntries.filter(([, s]) => s === 'present' || s === 'late').length;
+    const absent = activeEntries.filter(([, s]) => s === 'absent' || s === 'sick' || s === 'leave').length;
     
     if (isKg) {
       presentKg += present;
       absentKg += absent;
-      checkedKg += records.length;
+      checkedKg += activeEntries.length;
     } else if (isPr) {
       presentPr += present;
       absentPr += absent;
-      checkedPr += records.length;
+      checkedPr += activeEntries.length;
     }
   });
 
@@ -240,7 +244,7 @@ export function TodayAttendanceWidget({
           initialDate={today}
           semester={semester}
           academicYear={academicYear}
-          students={students}
+          students={activeStudents}
           teachers={teachers}
           currentTeacher={currentTeacher}
           onClose={() => setShowDailyReportModal(false)}

@@ -26,7 +26,7 @@ export const BadgeAwardModal: React.FC<BadgeAwardModalProps> = ({
   const filteredStudents = searchTerm.length >= 2 
     ? students.filter(s => 
         (s.firstName?.includes(searchTerm) || s.lastName?.includes(searchTerm) || s.studentId?.includes(searchTerm)) &&
-        s.status === 'active'
+        s.status !== 'inactive' && s.status !== 'graduated'
       ).slice(0, 5)
     : [];
 

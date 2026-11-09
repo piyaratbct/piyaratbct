@@ -24,8 +24,10 @@ export function AttendanceStudentCumulative({ gradeLevel, systemAcademicYear, sy
         // Fetch students in grade
         const sq = query(collection(db, 'students'), where('gradeLevel', '==', gradeLevel));
         const stSnap = await getDocs(sq);
-        const stData = stSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student));
-        setStudents(stData.sort((a,b) => a.studentId.localeCompare(b.studentId)));
+        const stData = stSnap.docs
+          .map(d => ({ id: d.id, ...d.data() } as Student))
+          .filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+        setStudents(stData.sort((a,b) => (a.number || 0) - (b.number || 0)));
 
         // Fetch attendance sessions for this academic year and semester
         let aq = query(collection(db, 'attendanceSessions'));

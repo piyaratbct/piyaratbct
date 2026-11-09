@@ -270,6 +270,7 @@ export interface Student {
   dental?: string;
   historicalRecords?: HistoricalRecord[];
   destinationSchool?: string;
+  resignationReason?: string;
 }
 
 export interface AttendanceSession {

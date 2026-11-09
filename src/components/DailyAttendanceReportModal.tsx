@@ -158,9 +158,9 @@ export const DailyAttendanceReportModal: React.FC<DailyAttendanceReportModalProp
     return 'female';
   };
 
-  // Only active students
+  // Only active students (strictly exclude transferred or resigned students)
   const activeStudents = useMemo(() => {
-    return students.filter(s => s.status === 'active');
+    return students.filter(s => s.status !== 'inactive' && s.status !== 'graduated');
   }, [students]);
 
   // Determine all grades to display

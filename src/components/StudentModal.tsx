@@ -52,7 +52,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
     fatherDob: '',
     motherDob: '',
     previousSchool: '',
-    destinationSchool: ''
+    destinationSchool: '',
+    resignationReason: ''
   });
 
   useEffect(() => {
@@ -96,7 +97,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
         fatherDob: student.fatherDob || '',
         motherDob: student.motherDob || '',
         previousSchool: student.previousSchool || '',
-        destinationSchool: student.destinationSchool || ''
+        destinationSchool: student.destinationSchool || '',
+        resignationReason: student.resignationReason || ''
       });
     } else {
       setFormData(prev => ({ ...prev, gradeLevel: selectedGrade }));
@@ -586,21 +588,83 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, selectedGra
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              โรงเรียน/สถานศึกษาที่ศึกษาต่อ (destinationSchool)
-            </label>
-            <input
-              type="text"
-              value={formData.destinationSchool}
-              onChange={e => setFormData({ ...formData, destinationSchool: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 outline-none placeholder-slate-400"
-              placeholder="เช่น โรงเรียนมัธยมวัดดุสิตาราม, โรงเรียนสวนกุหลาบวิทยาลัย ฯลฯ"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              สำหรับบันทึกข้อมูลนักเรียนชั้น ป.6 ที่จบการศึกษา หรือนักเรียนที่ย้ายสถานศึกษาต่อ
-            </p>
-          </div>
+          {formData.status === 'inactive' && (
+            <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                <label className="text-xs font-bold text-rose-800">
+                  ข้อมูลการย้าย / ลาออก
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-rose-900 mb-1.5">
+                  สาเหตุการย้าย / ลาออก <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    'ย้ายตามผู้ปกครอง / ภูมิลำเนา',
+                    'ย้ายไปโรงเรียนใกล้บ้าน',
+                    'ไปศึกษาต่อต่างจังหวัด / ต่างประเทศ',
+                    'ปัญหาสุขภาพ',
+                    'ความจำเป็นทางครอบครัว / เศรษฐกิจ',
+                    'อื่นๆ'
+                  ].map(reason => (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, resignationReason: reason })}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                        formData.resignationReason === reason
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs font-medium'
+                          : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-100/60'
+                      }`}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={formData.resignationReason || ''}
+                  onChange={e => setFormData({ ...formData, resignationReason: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 outline-none placeholder-slate-400"
+                  placeholder="ระบุสาเหตุการย้ายหรือลาออก เช่น ย้ายตามผู้ปกครองไป จ.เชียงใหม่, ปัญหาสุขภาพ ฯลฯ"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-rose-900 mb-1">
+                  โรงเรียน / สถานศึกษาปลายทาง (ถ้ามี)
+                </label>
+                <input
+                  type="text"
+                  value={formData.destinationSchool}
+                  onChange={e => setFormData({ ...formData, destinationSchool: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 outline-none placeholder-slate-400"
+                  placeholder="เช่น โรงเรียนเทศบาล 1, โรงเรียนอนุบาลเชียงใหม่ ฯลฯ"
+                />
+              </div>
+            </div>
+          )}
+
+          {formData.status === 'graduated' && (
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+              <label className="block text-xs font-bold text-emerald-800 mb-1">
+                โรงเรียน / สถานศึกษาที่ศึกษาต่อหลังจบการศึกษา
+              </label>
+              <input
+                type="text"
+                value={formData.destinationSchool}
+                onChange={e => setFormData({ ...formData, destinationSchool: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none placeholder-slate-400"
+                placeholder="เช่น โรงเรียนมัธยมวัดดุสิตาราม, โรงเรียนสวนกุหลาบวิทยาลัย ฯลฯ"
+              />
+              <p className="text-[11px] text-emerald-600">
+                สำหรับบันทึกข้อมูลการศึกษาต่อของนักเรียนที่สำเร็จการศึกษาตามหลักสูตร
+              </p>
+            </div>
+          )}
 
           <div className="pt-4 flex justify-end gap-3 mt-4 border-t border-slate-100">
             <button

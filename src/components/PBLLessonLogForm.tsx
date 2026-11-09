@@ -224,10 +224,12 @@ export function PBLLessonLogForm({ initialRecord, teacherId, onSave, onCancel, s
       setIsLoadingStudents(true);
       try {
         const gradeLevel = selectedGrades[0];
-        const q = query(collection(db, 'students'), where('gradeLevel', '==', gradeLevel), where('status', '==', 'active'));
+        const q = query(collection(db, 'students'), where('gradeLevel', '==', gradeLevel));
         const snap = await getDocs(q);
-        const studentList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
-        studentList.sort((a, b) => a.number - b.number);
+        const studentList = snap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Student))
+          .filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+        studentList.sort((a, b) => (a.number || 0) - (b.number || 0));
         setStudents(studentList);
       } catch(e) {
         console.error(e);

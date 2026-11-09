@@ -14,6 +14,7 @@ export function ResignedStudentsOverviewCard({ students, onOpenModal }: Resigned
 
   const totalMale = inactiveStudents.filter(s => s.gender === 'male').length;
   const totalFemale = inactiveStudents.filter(s => s.gender === 'female').length;
+  const withReasonCount = inactiveStudents.filter(s => !!s.resignationReason?.trim()).length;
   const withDestCount = inactiveStudents.filter(s => !!s.destinationSchool?.trim()).length;
 
   // Recent 3 resigned students
@@ -37,7 +38,7 @@ export function ResignedStudentsOverviewCard({ students, onOpenModal }: Resigned
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              ติดตามสถิตินักเรียนที่จำหน่ายออกจากสถานศึกษาและโรงเรียนปลายทาง
+              ติดตามสถิติ สาเหตุการย้าย/ลาออก และสถานศึกษาปลายทางของนักเรียนที่จำหน่ายออกจากสถานศึกษา
             </p>
           </div>
         </div>
@@ -51,9 +52,9 @@ export function ResignedStudentsOverviewCard({ students, onOpenModal }: Resigned
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4">
         <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-rose-100/80 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-500">จำนวนที่ย้าย/ลาออก</div>
+          <div className="text-[11px] font-bold text-slate-500">ย้าย/ลาออกทั้งหมด</div>
           <div className="text-2xl font-black text-rose-600 mt-0.5">
             {inactiveStudents.length} <span className="text-xs font-bold text-slate-400">คน</span>
           </div>
@@ -73,8 +74,15 @@ export function ResignedStudentsOverviewCard({ students, onOpenModal }: Resigned
           </div>
         </div>
 
+        <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-purple-100/80 shadow-2xs">
+          <div className="text-[11px] font-bold text-purple-700">ระบุสาเหตุแล้ว</div>
+          <div className="text-2xl font-black text-purple-800 mt-0.5">
+            {withReasonCount} <span className="text-xs font-bold text-slate-400">คน</span>
+          </div>
+        </div>
+
         <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-amber-100/80 shadow-2xs">
-          <div className="text-[11px] font-bold text-amber-700">ระบุที่เรียนต่อแล้ว</div>
+          <div className="text-[11px] font-bold text-amber-700">ระบุที่เรียนต่อ</div>
           <div className="text-2xl font-black text-amber-800 mt-0.5">
             {withDestCount} <span className="text-xs font-bold text-slate-400">คน</span>
           </div>

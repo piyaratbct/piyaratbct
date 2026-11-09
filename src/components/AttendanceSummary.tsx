@@ -1,5 +1,5 @@
 import { useAvailableSubjects } from '../hooks/useAvailableSubjects';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { AttendanceSession, GRADE_LEVELS, SUBJECTS } from '../types';
@@ -29,14 +29,27 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   const [termEndDate, setTermEndDate] = useState<string>('');
   const [showDailyReport, setShowDailyReport] = useState<boolean>(false);
 
-  const uniqueGrades = React.useMemo(() => {
-    const dbGrades = new Set(students.map(s => s.gradeLevel));
+  // Filter out inactive/transferred/graduated students completely
+  const activeStudents = useMemo(() => {
+    return (students || []).filter(s => s.status !== 'inactive' && s.status !== 'graduated');
+  }, [students]);
+
+  const activeStudentIds = useMemo(() => {
+    return new Set(activeStudents.map(s => s.id));
+  }, [activeStudents]);
+
+  const activeGradeStudents = useMemo(() => {
+    return activeStudents.filter(s => s.gradeLevel === selectedGrade);
+  }, [activeStudents, selectedGrade]);
+
+  const uniqueGrades = useMemo(() => {
+    const dbGrades = new Set(activeStudents.map(s => s.gradeLevel));
     const hideIfEmpty = ['ประถมศึกษาปีที่ 1', 'ประถมศึกษาปีที่ 2'];
     const filteredGradeLevels = GRADE_LEVELS.filter(g => !hideIfEmpty.includes(g) || dbGrades.has(g));
     const extraGrades = Array.from(dbGrades).filter(g => typeof g === 'string' && !GRADE_LEVELS.includes(g) && g !== 'จบการศึกษา') as string[];
     extraGrades.sort();
     return [...filteredGradeLevels, ...extraGrades];
-  }, [students]);
+  }, [activeStudents]);
 
 
   useEffect(() => {
@@ -115,7 +128,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
   };
 
   // Compute daily totals across all sessions for the selected grade and date
-  const totalStudents = sessions.length > 0 ? Object.keys(sessions[0].attendanceData || {}).length : 0;
+  const totalStudents = activeGradeStudents.length;
   
   return (
     <div className="p-6">
@@ -251,11 +264,15 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
               {(() => {
                 let totalPresent = 0, totalLeave = 0, totalSick = 0, totalAbsent = 0, totalLate = 0;
                 sessions.forEach(session => {
-                  totalPresent += Object.values(session.attendanceData || {}).filter(s => s === 'present').length;
-                  totalLeave += Object.values(session.attendanceData || {}).filter(s => s === 'leave').length;
-                  totalSick += Object.values(session.attendanceData || {}).filter(s => s === 'sick').length;
-                  totalAbsent += Object.values(session.attendanceData || {}).filter(s => s === 'absent').length;
-                  totalLate += Object.values(session.attendanceData || {}).filter(s => s === 'late').length;
+                  Object.entries(session.attendanceData || {}).forEach(([studentId, status]) => {
+                    if (activeStudentIds.has(studentId)) {
+                      if (status === 'present') totalPresent++;
+                      else if (status === 'leave') totalLeave++;
+                      else if (status === 'sick') totalSick++;
+                      else if (status === 'absent') totalAbsent++;
+                      else if (status === 'late') totalLate++;
+                    }
+                  });
                 });
                 
                 // Average out based on number of sessions to get an approximate daily summary
@@ -299,12 +316,13 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {sessions.map((session, idx) => {
+              const activeEntries = Object.entries(session.attendanceData || {}).filter(([id]) => activeStudentIds.has(id));
               const stats = {
-                present: Object.values(session.attendanceData || {}).filter(s => s === 'present').length,
-                leave: Object.values(session.attendanceData || {}).filter(s => s === 'leave').length,
-                sick: Object.values(session.attendanceData || {}).filter(s => s === 'sick').length,
-                absent: Object.values(session.attendanceData || {}).filter(s => s === 'absent').length,
-                late: Object.values(session.attendanceData || {}).filter(s => s === 'late').length,
+                present: activeEntries.filter(([, s]) => s === 'present').length,
+                leave: activeEntries.filter(([, s]) => s === 'leave').length,
+                sick: activeEntries.filter(([, s]) => s === 'sick').length,
+                absent: activeEntries.filter(([, s]) => s === 'absent').length,
+                late: activeEntries.filter(([, s]) => s === 'late').length,
               };
               const total = stats.present + stats.leave + stats.sick + stats.absent + stats.late;
               
@@ -392,7 +410,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <AttendanceTracking
-              students={students}
+              students={activeStudents}
               gradeLevel={editingSession.gradeLevel}
               teacherId={editingSession.teacherId}
               teacherName={editingSession.teacherName}
@@ -414,7 +432,7 @@ export function AttendanceSummary({ systemAcademicYear, systemSemester, students
           initialDate={selectedDate}
           semester={systemSemester}
           academicYear={systemAcademicYear}
-          students={students}
+          students={activeStudents}
           onClose={() => setShowDailyReport(false)}
         />
       )}
