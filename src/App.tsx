@@ -32,6 +32,9 @@ import { OnlineUsersIndicator } from "./components/OnlineUsersIndicator";
 import { DisciplineModule } from "./components/DisciplineModule";
 import { LessonAdmitModule } from './components/LessonAdmitModule';
 import { BadgeAwardModal } from './components/BadgeAwardModal';
+import { ResignedStudentsModal } from './components/ResignedStudentsModal';
+import { ResignedStudentsOverviewCard } from './components/ResignedStudentsOverviewCard';
+import { StudentDetailModal } from './components/StudentDetailModal';
 
 import {
   BookOpen,
@@ -75,7 +78,8 @@ import {
   History,
   UserPlus,
   Medal,
-  AlertCircle
+  AlertCircle,
+  UserMinus
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, db, storage, handleFirestoreError, OperationType } from "./lib/firebase";
@@ -203,6 +207,8 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsCount, setStudentsCount] = useState<number>(0);
   const [showStudentStatsModal, setShowStudentStatsModal] = useState<boolean>(false);
+  const [showResignedStudentsModal, setShowResignedStudentsModal] = useState<boolean>(false);
+  const [selectedStudent360, setSelectedStudent360] = useState<Student | null>(null);
   const [showBadgeModal, setShowBadgeModal] = useState<boolean>(false);
   const [showTeacherListModal, setShowTeacherListModal] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -1999,7 +2005,39 @@ export default function App() {
                   </div>
                 </div>
               </button>
+
+              {currentTeacher.role === 'admin' && (
+                <button 
+                  onClick={() => setShowResignedStudentsModal(true)}
+                  className="bg-white p-4 sm:p-6 rounded-2xl border border-rose-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 hover:shadow-md hover:border-rose-300 transition-all text-left text-inherit cursor-pointer relative group"
+                >
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <UserMinus className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs sm:text-sm font-bold text-slate-500">
+                        ย้าย / ลาออก
+                      </span>
+                      <span className="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.2 rounded border border-rose-200 uppercase">
+                        Admin
+                      </span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-rose-600">
+                      {students.filter(s => s.status === 'inactive').length.toLocaleString()} <span className="text-xs font-semibold text-slate-400">คน</span>
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
+
+            {/* Admin-only Withdrawn/Resigned Students Dashboard Section */}
+            {currentTeacher.role === 'admin' && (
+              <ResignedStudentsOverviewCard
+                students={students}
+                onOpenModal={() => setShowResignedStudentsModal(true)}
+              />
+            )}
 
             {/* Quick Actions / Modules Navigation */}
             <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -3105,6 +3143,26 @@ export default function App() {
         onClose={() => setShowStudentStatsModal(false)}
         students={students}
       />
+
+      {/* Resigned / Inactive Students Modal (Admin Only) */}
+      {currentTeacher.role === 'admin' && (
+        <ResignedStudentsModal
+          isOpen={showResignedStudentsModal}
+          onClose={() => setShowResignedStudentsModal(false)}
+          students={students}
+          onViewStudent360={(student) => {
+            setSelectedStudent360(student);
+          }}
+        />
+      )}
+
+      {/* Student 360 Detail Modal */}
+      {selectedStudent360 && (
+        <StudentDetailModal
+          student={selectedStudent360}
+          onClose={() => setSelectedStudent360(null)}
+        />
+      )}
       {/* Student Evaluation Modal */}
       <StudentEvaluationModal
         isOpen={!!evaluatingModalRecord}
